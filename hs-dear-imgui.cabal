@@ -3,25 +3,79 @@ name: dear-imgui
 version: 1.0.0
 build-type: Simple
 
+flag opengl
+  description:
+    Enable OpenGL backend.
+  default:
+    True
+  manual:
+    False
+
+flag sdl
+  description:
+    Enable SDL backend.
+  default:
+    True
+  manual:
+    False
+
 library
-  exposed-modules: DearImGui
-  hs-source-dirs: src
-  default-language: Haskell2010
-  ghc-options: -Wall
+  exposed-modules:
+    DearImGui
+  hs-source-dirs:
+    src
+  default-language:
+    Haskell2010
+  ghc-options:
+    -Wall
   cxx-sources:
     imgui/imgui.cpp
-    imgui/backends/imgui_impl_opengl2.cpp
-    imgui/backends/imgui_impl_sdl.cpp
+    imgui/imgui_demo.cpp
+    imgui/imgui_draw.cpp
     imgui/imgui_tables.cpp
     imgui/imgui_widgets.cpp
-    imgui/imgui_draw.cpp
-    imgui/imgui_demo.cpp
-  cxx-options: -std=c++11
-  extra-libraries: stdc++
-  pkgconfig-depends: sdl2
-  include-dirs: imgui
-  build-depends: base, inline-c, inline-c-cpp, sdl2, StateVar
-  extra-libraries: GL
+  cxx-options:
+    -std=c++11
+  extra-libraries:
+    stdc++
+  include-dirs:
+    imgui
+  build-depends:
+      base
+    , inline-c
+    , inline-c-cpp
+    , StateVar
+
+  if flag(opengl)
+    exposed-modules:
+      DearImGui.OpenGL
+    cxx-sources:
+      imgui/backends/imgui_impl_opengl2.cpp
+    if os(windows)
+      extra-libraries:
+        opengl32
+    else
+      extra-libraries:
+        GL
+
+  if flag(sdl)
+    exposed-modules:
+      DearImGui.SDL
+    build-depends:
+      sdl2
+    cxx-sources:
+      imgui/backends/imgui_impl_sdl.cpp
+
+    if os(windows) || os(darwin)
+      extra-libraries:
+        sdl2
+    else
+      pkgconfig-depends:
+        sdl2
+
+    if flag(opengl)
+      exposed-modules:
+        DearImGui.SDL.OpenGL
 
 
 executable test
