@@ -58,6 +58,8 @@ loop w checked = do
     True  -> readIORef checked >>= print
     False -> return ()
 
+  separator
+
   progressBar 0.314 (Just "Pi")
 
   beginCombo "Label" "Preview" >>= whenTrue do

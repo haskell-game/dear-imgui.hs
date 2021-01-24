@@ -49,6 +49,7 @@ module DearImGui
   , end
 
     -- * Cursor/Layout
+  , separator
   , sameLine
 
     -- * Widgets
@@ -309,6 +310,15 @@ begin name = liftIO do
 end :: MonadIO m => m ()
 end = liftIO do
   [C.exp| void { ImGui::End(); } |]
+
+
+-- | Separator, generally horizontal. inside a menu bar or in horizontal layout
+-- mode, this becomes a vertical separator.
+--
+-- Wraps @ImGui::Separator()@
+separator :: MonadIO m => m ()
+separator = liftIO do
+  [C.exp| void { Separator(); } |]
 
 
 -- | Call between widgets or groups to layout them horizontally.
