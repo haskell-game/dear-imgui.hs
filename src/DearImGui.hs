@@ -80,6 +80,10 @@ module DearImGui
   , endMenu
   , menuItem
 
+    -- * Tooltips
+  , beginTooltip
+  , endTooltip
+
     -- * Popups/Modals
   , beginPopup
   , beginPopupModal
@@ -491,6 +495,21 @@ menuItem :: MonadIO m => String -> m Bool
 menuItem label = liftIO do
   withCString label \labelPtr ->
     (1 ==) <$> [C.exp| bool { MenuItem($(char* labelPtr)) } |]
+
+
+-- | Begin/append a tooltip window to create full-featured tooltip (with any
+-- kind of items).
+--
+-- Wraps @ImGui::BeginTooltip()@
+beginTooltip :: MonadIO m => m ()
+beginTooltip = liftIO do
+  [C.exp| void { BeginTooltip() } |]
+
+
+-- | Wraps @ImGui::EndTooltip()@
+endTooltip :: MonadIO m => m ()
+endTooltip = liftIO do
+  [C.exp| void { EndTooltip() } |]
 
 
 -- | Returns 'True' if the popup is open, and you can start outputting to it.

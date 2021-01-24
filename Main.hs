@@ -48,7 +48,12 @@ loop w checked = do
     True  -> openPopup "Button Popup"
     False -> return ()
 
-  beginPopupModal "Button Popup" >>= whenTrue do
+  isItemHovered >>= whenTrue do
+    beginTooltip
+    text "Tooltip?"
+    endTooltip
+
+  beginPopup "Button Popup" >>= whenTrue do
     button "Close" >>= whenTrue closeCurrentPopup
     endPopup
 
