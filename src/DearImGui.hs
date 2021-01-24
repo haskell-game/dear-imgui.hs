@@ -6,6 +6,12 @@
 {-# LANGUAGE QuasiQuotes #-}
 {-# LANGUAGE TemplateHaskell #-}
 
+{-|
+Module: DearImGui
+
+Main ImGui module, exporting the functions to create a GUI.
+-}
+
 module DearImGui
   ( -- * Context Creation and Access
     Context(..)
@@ -19,18 +25,6 @@ module DearImGui
   , DrawData(..)
   , getDrawData
   , checkVersion
-
-    -- ** SDL2
-  , sdl2InitForOpenGL
-  , sdl2NewFrame
-  , sdl2Shutdown
-  , pollEventWithImGui
-
-    -- ** OpenGL 2
-  , openGL2Init
-  , openGL2Shutdown
-  , openGL2NewFrame
-  , openGL2RenderDrawData
 
     -- * Demo, Debug, Information
   , showDemoWindow
@@ -103,26 +97,28 @@ module DearImGui
   )
   where
 
-import Control.Monad ( when )
-import Control.Monad.IO.Class ( MonadIO, liftIO )
+-- base
 import Data.Bool
-import Data.StateVar
 import Foreign
 import Foreign.C
+
+-- inline-c
 import qualified Language.C.Inline as C
+
+-- inline-c-cpp
 import qualified Language.C.Inline.Cpp as Cpp
-import SDL
-import SDL.Internal.Types
-import SDL.Raw.Enum as Raw
-import qualified SDL.Raw.Event as Raw
-import Unsafe.Coerce ( unsafeCoerce )
+
+-- StateVar
+import Data.StateVar
+  ( HasGetter(get), HasSetter, ($=!) )
+
+-- transformers
+import Control.Monad.IO.Class
+  ( MonadIO, liftIO )
+
 
 C.context (Cpp.cppCtx <> C.bsCtx)
 C.include "imgui.h"
-C.include "backends/imgui_impl_opengl2.h"
-C.include "backends/imgui_impl_sdl.h"
-C.include "SDL.h"
-C.include "SDL_opengl.h"
 Cpp.using "namespace ImGui"
 
 
@@ -182,68 +178,6 @@ getDrawData = liftIO do
 checkVersion :: MonadIO m => m ()
 checkVersion = liftIO do
   [C.exp| void { IMGUI_CHECKVERSION(); } |]
-
-
--- | Wraps @ImGui_ImplSDL2_InitForOpenGL@.
-sdl2InitForOpenGL :: MonadIO m => Window -> GLContext -> m ()
-sdl2InitForOpenGL (Window windowPtr) glContext = liftIO do
-  [C.exp| void { ImGui_ImplSDL2_InitForOpenGL((SDL_Window*)$(void* windowPtr), $(void* glContextPtr)); } |]
-  where
-    glContextPtr :: Ptr ()
-    glContextPtr = unsafeCoerce glContext
-
-
--- | Wraps @ImGui_ImplSDL2_NewFrame@.
-sdl2NewFrame :: MonadIO m => Window -> m ()
-sdl2NewFrame (Window windowPtr) = liftIO do
-  [C.exp| void { ImGui_ImplSDL2_NewFrame((SDL_Window*)($(void* windowPtr))); } |]
-
-
--- | Wraps @ImGui_ImplSDL2_Shutdown@.
-sdl2Shutdown :: MonadIO m => m ()
-sdl2Shutdown = liftIO do
-  [C.exp| void { ImGui_ImplSDL2_Shutdown(); } |]
-
-
--- | Call the SDL2 'pollEvent' function, while also dispatching the event to
--- Dear ImGui. You should use this in your application instead of 'pollEvent'.
-pollEventWithImGui :: MonadIO m => m (Maybe Event)
-pollEventWithImGui = liftIO do
-  alloca \evPtr -> do
-    pumpEvents
-
-    -- We use NULL first to check if there's an event.
-    nEvents <- Raw.peepEvents evPtr 1 Raw.SDL_PEEKEVENT Raw.SDL_FIRSTEVENT Raw.SDL_LASTEVENT
-
-    when (nEvents > 0) do
-      let evPtr' = castPtr evPtr :: Ptr ()
-      [C.exp| void { ImGui_ImplSDL2_ProcessEvent((SDL_Event*) $(void* evPtr')) } |]
-
-    pollEvent
-
-
--- | Wraps @ImGui_ImplOpenGL2_Init@.
-openGL2Init :: MonadIO m => m ()
-openGL2Init = liftIO do
-  [C.exp| void { ImGui_ImplOpenGL2_Init(); } |]
-
-
--- | Wraps @ImGui_ImplOpenGL2_Shutdown@.
-openGL2Shutdown :: MonadIO m => m ()
-openGL2Shutdown = liftIO do
-  [C.exp| void { ImGui_ImplOpenGL2_Shutdown(); } |]
-
-
--- | Wraps @ImGui_ImplOpenGL2_NewFrame@.
-openGL2NewFrame :: MonadIO m => m ()
-openGL2NewFrame = liftIO do
-  [C.exp| void { ImGui_ImplOpenGL2_NewFrame(); } |]
-
-
--- | Wraps @ImGui_ImplOpenGL2_RenderDrawData@.
-openGL2RenderDrawData :: MonadIO m => DrawData -> m ()
-openGL2RenderDrawData (DrawData ptr) = liftIO do
-  [C.exp| void { ImGui_ImplOpenGL2_RenderDrawData((ImDrawData*) $( void* ptr )) } |]
 
 
 -- | Create demo window. Demonstrate most ImGui features. Call this to learn

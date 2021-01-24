@@ -7,6 +7,9 @@ module Main (main) where
 
 import Data.IORef
 import DearImGui
+import DearImGui.OpenGL
+import DearImGui.SDL
+import DearImGui.SDL.OpenGL
 import Control.Exception
 import Graphics.GL
 import SDL
