@@ -87,6 +87,9 @@ module DearImGui
   , openPopup
   , closeCurrentPopup
 
+    -- * Item/Widgets Utilities
+  , isItemHovered
+
     -- * Types
   , ImGuiDir
   , pattern ImGuiDirLeft
@@ -531,6 +534,14 @@ openPopup popupId = liftIO do
 closeCurrentPopup :: MonadIO m => m ()
 closeCurrentPopup = liftIO do
   [C.exp| void { CloseCurrentPopup() } |]
+
+
+-- | Is the last item hovered? (and usable, aka not blocked by a popup, etc.).
+--
+-- Wraps @ImGui::IsItemHovered()@
+isItemHovered :: MonadIO m => m Bool
+isItemHovered = liftIO do
+  (1 ==) <$> [C.exp| bool { IsItemHovered() } |]
 
 
 -- | A cardinal direction.
