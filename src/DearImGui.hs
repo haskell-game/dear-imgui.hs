@@ -65,6 +65,9 @@ module DearImGui
     -- ** Selectables
   , selectable
 
+    -- * Data Plotting
+  , plotHistogram
+
     -- ** Menus
   , beginMenuBar
   , endMenuBar
@@ -369,6 +372,15 @@ selectable :: MonadIO m => String -> m Bool
 selectable label = liftIO do
   withCString label \labelPtr ->
     (1 == ) <$> [C.exp| bool { Selectable($(char* labelPtr)) } |]
+
+
+-- | Wraps @ImGui::PlotHistogram()@.
+plotHistogram :: MonadIO m => String -> [CFloat] -> m ()
+plotHistogram label values = liftIO $
+  withArrayLen values \len valuesPtr ->
+    withCString label \labelPtr -> do
+      let c'len = fromIntegral len
+      [C.exp| void { PlotHistogram($(char* labelPtr), $(float* valuesPtr), $(int c'len)) } |]
 
 
 -- | Append to menu-bar of current window (requires 'ImGuiWindowFlagsMenuBar'

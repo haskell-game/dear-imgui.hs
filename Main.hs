@@ -78,6 +78,8 @@ loop w checked = do
     selectable "Testing 2"
     endCombo
 
+  plotHistogram "A histogram" [ 10, 10, 20, 30, 90 ]
+
   beginMainMenuBar >>= whenTrue do
     beginMenu "Hello" >>= whenTrue do
       menuItem "Hello"
