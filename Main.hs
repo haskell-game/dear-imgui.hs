@@ -5,6 +5,7 @@
 
 module Main (main) where
 
+import Data.IORef
 import DearImGui
 import Control.Exception
 import Graphics.GL
@@ -23,12 +24,12 @@ main = do
       styleColorsLight
       openGL2Init
 
-      loop w
+      newIORef False >>= loop w
 
       openGL2Shutdown
 
-loop :: Window -> IO ()
-loop w = do
+loop :: Window -> IORef Bool -> IO ()
+loop w checked = do
   ev <- pollEventWithImGui
 
   openGL2NewFrame
@@ -53,6 +54,10 @@ loop w = do
 
   arrowButton "Arrow" ImGuiDirUp
 
+  checkbox "Check!" checked >>= \case
+    True  -> readIORef checked >>= print
+    False -> return ()
+
   end
 
   render
@@ -63,7 +68,7 @@ loop w = do
   glSwapWindow w
 
   case ev of
-    Nothing -> loop w
+    Nothing -> loop w checked
     Just Event{ eventPayload } -> case eventPayload of
       QuitEvent -> return ()
-      _         -> loop w
+      _         -> loop w checked

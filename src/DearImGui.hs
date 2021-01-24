@@ -1,4 +1,5 @@
 {-# LANGUAGE BlockArguments #-}
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE PatternSynonyms #-}
@@ -55,6 +56,7 @@ module DearImGui
   , button
   , smallButton
   , arrowButton
+  , checkbox
 
     -- * Types
   , ImGuiDir
@@ -65,9 +67,11 @@ module DearImGui
   )
   where
 
+import Data.Bool
+import Data.StateVar
 import Control.Monad ( when )
 import Foreign
-import Foreign.C.String
+import Foreign.C
 import qualified Language.C.Inline as C
 import qualified Language.C.Inline.Cpp as Cpp
 import SDL
@@ -295,6 +299,20 @@ smallButton label = withCString label \labelPtr ->
 arrowButton :: String -> ImGuiDir -> IO Bool
 arrowButton strId (ImGuiDir dir) = withCString strId \strIdPtr ->
   (1 ==) <$> [C.exp| bool { ArrowButton($(char* strIdPtr), $(int dir)) } |]
+
+
+-- | Wraps @ImGui::Checkbox()@.
+checkbox :: (HasSetter ref Bool, HasGetter ref Bool) => String -> ref -> IO Bool
+checkbox label ref = do
+  currentValue <- get ref
+  with (bool 0 1 currentValue :: CBool) \boolPtr -> do
+    changed <- withCString label \labelPtr ->
+      (1 ==) <$> [C.exp| bool { Checkbox($(char* labelPtr), $(bool* boolPtr)) } |]
+
+    newValue <- peek boolPtr
+    ref $=! (newValue == 1)
+
+    return changed
 
 
 -- | A cardinal direction.

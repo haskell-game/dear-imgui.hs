@@ -20,7 +20,7 @@ library
   extra-libraries: stdc++
   pkgconfig-depends: sdl2
   include-dirs: imgui
-  build-depends: base, inline-c, inline-c-cpp, sdl2
+  build-depends: base, inline-c, inline-c-cpp, sdl2, StateVar
   extra-libraries: GL
 
 
