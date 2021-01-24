@@ -67,6 +67,15 @@ module DearImGui
     -- ** Selectables
   , selectable
 
+    -- ** Menus
+  , beginMenuBar
+  , endMenuBar
+  , beginMainMenuBar
+  , endMainMenuBar
+  , beginMenu
+  , endMenu
+  , menuItem
+
     -- * Types
   , ImGuiDir
   , pattern ImGuiDirLeft
@@ -391,6 +400,66 @@ selectable :: MonadIO m => String -> m Bool
 selectable label = liftIO do
   withCString label \labelPtr ->
     (1 == ) <$> [C.exp| bool { Selectable($(char* labelPtr)) } |]
+
+
+-- | Append to menu-bar of current window (requires 'ImGuiWindowFlagsMenuBar'
+-- flag set on parent window).
+--
+-- Wraps @ImGui::BeginMenuBar()@.
+beginMenuBar :: MonadIO m => m Bool
+beginMenuBar = liftIO do
+  (1 == ) <$> [C.exp| bool { BeginMenuBar() } |]
+
+
+-- | Only call 'endMenuBar' if 'beginMenuBar' returns true!
+--
+-- Wraps @ImGui::EndMenuBar()@.
+endMenuBar :: MonadIO m => m ()
+endMenuBar = liftIO do
+  [C.exp| void { EndMenuBar(); } |]
+
+
+-- | Create and append to a full screen menu-bar.
+--
+-- Wraps @ImGui::BeginMainMenuBar()@.
+beginMainMenuBar :: MonadIO m => m Bool
+beginMainMenuBar = liftIO do
+  (1 == ) <$> [C.exp| bool { BeginMainMenuBar() } |]
+
+
+-- | Only call 'endMainMenuBar' if 'beginMainMenuBar' returns true!
+--
+-- Wraps @ImGui::EndMainMenuBar()@.
+endMainMenuBar :: MonadIO m => m ()
+endMainMenuBar = liftIO do
+  [C.exp| void { EndMainMenuBar(); } |]
+
+
+-- | Create a sub-menu entry.
+--
+-- Wraps @ImGui::BeginMenu()@.
+beginMenu :: MonadIO m => String -> m Bool
+beginMenu label = liftIO do
+  withCString label \labelPtr ->
+    (1 == ) <$> [C.exp| bool { BeginMenu($(char* labelPtr)) } |]
+
+
+-- | Only call 'endMenu' if 'beginMenu' returns true!
+--
+-- Wraps @ImGui::EndMenu()@.
+endMenu :: MonadIO m => m ()
+endMenu = liftIO do
+  [C.exp| void { EndMenu(); } |]
+
+
+-- Return true when activated. Shortcuts are displayed for convenience but not
+-- processed by ImGui at the moment
+--
+-- Wraps @ImGui::MenuItem()@
+menuItem :: MonadIO m => String -> m Bool
+menuItem label = liftIO do
+  withCString label \labelPtr ->
+    (1 ==) <$> [C.exp| bool { MenuItem($(char* labelPtr)) } |]
 
 
 -- | A cardinal direction.

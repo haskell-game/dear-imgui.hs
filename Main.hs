@@ -65,6 +65,17 @@ loop w checked = do
     selectable "Testing 2"
     endCombo
 
+  beginMainMenuBar >>= whenTrue do
+    beginMenu "Hello" >>= whenTrue do
+      menuItem "Hello"
+      endMenu
+
+    beginMenu "World" >>= whenTrue do
+      menuItem "World"
+      endMenu
+
+    endMainMenuBar
+
   end
 
   render
