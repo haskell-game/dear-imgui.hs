@@ -22,6 +22,7 @@ flag sdl
 library
   exposed-modules:
     DearImGui
+    DearImGui.Context
   hs-source-dirs:
     src
   default-language:
@@ -42,6 +43,7 @@ library
     imgui
   build-depends:
       base
+    , containers
     , inline-c
     , inline-c-cpp
     , StateVar

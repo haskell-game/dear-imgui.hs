@@ -62,6 +62,9 @@ module DearImGui
   , beginCombo
   , endCombo
 
+    -- * Color Editor/Picker
+  , colorButton
+
     -- ** Selectables
   , selectable
 
@@ -97,6 +100,7 @@ module DearImGui
   , pattern ImGuiDirRight
   , pattern ImGuiDirUp
   , pattern ImGuiDirDown
+  , ImVec4(..)
   )
   where
 
@@ -104,6 +108,9 @@ module DearImGui
 import Data.Bool
 import Foreign
 import Foreign.C
+
+-- dear-imgui
+import DearImGui.Context
 
 -- inline-c
 import qualified Language.C.Inline as C
@@ -120,7 +127,7 @@ import Control.Monad.IO.Class
   ( MonadIO, liftIO )
 
 
-C.context (Cpp.cppCtx <> C.bsCtx)
+C.context (Cpp.cppCtx <> C.bsCtx <> imguiContext)
 C.include "imgui.h"
 Cpp.using "namespace ImGui"
 
@@ -365,6 +372,22 @@ beginCombo label previewValue = liftIO $
 endCombo :: MonadIO m => m ()
 endCombo = liftIO do
   [C.exp| void { EndCombo() } |]
+
+
+-- | Display a color square/button, hover for details, return true when pressed.
+--
+-- | Wraps @ImGui::ColorButton()@.
+colorButton :: (MonadIO m, HasSetter ref ImVec4, HasGetter ref ImVec4) => String -> ref -> m Bool
+colorButton desc ref = liftIO do
+  currentValue <- get ref
+  with currentValue \refPtr -> do
+    changed <- withCString desc \descPtr ->
+      (1 == ) <$> [C.exp| bool { ColorButton( $(char* descPtr), *$(ImVec4 *refPtr) ) } |]
+
+    newValue <- peek refPtr
+    ref $=! newValue
+
+    return changed
 
 
 -- | Wraps @ImGui::Selectable()@.

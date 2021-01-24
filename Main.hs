@@ -80,6 +80,9 @@ loop w checked = do
 
   plotHistogram "A histogram" [ 10, 10, 20, 30, 90 ]
 
+  ref <- newIORef $ ImVec4 1 0 0 1
+  colorButton "Test" ref
+
   beginMainMenuBar >>= whenTrue do
     beginMenu "Hello" >>= whenTrue do
       menuItem "Hello"
