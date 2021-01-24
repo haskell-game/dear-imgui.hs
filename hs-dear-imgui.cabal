@@ -83,3 +83,11 @@ executable test
   default-language: Haskell2010
   build-depends: base, sdl2, gl, dear-imgui
   ghc-options: -Wall
+
+
+executable readme
+  main-is: Readme.hs
+  hs-source-dirs: examples
+  default-language: Haskell2010
+  build-depends: base, sdl2, gl, dear-imgui, managed
+  ghc-options: -Wall
