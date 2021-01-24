@@ -30,7 +30,7 @@ main = do
 
 loop :: Window -> IORef Bool -> IO ()
 loop w checked = do
-  ev <- pollEventWithImGui
+  quit <- pollEvents
 
   openGL2NewFrame
   sdl2NewFrame w
@@ -85,11 +85,21 @@ loop w checked = do
 
   glSwapWindow w
 
-  case ev of
-    Nothing -> loop w checked
-    Just Event{ eventPayload } -> case eventPayload of
-      QuitEvent -> return ()
-      _         -> loop w checked
+  if quit then return () else loop w checked
+
+  where
+
+    pollEvents = do
+      ev <- pollEventWithImGui
+
+      case ev of
+        Nothing -> return False
+        Just Event{ eventPayload } -> do
+          let isQuit = case eventPayload of
+                QuitEvent -> True
+                _         -> False
+
+          (isQuit ||) <$> pollEvents
 
 
 whenTrue :: IO () -> Bool -> IO ()
