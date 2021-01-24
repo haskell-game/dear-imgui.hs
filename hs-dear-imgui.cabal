@@ -1,0 +1,31 @@
+cabal-version: 3.0
+name: dear-imgui
+version: 1.0.0
+build-type: Simple
+
+library
+  exposed-modules: DearImGui
+  hs-source-dirs: src
+  default-language: Haskell2010
+  ghc-options: -Wall
+  cxx-sources:
+    imgui/imgui.cpp
+    imgui/backends/imgui_impl_opengl2.cpp
+    imgui/backends/imgui_impl_sdl.cpp
+    imgui/imgui_tables.cpp
+    imgui/imgui_widgets.cpp
+    imgui/imgui_draw.cpp
+    imgui/imgui_demo.cpp
+  cxx-options: -std=c++11
+  extra-libraries: stdc++
+  pkgconfig-depends: sdl2
+  include-dirs: imgui
+  build-depends: base, inline-c, inline-c-cpp, sdl2
+  extra-libraries: GL
+
+
+executable test
+  main-is: Main.hs
+  default-language: Haskell2010
+  build-depends: base, sdl2, gl, dear-imgui
+  ghc-options: -Wall
