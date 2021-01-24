@@ -57,6 +57,7 @@ module DearImGui
   , smallButton
   , arrowButton
   , checkbox
+  , progressBar
   , bullet
 
     -- * Types
@@ -316,6 +317,14 @@ checkbox label ref = do
     return changed
 
 
+progressBar :: Float -> Maybe String -> IO ()
+progressBar progress overlay = withCStringOrNull overlay \overlayPtr ->
+  [C.exp| void { ProgressBar($(float c'progress), ImVec2(-FLT_MIN, 0), $(char* overlayPtr)) } |]
+  where
+    c'progress :: CFloat
+    c'progress = realToFrac progress
+
+
 -- | Draw a small circle + keep the cursor on the same line. Advance cursor x
 -- position by 'getTreeNodeToLabelSpacing', same distance that 'treeNode' uses.
 bullet :: IO ()
@@ -331,3 +340,8 @@ pattern ImGuiDirLeft  = ImGuiDir 0
 pattern ImGuiDirRight = ImGuiDir 1
 pattern ImGuiDirUp    = ImGuiDir 2
 pattern ImGuiDirDown  = ImGuiDir 3
+
+
+withCStringOrNull :: Maybe String -> (Ptr CChar -> IO a) -> IO a
+withCStringOrNull Nothing k  = k nullPtr
+withCStringOrNull (Just s) k = withCString s k
