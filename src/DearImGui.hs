@@ -48,6 +48,9 @@ module DearImGui
   , begin
   , end
 
+    -- * Cursor/Layout
+  , sameLine
+
     -- * Widgets
     -- ** Text
   , text
@@ -306,6 +309,14 @@ begin name = liftIO do
 end :: MonadIO m => m ()
 end = liftIO do
   [C.exp| void { ImGui::End(); } |]
+
+
+-- | Call between widgets or groups to layout them horizontally.
+--
+-- Wraps @ImGui::SameLine@.
+sameLine :: MonadIO m => m ()
+sameLine = liftIO do
+  [C.exp| void { SameLine(); } |]
 
 
 -- | Formatted text.

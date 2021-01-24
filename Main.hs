@@ -48,13 +48,13 @@ loop w checked = do
     True  -> putStrLn "Oh hi Mark"
     False -> return ()
 
-  smallButton "Click me" >>= \case
+  sameLine >> smallButton "Click me" >>= \case
     True  -> putStrLn "Oh hi Mark"
     False -> return ()
 
-  arrowButton "Arrow" ImGuiDirUp
+  sameLine >> arrowButton "Arrow" ImGuiDirUp
 
-  checkbox "Check!" checked >>= \case
+  sameLine >> checkbox "Check!" checked >>= \case
     True  -> readIORef checked >>= print
     False -> return ()
 
