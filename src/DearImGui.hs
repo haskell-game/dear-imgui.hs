@@ -60,6 +60,13 @@ module DearImGui
   , progressBar
   , bullet
 
+    -- ** Combo Box
+  , beginCombo
+  , endCombo
+
+    -- ** Selectables
+  , selectable
+
     -- * Types
   , ImGuiDir
   , pattern ImGuiDirLeft
@@ -329,6 +336,32 @@ progressBar progress overlay = withCStringOrNull overlay \overlayPtr ->
 -- position by 'getTreeNodeToLabelSpacing', same distance that 'treeNode' uses.
 bullet :: IO ()
 bullet = [C.exp| void { Bullet() } |]
+
+
+-- | Begin creating a combo box with a given label and preview value.
+--
+-- Returns 'True' if the combo box is open. In this state, you should populate
+-- the contents of the combo box - for example, by calling 'selectable'.
+--
+-- Wraps @ImGui::BeginCombo()@.
+beginCombo :: String -> String -> IO Bool
+beginCombo label previewValue =
+  withCString label        \labelPtr ->
+  withCString previewValue \previewValuePtr ->
+  (1 ==) <$> [C.exp| bool { BeginCombo($(char* labelPtr), $(char* previewValuePtr)) } |]
+
+
+-- | Only call 'endCombo' if 'beginCombon' returns 'True'!
+--
+-- Wraps @ImGui::EndCombo()@.
+endCombo :: IO ()
+endCombo = [C.exp| void { EndCombo() } |]
+
+
+-- | Wraps @ImGui::Selectable()@.
+selectable :: String -> IO Bool
+selectable label = withCString label \labelPtr ->
+  (1 == ) <$> [C.exp| bool { Selectable($(char* labelPtr)) } |]
 
 
 -- | A cardinal direction.

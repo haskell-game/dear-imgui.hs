@@ -60,6 +60,11 @@ loop w checked = do
 
   progressBar 0.314 (Just "Pi")
 
+  beginCombo "Label" "Preview" >>= whenTrue do
+    selectable "Testing 1"
+    selectable "Testing 2"
+    endCombo
+
   end
 
   render
@@ -74,3 +79,8 @@ loop w checked = do
     Just Event{ eventPayload } -> case eventPayload of
       QuitEvent -> return ()
       _         -> loop w checked
+
+
+whenTrue :: IO () -> Bool -> IO ()
+whenTrue io True  = io
+whenTrue io False = return ()
