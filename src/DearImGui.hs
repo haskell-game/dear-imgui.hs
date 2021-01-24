@@ -80,6 +80,13 @@ module DearImGui
   , endMenu
   , menuItem
 
+    -- * Popups/Modals
+  , beginPopup
+  , beginPopupModal
+  , endPopup
+  , openPopup
+  , closeCurrentPopup
+
     -- * Types
   , ImGuiDir
   , pattern ImGuiDirLeft
@@ -481,6 +488,49 @@ menuItem :: MonadIO m => String -> m Bool
 menuItem label = liftIO do
   withCString label \labelPtr ->
     (1 ==) <$> [C.exp| bool { MenuItem($(char* labelPtr)) } |]
+
+
+-- | Returns 'True' if the popup is open, and you can start outputting to it.
+--
+-- Wraps @ImGui::BeginPopup()@
+beginPopup :: MonadIO m => String -> m Bool
+beginPopup popupId = liftIO do
+  withCString popupId \popupIdPtr ->
+    (1 ==) <$> [C.exp| bool { BeginPopup($(char* popupIdPtr)) } |]
+
+
+-- | Returns 'True' if the modal is open, and you can start outputting to it.
+--
+-- Wraps @ImGui::BeginPopupModal()@
+beginPopupModal :: MonadIO m => String -> m Bool
+beginPopupModal popupId = liftIO do
+  withCString popupId \popupIdPtr ->
+    (1 ==) <$> [C.exp| bool { BeginPopupModal($(char* popupIdPtr)) } |]
+
+
+-- | Only call 'endPopup' if 'beginPopup' or 'beginPopupModal' returns 'True'!
+--
+-- Wraps @ImGui::BeginPopupModal()@
+endPopup :: MonadIO m => m ()
+endPopup = liftIO do
+  [C.exp| void { EndPopup() } |]
+
+
+-- | Call to mark popup as open (don't call every frame!).
+--
+-- Wraps @ImGui::OpenPopup()@
+openPopup :: MonadIO m => String -> m ()
+openPopup popupId = liftIO do
+  withCString popupId \popupIdPtr ->
+    [C.exp| void { OpenPopup($(char* popupIdPtr)) } |]
+
+
+-- | Manually close the popup we have begin-ed into.
+--
+-- Wraps @ImGui::ClosePopup()@
+closeCurrentPopup :: MonadIO m => m ()
+closeCurrentPopup = liftIO do
+  [C.exp| void { CloseCurrentPopup() } |]
 
 
 -- | A cardinal direction.

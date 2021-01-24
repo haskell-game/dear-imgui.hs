@@ -45,8 +45,12 @@ loop w checked = do
   text "Hello!"
 
   button "Click me" >>= \case
-    True  -> putStrLn "Oh hi Mark"
+    True  -> openPopup "Button Popup"
     False -> return ()
+
+  beginPopupModal "Button Popup" >>= whenTrue do
+    button "Close" >>= whenTrue closeCurrentPopup
+    endPopup
 
   sameLine >> smallButton "Click me" >>= \case
     True  -> putStrLn "Oh hi Mark"
