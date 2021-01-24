@@ -76,9 +76,10 @@ module DearImGui
   )
   where
 
+import Control.Monad ( when )
+import Control.Monad.IO.Class ( MonadIO, liftIO )
 import Data.Bool
 import Data.StateVar
-import Control.Monad ( when )
 import Foreign
 import Foreign.C
 import qualified Language.C.Inline as C
@@ -103,14 +104,14 @@ newtype Context = Context (Ptr ())
 
 
 -- | Wraps @ImGui::CreateContext()@.
-createContext :: IO Context
-createContext =
+createContext :: MonadIO m => m Context
+createContext = liftIO do
   Context <$> [C.exp| void* { CreateContext() } |]
 
 
 -- | Wraps @ImGui::DestroyContext()@.
-destroyContext :: Context -> IO ()
-destroyContext (Context contextPtr) =
+destroyContext :: MonadIO m => Context -> m ()
+destroyContext (Context contextPtr) = liftIO do
   [C.exp| void { DestroyContext((ImGuiContext*)$(void* contextPtr)); } |]
 
 
@@ -118,22 +119,25 @@ destroyContext (Context contextPtr) =
 -- until 'render'/'endFrame'.
 --
 -- Wraps @ImGui::NewFrame()@.
-newFrame :: IO ()
-newFrame = [C.exp| void { ImGui::NewFrame(); } |]
+newFrame :: MonadIO m => m ()
+newFrame = liftIO do
+  [C.exp| void { ImGui::NewFrame(); } |]
 
 
 -- | Ends the Dear ImGui frame. automatically called by 'render'. If you don't
 -- need to render data (skipping rendering) you may call 'endFrame' without
 -- 'render'... but you'll have wasted CPU already! If you don't need to render,
 -- better to not create any windows and not call 'newFrame' at all!
-endFrame :: IO ()
-endFrame = [C.exp| void { ImGui::EndFrame(); } |]
+endFrame :: MonadIO m => m ()
+endFrame = liftIO do
+  [C.exp| void { ImGui::EndFrame(); } |]
 
 
 -- | Ends the Dear ImGui frame, finalize the draw data. You can then get call
 -- 'getDrawData'.
-render :: IO ()
-render = [C.exp| void { ImGui::Render(); } |]
+render :: MonadIO m => m ()
+render = liftIO do
+  [C.exp| void { ImGui::Render(); } |]
 
 
 -- | Wraps @ImDrawData*@.
@@ -142,19 +146,20 @@ newtype DrawData = DrawData (Ptr ())
 
 -- | Valid after 'render' and until the next call to 'newFrame'. This is what
 -- you have to render.
-getDrawData :: IO DrawData
-getDrawData = DrawData <$> [C.exp| void* { ImGui::GetDrawData() } |]
+getDrawData :: MonadIO m => m DrawData
+getDrawData = liftIO do
+  DrawData <$> [C.exp| void* { ImGui::GetDrawData() } |]
 
 
 -- | Wraps @IMGUI_CHECKVERSION()@
-checkVersion :: IO ()
-checkVersion =
+checkVersion :: MonadIO m => m ()
+checkVersion = liftIO do
   [C.exp| void { IMGUI_CHECKVERSION(); } |]
 
 
 -- | Wraps @ImGui_ImplSDL2_InitForOpenGL@.
-sdl2InitForOpenGL :: Window -> GLContext -> IO ()
-sdl2InitForOpenGL (Window windowPtr) glContext =
+sdl2InitForOpenGL :: MonadIO m => Window -> GLContext -> m ()
+sdl2InitForOpenGL (Window windowPtr) glContext = liftIO do
   [C.exp| void { ImGui_ImplSDL2_InitForOpenGL((SDL_Window*)$(void* windowPtr), $(void* glContextPtr)); } |]
   where
     glContextPtr :: Ptr ()
@@ -162,101 +167,115 @@ sdl2InitForOpenGL (Window windowPtr) glContext =
 
 
 -- | Wraps @ImGui_ImplSDL2_NewFrame@.
-sdl2NewFrame :: Window -> IO ()
-sdl2NewFrame (Window windowPtr) =
+sdl2NewFrame :: MonadIO m => Window -> m ()
+sdl2NewFrame (Window windowPtr) = liftIO do
   [C.exp| void { ImGui_ImplSDL2_NewFrame((SDL_Window*)($(void* windowPtr))); } |]
 
 
 -- | Wraps @ImGui_ImplSDL2_Shutdown@.
-sdl2Shutdown :: IO ()
-sdl2Shutdown = [C.exp| void { ImGui_ImplSDL2_Shutdown(); } |]
+sdl2Shutdown :: MonadIO m => m ()
+sdl2Shutdown = liftIO do
+  [C.exp| void { ImGui_ImplSDL2_Shutdown(); } |]
 
 
 -- | Call the SDL2 'pollEvent' function, while also dispatching the event to
 -- Dear ImGui. You should use this in your application instead of 'pollEvent'.
-pollEventWithImGui :: IO (Maybe Event)
-pollEventWithImGui = alloca \evPtr -> do
-  pumpEvents
+pollEventWithImGui :: MonadIO m => m (Maybe Event)
+pollEventWithImGui = liftIO do
+  alloca \evPtr -> do
+    pumpEvents
 
-  -- We use NULL first to check if there's an event.
-  nEvents <- Raw.peepEvents evPtr 1 Raw.SDL_PEEKEVENT Raw.SDL_FIRSTEVENT Raw.SDL_LASTEVENT
+    -- We use NULL first to check if there's an event.
+    nEvents <- Raw.peepEvents evPtr 1 Raw.SDL_PEEKEVENT Raw.SDL_FIRSTEVENT Raw.SDL_LASTEVENT
 
-  when (nEvents > 0) do
-    let evPtr' = castPtr evPtr :: Ptr ()
-    [C.exp| void { ImGui_ImplSDL2_ProcessEvent((SDL_Event*) $(void* evPtr')) } |]
+    when (nEvents > 0) do
+      let evPtr' = castPtr evPtr :: Ptr ()
+      [C.exp| void { ImGui_ImplSDL2_ProcessEvent((SDL_Event*) $(void* evPtr')) } |]
 
-  pollEvent
+    pollEvent
 
 
 -- | Wraps @ImGui_ImplOpenGL2_Init@.
-openGL2Init :: IO ()
-openGL2Init = [C.exp| void { ImGui_ImplOpenGL2_Init(); } |]
+openGL2Init :: MonadIO m => m ()
+openGL2Init = liftIO do
+  [C.exp| void { ImGui_ImplOpenGL2_Init(); } |]
 
 
 -- | Wraps @ImGui_ImplOpenGL2_Shutdown@.
-openGL2Shutdown :: IO ()
-openGL2Shutdown = [C.exp| void { ImGui_ImplOpenGL2_Shutdown(); } |]
+openGL2Shutdown :: MonadIO m => m ()
+openGL2Shutdown = liftIO do
+  [C.exp| void { ImGui_ImplOpenGL2_Shutdown(); } |]
 
 
 -- | Wraps @ImGui_ImplOpenGL2_NewFrame@.
-openGL2NewFrame :: IO ()
-openGL2NewFrame = [C.exp| void { ImGui_ImplOpenGL2_NewFrame(); } |]
+openGL2NewFrame :: MonadIO m => m ()
+openGL2NewFrame = liftIO do
+  [C.exp| void { ImGui_ImplOpenGL2_NewFrame(); } |]
 
 
 -- | Wraps @ImGui_ImplOpenGL2_RenderDrawData@.
-openGL2RenderDrawData :: DrawData -> IO ()
-openGL2RenderDrawData (DrawData ptr) = [C.exp| void { ImGui_ImplOpenGL2_RenderDrawData((ImDrawData*) $( void* ptr )) } |]
+openGL2RenderDrawData :: MonadIO m => DrawData -> m ()
+openGL2RenderDrawData (DrawData ptr) = liftIO do
+  [C.exp| void { ImGui_ImplOpenGL2_RenderDrawData((ImDrawData*) $( void* ptr )) } |]
 
 
 -- | Create demo window. Demonstrate most ImGui features. Call this to learn
 -- about the library! Try to make it always available in your application!
-showDemoWindow :: IO ()
-showDemoWindow = [C.exp| void { ImGui::ShowDemoWindow(); } |]
+showDemoWindow :: MonadIO m => m ()
+showDemoWindow = liftIO do
+  [C.exp| void { ImGui::ShowDemoWindow(); } |]
 
 
 -- | Create Metrics/Debugger window. Display Dear ImGui internals: windows, draw
 -- commands, various internal state, etc.
-showMetricsWindow :: IO ()
-showMetricsWindow = [C.exp| void { ImGui::ShowMetricsWindow(); } |]
+showMetricsWindow :: MonadIO m => m ()
+showMetricsWindow = liftIO do
+  [C.exp| void { ImGui::ShowMetricsWindow(); } |]
 
 
 -- | Create About window. display Dear ImGui version, credits and build/system
 -- information.
-showAboutWindow :: IO ()
-showAboutWindow = [C.exp| void { ShowAboutWindow(); } |]
+showAboutWindow :: MonadIO m => m ()
+showAboutWindow = liftIO do
+  [C.exp| void { ShowAboutWindow(); } |]
 
 
 -- | Add basic help/info block (not a window): how to manipulate ImGui as a
 -- end-user (mouse/keyboard controls).
-showUserGuide :: IO ()
-showUserGuide = [C.exp| void { ShowUserGuide() } |]
+showUserGuide :: MonadIO m => m ()
+showUserGuide = liftIO do
+  [C.exp| void { ShowUserGuide() } |]
 
 
 -- | Get the compiled version string e.g. "1.80 WIP" (essentially the value for
 -- @IMGUI_VERSION@ from the compiled version of @imgui.cpp@).
-getVersion :: IO String
-getVersion = peekCString =<< [C.exp| const char* { GetVersion() } |]
+getVersion :: MonadIO m => m String
+getVersion = liftIO do
+  peekCString =<< [C.exp| const char* { GetVersion() } |]
 
 
 -- | New, recommended style (default).
 --
 -- Wraps @ImGui::StyleColorsDark()@.
-styleColorsDark :: IO ()
-styleColorsDark = [C.exp| void { StyleColorsDark(); } |]
+styleColorsDark :: MonadIO m => m ()
+styleColorsDark = liftIO do
+  [C.exp| void { StyleColorsDark(); } |]
 
 
 -- | Best used with borders and a custom, thicker font.
 --
 -- Wraps @ImGui::StyleColorsLight()@.
-styleColorsLight :: IO ()
-styleColorsLight = [C.exp| void { StyleColorsLight(); } |]
+styleColorsLight :: MonadIO m => m ()
+styleColorsLight = liftIO do
+  [C.exp| void { StyleColorsLight(); } |]
 
 
 -- | Classic ImGui style.
 --
 -- Wraps @ImGui::StyleColorsClasic()@.
-styleColorsClassic :: IO ()
-styleColorsClassic = [C.exp| void { StyleColorsClassic(); } |]
+styleColorsClassic :: MonadIO m => m ()
+styleColorsClassic = liftIO do
+  [C.exp| void { StyleColorsClassic(); } |]
 
 
 -- | Push window to the stack and start appending to it.
@@ -266,53 +285,59 @@ styleColorsClassic = [C.exp| void { StyleColorsClassic(); } |]
 -- matching 'end' for each 'begin' call, regardless of its return value!
 --
 -- Wraps @ImGui::Begin()@.
-begin :: String -> IO Bool
-begin name = withCString name \namePtr ->
-  (1 ==) <$> [C.exp| bool { ImGui::Begin($(char* namePtr)) } |]
+begin :: MonadIO m => String -> m Bool
+begin name = liftIO do
+  withCString name \namePtr ->
+    (1 ==) <$> [C.exp| bool { ImGui::Begin($(char* namePtr)) } |]
 
 
 -- | Pop window from the stack.
 --
 -- Wraps @ImGui::End()@.
-end :: IO ()
-end = [C.exp| void { ImGui::End(); } |]
+end :: MonadIO m => m ()
+end = liftIO do
+  [C.exp| void { ImGui::End(); } |]
 
 
 -- | Formatted text.
 --
 -- Wraps @ImGui::Text()@.
-text :: String -> IO ()
-text t = withCString t \textPtr ->
-  [C.exp| void { Text($(char* textPtr)) } |]
+text :: MonadIO m => String -> m ()
+text t = liftIO do
+  withCString t \textPtr ->
+    [C.exp| void { Text($(char* textPtr)) } |]
 
 
 -- | A button. Returns 'True' when clicked.
 --
 -- Wraps @ImGui::Button()@.
-button :: String -> IO Bool
-button label = withCString label \labelPtr ->
-  (1 ==) <$> [C.exp| bool { Button($(char* labelPtr)) } |]
+button :: MonadIO m => String -> m Bool
+button label = liftIO do
+  withCString label \labelPtr ->
+    (1 ==) <$> [C.exp| bool { Button($(char* labelPtr)) } |]
 
 
 -- | Button with @FramePadding=(0,0)@ to easily embed within text.
 --
 -- Wraps @ImGui::SmallButton()@.
-smallButton :: String -> IO Bool
-smallButton label = withCString label \labelPtr ->
-  (1 ==) <$> [C.exp| bool { SmallButton($(char* labelPtr)) } |]
+smallButton :: MonadIO m => String -> m Bool
+smallButton label = liftIO do
+  withCString label \labelPtr ->
+    (1 ==) <$> [C.exp| bool { SmallButton($(char* labelPtr)) } |]
 
 
 -- | Square button with an arrow shape.
 --
 -- Wraps @ImGui::ArrowButton()@.
-arrowButton :: String -> ImGuiDir -> IO Bool
-arrowButton strId (ImGuiDir dir) = withCString strId \strIdPtr ->
-  (1 ==) <$> [C.exp| bool { ArrowButton($(char* strIdPtr), $(int dir)) } |]
+arrowButton :: MonadIO m => String -> ImGuiDir -> m Bool
+arrowButton strId (ImGuiDir dir) = liftIO do
+  withCString strId \strIdPtr ->
+    (1 ==) <$> [C.exp| bool { ArrowButton($(char* strIdPtr), $(int dir)) } |]
 
 
 -- | Wraps @ImGui::Checkbox()@.
-checkbox :: (HasSetter ref Bool, HasGetter ref Bool) => String -> ref -> IO Bool
-checkbox label ref = do
+checkbox :: (HasSetter ref Bool, HasGetter ref Bool, MonadIO m) => String -> ref -> m Bool
+checkbox label ref = liftIO do
   currentValue <- get ref
   with (bool 0 1 currentValue :: CBool) \boolPtr -> do
     changed <- withCString label \labelPtr ->
@@ -324,9 +349,10 @@ checkbox label ref = do
     return changed
 
 
-progressBar :: Float -> Maybe String -> IO ()
-progressBar progress overlay = withCStringOrNull overlay \overlayPtr ->
-  [C.exp| void { ProgressBar($(float c'progress), ImVec2(-FLT_MIN, 0), $(char* overlayPtr)) } |]
+progressBar :: MonadIO m => Float -> Maybe String -> m ()
+progressBar progress overlay = liftIO do
+  withCStringOrNull overlay \overlayPtr ->
+    [C.exp| void { ProgressBar($(float c'progress), ImVec2(-FLT_MIN, 0), $(char* overlayPtr)) } |]
   where
     c'progress :: CFloat
     c'progress = realToFrac progress
@@ -334,8 +360,9 @@ progressBar progress overlay = withCStringOrNull overlay \overlayPtr ->
 
 -- | Draw a small circle + keep the cursor on the same line. Advance cursor x
 -- position by 'getTreeNodeToLabelSpacing', same distance that 'treeNode' uses.
-bullet :: IO ()
-bullet = [C.exp| void { Bullet() } |]
+bullet :: MonadIO m => m ()
+bullet = liftIO do
+  [C.exp| void { Bullet() } |]
 
 
 -- | Begin creating a combo box with a given label and preview value.
@@ -344,8 +371,8 @@ bullet = [C.exp| void { Bullet() } |]
 -- the contents of the combo box - for example, by calling 'selectable'.
 --
 -- Wraps @ImGui::BeginCombo()@.
-beginCombo :: String -> String -> IO Bool
-beginCombo label previewValue =
+beginCombo :: MonadIO m => String -> String -> m Bool
+beginCombo label previewValue = liftIO $
   withCString label        \labelPtr ->
   withCString previewValue \previewValuePtr ->
   (1 ==) <$> [C.exp| bool { BeginCombo($(char* labelPtr), $(char* previewValuePtr)) } |]
@@ -354,14 +381,16 @@ beginCombo label previewValue =
 -- | Only call 'endCombo' if 'beginCombon' returns 'True'!
 --
 -- Wraps @ImGui::EndCombo()@.
-endCombo :: IO ()
-endCombo = [C.exp| void { EndCombo() } |]
+endCombo :: MonadIO m => m ()
+endCombo = liftIO do
+  [C.exp| void { EndCombo() } |]
 
 
 -- | Wraps @ImGui::Selectable()@.
-selectable :: String -> IO Bool
-selectable label = withCString label \labelPtr ->
-  (1 == ) <$> [C.exp| bool { Selectable($(char* labelPtr)) } |]
+selectable :: MonadIO m => String -> m Bool
+selectable label = liftIO do
+  withCString label \labelPtr ->
+    (1 == ) <$> [C.exp| bool { Selectable($(char* labelPtr)) } |]
 
 
 -- | A cardinal direction.
