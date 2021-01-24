@@ -1,6 +1,7 @@
 {-# LANGUAGE BlockArguments #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE PatternSynonyms #-}
 {-# LANGUAGE QuasiQuotes #-}
 {-# LANGUAGE TemplateHaskell #-}
 
@@ -53,6 +54,14 @@ module DearImGui
     -- ** Main
   , button
   , smallButton
+  , arrowButton
+
+    -- * Types
+  , ImGuiDir
+  , pattern ImGuiDirLeft
+  , pattern ImGuiDirRight
+  , pattern ImGuiDirUp
+  , pattern ImGuiDirDown
   )
   where
 
@@ -278,3 +287,22 @@ button label = withCString label \labelPtr ->
 smallButton :: String -> IO Bool
 smallButton label = withCString label \labelPtr ->
   (1 ==) <$> [C.exp| bool { SmallButton($(char* labelPtr)) } |]
+
+
+-- | Square button with an arrow shape.
+--
+-- Wraps @ImGui::ArrowButton()@.
+arrowButton :: String -> ImGuiDir -> IO Bool
+arrowButton strId (ImGuiDir dir) = withCString strId \strIdPtr ->
+  (1 ==) <$> [C.exp| bool { ArrowButton($(char* strIdPtr), $(int dir)) } |]
+
+
+-- | A cardinal direction.
+newtype ImGuiDir      = ImGuiDir CInt
+
+
+pattern ImGuiDirLeft, ImGuiDirRight, ImGuiDirUp, ImGuiDirDown :: ImGuiDir
+pattern ImGuiDirLeft  = ImGuiDir 0
+pattern ImGuiDirRight = ImGuiDir 1
+pattern ImGuiDirUp    = ImGuiDir 2
+pattern ImGuiDirDown  = ImGuiDir 3

@@ -51,6 +51,8 @@ loop w = do
     True  -> putStrLn "Oh hi Mark"
     False -> return ()
 
+  arrowButton "Arrow" ImGuiDirUp
+
   end
 
   render
