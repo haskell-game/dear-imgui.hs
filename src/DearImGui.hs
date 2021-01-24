@@ -57,6 +57,7 @@ module DearImGui
   , smallButton
   , arrowButton
   , checkbox
+  , bullet
 
     -- * Types
   , ImGuiDir
@@ -313,6 +314,12 @@ checkbox label ref = do
     ref $=! (newValue == 1)
 
     return changed
+
+
+-- | Draw a small circle + keep the cursor on the same line. Advance cursor x
+-- position by 'getTreeNodeToLabelSpacing', same distance that 'treeNode' uses.
+bullet :: IO ()
+bullet = [C.exp| void { Bullet() } |]
 
 
 -- | A cardinal direction.
