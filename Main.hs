@@ -25,7 +25,6 @@ main = do
     bracket_ openGL2Init openGL2Shutdown do
       checkVersion
       styleColorsLight
-      openGL2Init
 
       newIORef False >>= loop w
 
