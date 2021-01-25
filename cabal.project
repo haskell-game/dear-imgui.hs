@@ -1,3 +1,6 @@
 packages:
     *.cabal
 
+dear-imgui:
+    sdl2: True
+    opengl: True
