@@ -12,17 +12,20 @@
 , compiler-nix-name ? "ghc884"
 }: 
 let
+  pkgs' = import <nixpkgs> {};
   # Define custom nixpkgs overlay
-  overlays = haskellNix.overlays ++ [
-    (self: super: {
-        sdl2 = super.haskellPackages.sdl2;
-    })
-  ];
+  darwinOverlays = if pkgs'.stdenv.isDarwin then 
+    [
+      (self: super: {
+          sdl2 = super.haskellPackages.sdl2;
+      })
+     ] else [];
+  overlays = haskellNix.overlays ++ darwinOverlays;
   pkgs = import nixpkgsSrc (nixpkgsArgs // { inherit overlays; });
 in pkgs.haskell-nix.project { inherit compiler-nix-name;
   # 'cleanGit' cleans a source directory based on the files known by git
   src = pkgs.haskell-nix.haskellLib.cleanGit {
     name = "dear-imgui";
     src = ./.;
-  };  
+  };
 }
