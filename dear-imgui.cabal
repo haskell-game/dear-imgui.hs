@@ -1,5 +1,5 @@
 cabal-version: 3.0
-name: hs-dear-imgui
+name: dear-imgui
 version: 1.0.0
 build-type: Simple
 
