@@ -10,7 +10,6 @@ in
 
     # Some common tools can be added with the `tools` argument
     tools = { cabal = "3.2.0.0"; };
-    # See overlays/tools.nix for more details
 
     # Prevents cabal from choosing alternate plans, so that
     # *all* dependencies are provided by Nix.
