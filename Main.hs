@@ -26,12 +26,14 @@ main = do
       checkVersion
       styleColorsLight
 
-      newIORef False >>= loop w
+      checked <- newIORef False
+      color <- newIORef $ ImVec3 1 0 0
+      loop w checked color
 
       openGL2Shutdown
 
-loop :: Window -> IORef Bool -> IO ()
-loop w checked = do
+loop :: Window -> IORef Bool -> IORef ImVec3 -> IO ()
+loop w checked color = do
   quit <- pollEvents
 
   openGL2NewFrame
@@ -80,8 +82,7 @@ loop w checked = do
 
   plotHistogram "A histogram" [ 10, 10, 20, 30, 90 ]
 
-  ref <- newIORef $ ImVec4 1 0 0 1
-  colorButton "Test" ref
+  colorPicker3 "Test" color
 
   beginMainMenuBar >>= whenTrue do
     beginMenu "Hello" >>= whenTrue do
@@ -103,7 +104,7 @@ loop w checked = do
 
   glSwapWindow w
 
-  if quit then return () else loop w checked
+  if quit then return () else loop w checked color
 
   where
 

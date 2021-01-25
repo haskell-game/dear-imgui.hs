@@ -1,4 +1,5 @@
 {-# LANGUAGE BlockArguments #-}
+{-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedStrings #-}
@@ -63,6 +64,7 @@ module DearImGui
   , endCombo
 
     -- * Color Editor/Picker
+  , colorPicker3
   , colorButton
 
     -- ** Selectables
@@ -100,6 +102,7 @@ module DearImGui
   , pattern ImGuiDirRight
   , pattern ImGuiDirUp
   , pattern ImGuiDirDown
+  , ImVec3(..)
   , ImVec4(..)
   )
   where
@@ -372,6 +375,20 @@ beginCombo label previewValue = liftIO $
 endCombo :: MonadIO m => m ()
 endCombo = liftIO do
   [C.exp| void { EndCombo() } |]
+
+
+-- | Wraps @ImGui::ColorPicker3()@.
+colorPicker3 :: (MonadIO m, HasSetter ref ImVec3, HasGetter ref ImVec3) => String -> ref -> m Bool
+colorPicker3 desc ref = liftIO do
+  ImVec3{x, y, z} <- get ref
+  withArray (realToFrac <$> [x, y, z]) \refPtr -> do
+    changed <- withCString desc \descPtr ->
+      (1 == ) <$> [C.exp| bool { ColorPicker3( $(char* descPtr), $(float *refPtr) ) } |]
+
+    [x', y', z'] <- peekArray 3 refPtr
+    ref $=! ImVec3 (realToFrac x') (realToFrac y') (realToFrac z')
+
+    return changed
 
 
 -- | Display a color square/button, hover for details, return true when pressed.
