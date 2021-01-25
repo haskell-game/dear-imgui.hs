@@ -110,3 +110,29 @@ mainLoop w = do
   where
     untilNothingM m = m >>= maybe (return ()) (\_ -> untilNothingM m)
 ```
+
+# Hacking
+
+If you would like to help `dear-imgui`, here's how you can get started.
+
+The best path to development is using
+[Nix](https://nixos.org/guides/install-nix.html). Once you have Nix installed
+(either in your operating system, or by running NixOS), you can enter a
+development shell:
+
+```
+$ nix-shell
+```
+
+You should now be in a `bash` shell where you can run `cabal build all`,
+`cabal run readme`, etc.
+
+If you experience any difficulties, please don't hesistate to raise an issue.
+
+# Getting Help
+
+Feel free to raise bugs, questions and feature requests on the GitHub issue
+tracker.
+
+We have a Matrix room at
+[`#dear-imgui.hs:ocharles.org.uk`](https://matrix.to/#/#dear-imgui.hs:ocharles.org.uk).
