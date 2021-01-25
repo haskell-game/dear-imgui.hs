@@ -393,9 +393,7 @@ colorPicker3 desc ref = liftIO do
 
     return changed
 
--- | SliderFloat
---
--- Wraps @ImGui::SliderFloat()@
+-- | Wraps @ImGui::SliderFloat()@
 sliderFloat :: (MonadIO m, HasSetter ref Float, HasGetter ref Float) => String -> ref -> Float -> Float -> m Bool
 sliderFloat desc ref minValue maxValue = liftIO do
   currentValue <- get ref
