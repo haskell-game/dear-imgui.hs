@@ -28,12 +28,13 @@ main = do
 
       checked <- newIORef False
       color <- newIORef $ ImVec3 1 0 0
-      loop w checked color
+      slider <- newIORef 0.42
+      loop w checked color slider
 
       openGL2Shutdown
 
-loop :: Window -> IORef Bool -> IORef ImVec3 -> IO ()
-loop w checked color = do
+loop :: Window -> IORef Bool -> IORef ImVec3 -> IORef Float -> IO ()
+loop w checked color slider = do
   quit <- pollEvents
 
   openGL2NewFrame
@@ -73,6 +74,8 @@ loop w checked color = do
 
   separator
 
+  sliderFloat "Slider" slider 0.0 1.0
+
   progressBar 0.314 (Just "Pi")
 
   beginCombo "Label" "Preview" >>= whenTrue do
@@ -104,7 +107,7 @@ loop w checked color = do
 
   glSwapWindow w
 
-  if quit then return () else loop w checked color
+  if quit then return () else loop w checked color slider
 
   where
 

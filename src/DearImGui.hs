@@ -59,6 +59,9 @@ module DearImGui
   , progressBar
   , bullet
 
+    -- ** Slider
+  , sliderFloat
+
     -- ** Combo Box
   , beginCombo
   , endCombo
@@ -390,6 +393,22 @@ colorPicker3 desc ref = liftIO do
 
     return changed
 
+-- | Wraps @ImGui::SliderFloat()@
+sliderFloat :: (MonadIO m, HasSetter ref Float, HasGetter ref Float) => String -> ref -> Float -> Float -> m Bool
+sliderFloat desc ref minValue maxValue = liftIO do
+  currentValue <- get ref
+  with (realToFrac currentValue) \floatPtr -> do
+    changed <- withCString desc \descPtr ->
+      (1 ==) <$> [C.exp| bool { SliderFloat( $(char* descPtr), $(float *floatPtr), $(float min'), $(float max')) } |]
+
+    newValue <- peek floatPtr
+    ref $=! realToFrac newValue
+
+    return changed
+  where
+    min', max' :: CFloat
+    min' = realToFrac minValue
+    max' = realToFrac maxValue
 
 -- | Display a color square/button, hover for details, return true when pressed.
 --
