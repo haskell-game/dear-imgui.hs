@@ -14,7 +14,7 @@ in
     # You might want some extra tools in the shell (optional).
 
     # Some common tools can be added with the `tools` argument
-    tools = { cabal = "3.2.0.0"; hlint = "2.2.11"; };
+    tools = { cabal = "3.2.0.0"; };
     # See overlays/tools.nix for more details
 
     # Prevents cabal from choosing alternate plans, so that
