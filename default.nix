@@ -10,14 +10,7 @@ haskellNix ? (import (import ./nix/sources.nix)."haskell.nix" { })
   # patches and also the haskell.nix functionality itself as an overlay.
 , nixpkgsArgs ? haskellNix.nixpkgsArgs, compiler-nix-name ? "ghc884" }:
 let
-  pkgs' = import <nixpkgs> { };
-  # Define custom nixpkgs overlay
-  darwinOverlays = if pkgs'.stdenv.isDarwin then
-    [ (self: super: { sdl2 = super.haskellPackages.sdl2; }) ]
-  else
-    [ ];
-  overlays = haskellNix.overlays ++ darwinOverlays;
-  pkgs = import nixpkgsSrc (nixpkgsArgs // { inherit overlays; });
+  pkgs = import nixpkgsSrc nixpkgsArgs;
 in pkgs.haskell-nix.project {
   inherit compiler-nix-name;
   # 'cleanGit' cleans a source directory based on the files known by git
