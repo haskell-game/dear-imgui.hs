@@ -1,5 +1,5 @@
 cabal-version: 3.0
-name: dear-imgui
+name: hs-dear-imgui
 version: 1.0.0
 build-type: Simple
 
@@ -83,7 +83,7 @@ library
 executable test
   main-is: Main.hs
   default-language: Haskell2010
-  build-depends: base, sdl2, gl, dear-imgui
+  build-depends: base, sdl2, gl, hs-dear-imgui
   ghc-options: -Wall
 
 
@@ -91,5 +91,5 @@ executable readme
   main-is: Readme.hs
   hs-source-dirs: examples
   default-language: Haskell2010
-  build-depends: base, sdl2, gl, dear-imgui, managed
+  build-depends: base, sdl2, gl, hs-dear-imgui, managed
   ghc-options: -Wall
