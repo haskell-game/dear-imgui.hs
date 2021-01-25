@@ -56,6 +56,8 @@ library
     if os(windows)
       extra-libraries:
         opengl32
+    if os(darwin)
+      frameworks: OpenGL
     else
       extra-libraries:
         GL
@@ -70,7 +72,7 @@ library
 
     if os(windows) || os(darwin)
       extra-libraries:
-        sdl2
+        SDL2
     else
       pkgconfig-depends:
         sdl2
