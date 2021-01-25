@@ -1,4 +1,4 @@
-{ # Fetch the latest haskell.nix and import its default.nix
+{ # Fetch haskell.nix and import its default.nix
 haskellNix ? (import (import ./nix/sources.nix)."haskell.nix" { })
 
 # haskell.nix provides access to the nixpkgs pins which are used by our CI,
