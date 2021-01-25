@@ -293,7 +293,7 @@ sameLine = liftIO do
 text :: MonadIO m => String -> m ()
 text t = liftIO do
   withCString t \textPtr ->
-    [C.exp| void { Text($(char* textPtr)) } |]
+    [C.exp| void { Text("%s", $(char* textPtr)) } |]
 
 
 -- | A button. Returns 'True' when clicked.
