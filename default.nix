@@ -25,10 +25,5 @@ in pkgs.haskell-nix.project { inherit compiler-nix-name;
     name = "dear-imgui";
     src = ./.;
   };
-  # modules = [{
-  #   # Replace `extra-libraries` dependencies
-  #   packages.GL.components.library.libs = pkgs.lib.mkForce (with pkgs;
-  #       [ darwin.apple_sdk.frameworks.OpenGL ]);
-  # }];
   
 }
