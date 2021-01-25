@@ -393,7 +393,7 @@ colorPicker3 desc ref = liftIO do
 
 -- | Display a color square/button, hover for details, return true when pressed.
 --
--- | Wraps @ImGui::ColorButton()@.
+-- Wraps @ImGui::ColorButton()@.
 colorButton :: (MonadIO m, HasSetter ref ImVec4, HasGetter ref ImVec4) => String -> ref -> m Bool
 colorButton desc ref = liftIO do
   currentValue <- get ref
