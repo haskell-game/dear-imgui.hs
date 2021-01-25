@@ -10,7 +10,7 @@ import qualified Data.Map.Strict as Map
 import Foreign
 
 
-data ImVec4 = ImVec4 { x, y, z, w :: {-# unpack #-} Float }
+data ImVec4 = ImVec4 { x, y, z, w :: {-# unpack #-} !Float }
 
 
 instance Storable ImVec4 where
@@ -25,7 +25,7 @@ instance Storable ImVec4 where
     poke (castPtr ptr `plusPtr` (sizeOf x * 3)) w
 
   peek ptr = do
-    x <- peek (castPtr ptr `plusPtr`               )
+    x <- peek (castPtr ptr                         )
     y <- peek (castPtr ptr `plusPtr` (sizeOf x * 1))
     z <- peek (castPtr ptr `plusPtr` (sizeOf x * 2))
     w <- peek (castPtr ptr `plusPtr` (sizeOf x * 3))
@@ -37,4 +37,4 @@ imguiContext = mempty
   { ctxTypesTable = Map.fromList
       [ ( TypeName "ImVec4", [t| ImVec4 |] )
       ]
-    }
+  }
