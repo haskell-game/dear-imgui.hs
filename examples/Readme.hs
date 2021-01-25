@@ -64,6 +64,9 @@ mainLoop w = do
       False -> return ()
       True  -> putStrLn "Ow!"
 
+  -- Show the ImGui demo window
+  showDemoWindow
+
   -- Render
   glClear GL_COLOR_BUFFER_BIT
 

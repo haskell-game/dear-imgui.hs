@@ -12,6 +12,10 @@ games and graphics intensive applications.
 
 # Getting Started
 
+To get started, we'll build the following:
+
+![](./Example.png)
+
 `dear-imgui.hs` can be used like a normal Haskell library. If you use Cabal,
 simply add `dear-imgui` to your `build-depends`. ImGui supports a variety of
 backends, and you will need to choose your backend at configuration time.
@@ -89,6 +93,9 @@ mainLoop w = do
     button "Clickety Click" >>= \case
       False -> return ()
       True  -> putStrLn "Ow!"
+
+  -- Show the ImGui demo window
+  showDemoWindow
 
   -- Render
   glClear GL_COLOR_BUFFER_BIT
