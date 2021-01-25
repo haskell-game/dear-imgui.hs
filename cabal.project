@@ -1,6 +1,3 @@
-packages:
-    *.cabal
-
-dear-imgui:
-    sdl2: True
-    opengl: True
+packages: *.cabal
+package dear-imgui
+  flags: +sdl2 +opengl

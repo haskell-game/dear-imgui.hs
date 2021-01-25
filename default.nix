@@ -24,6 +24,5 @@ in pkgs.haskell-nix.project { inherit compiler-nix-name;
   src = pkgs.haskell-nix.haskellLib.cleanGit {
     name = "dear-imgui";
     src = ./.;
-  };
-  
+  };  
 }
