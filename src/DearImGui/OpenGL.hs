@@ -43,8 +43,8 @@ Cpp.using "namespace ImGui"
 
 -- | Wraps @ImGui_ImplOpenGL2_Init@.
 openGL2Init :: MonadIO m => m Bool
-openGL2Init = ( 0 /= ) <$> liftIO do
-  [C.exp| bool { ImGui_ImplOpenGL2_Init() } |]
+openGL2Init = liftIO do
+  ( 0 /= ) <$> [C.exp| bool { ImGui_ImplOpenGL2_Init() } |]
 
 
 -- | Wraps @ImGui_ImplOpenGL2_Shutdown@.
