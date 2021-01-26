@@ -1,3 +1,3 @@
 packages: *.cabal
 package dear-imgui
-  flags: +sdl2 +opengl
+  flags: +sdl2 +opengl +vulkan
