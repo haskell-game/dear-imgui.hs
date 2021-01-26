@@ -49,9 +49,9 @@ Cpp.using "namespace ImGui"
 
 
 -- | Wraps @ImGui_ImplSDL2_InitForOpenGL@.
-sdl2InitForOpenGL :: MonadIO m => Window -> GLContext -> m ()
+sdl2InitForOpenGL :: MonadIO m => Window -> GLContext -> m Bool
 sdl2InitForOpenGL (Window windowPtr) glContext = liftIO do
-  [C.exp| void { ImGui_ImplSDL2_InitForOpenGL((SDL_Window*)$(void* windowPtr), $(void* glContextPtr)); } |]
+  ( 0 /= ) <$> [C.exp| bool { ImGui_ImplSDL2_InitForOpenGL((SDL_Window*)$(void* windowPtr), $(void* glContextPtr)) } |]
   where
     glContextPtr :: Ptr ()
     glContextPtr = unsafeCoerce glContext
