@@ -56,11 +56,13 @@ library
     if os(windows)
       extra-libraries:
         opengl32
-    if os(darwin)
-      frameworks: OpenGL
     else
-      extra-libraries:
-        GL
+      if os(darwin)
+        frameworks:
+          OpenGL
+      else
+        extra-libraries:
+          GL
 
   if flag(sdl)
     exposed-modules:
