@@ -5,6 +5,7 @@
 
 module Main (main) where
 
+import Data.StateVar
 import Data.IORef
 import DearImGui
 import DearImGui.OpenGL
@@ -23,6 +24,11 @@ main = do
     bracket createContext destroyContext \_imguiContext ->
     bracket_ (sdl2InitForOpenGL w glContext) sdl2Shutdown $
     bracket_ openGL2Init openGL2Shutdown do
+      iniFilename $= Just "imgui_state.ini"
+
+      putStr "State stored in: "
+      get iniFilename >>= print
+
       checkVersion
       styleColorsLight
 
