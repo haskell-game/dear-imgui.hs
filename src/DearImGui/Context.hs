@@ -53,10 +53,14 @@ instance Storable ImVec4 where
     return ImVec4{ x, y, z, w }
 
 
+data ImGuiContext
+
+
 imguiContext :: Context
 imguiContext = mempty
   { ctxTypesTable = Map.fromList
       [ ( TypeName "ImVec3", [t| ImVec3 |] )
       , ( TypeName "ImVec4", [t| ImVec4 |] )
+      , ( TypeName "ImGuiContext", [t| ImGuiContext |])
       ]
   }
