@@ -265,7 +265,7 @@ styleColorsClassic = liftIO do
 begin :: MonadIO m => String -> m Bool
 begin name = liftIO do
   withCString name \namePtr ->
-    (1 ==) <$> [C.exp| bool { ImGui::Begin($(char* namePtr)) } |]
+    (0 /=) <$> [C.exp| bool { ImGui::Begin($(char* namePtr)) } |]
 
 
 -- | Pop window from the stack.
@@ -308,7 +308,7 @@ text t = liftIO do
 button :: MonadIO m => String -> m Bool
 button label = liftIO do
   withCString label \labelPtr ->
-    (1 ==) <$> [C.exp| bool { Button($(char* labelPtr)) } |]
+    (0 /=) <$> [C.exp| bool { Button($(char* labelPtr)) } |]
 
 
 -- | Button with @FramePadding=(0,0)@ to easily embed within text.
@@ -317,7 +317,7 @@ button label = liftIO do
 smallButton :: MonadIO m => String -> m Bool
 smallButton label = liftIO do
   withCString label \labelPtr ->
-    (1 ==) <$> [C.exp| bool { SmallButton($(char* labelPtr)) } |]
+    (0 /=) <$> [C.exp| bool { SmallButton($(char* labelPtr)) } |]
 
 
 -- | Square button with an arrow shape.
@@ -326,7 +326,7 @@ smallButton label = liftIO do
 arrowButton :: MonadIO m => String -> ImGuiDir -> m Bool
 arrowButton strId (ImGuiDir dir) = liftIO do
   withCString strId \strIdPtr ->
-    (1 ==) <$> [C.exp| bool { ArrowButton($(char* strIdPtr), $(int dir)) } |]
+    (0 /=) <$> [C.exp| bool { ArrowButton($(char* strIdPtr), $(int dir)) } |]
 
 
 -- | Wraps @ImGui::Checkbox()@.
@@ -335,7 +335,7 @@ checkbox label ref = liftIO do
   currentValue <- get ref
   with (bool 0 1 currentValue :: CBool) \boolPtr -> do
     changed <- withCString label \labelPtr ->
-      (1 ==) <$> [C.exp| bool { Checkbox($(char* labelPtr), $(bool* boolPtr)) } |]
+      (0 /=) <$> [C.exp| bool { Checkbox($(char* labelPtr), $(bool* boolPtr)) } |]
 
     newValue <- peek boolPtr
     ref $=! (newValue == 1)
@@ -369,7 +369,7 @@ beginCombo :: MonadIO m => String -> String -> m Bool
 beginCombo label previewValue = liftIO $
   withCString label        \labelPtr ->
   withCString previewValue \previewValuePtr ->
-  (1 ==) <$> [C.exp| bool { BeginCombo($(char* labelPtr), $(char* previewValuePtr)) } |]
+  (0 /=) <$> [C.exp| bool { BeginCombo($(char* labelPtr), $(char* previewValuePtr)) } |]
 
 
 -- | Only call 'endCombo' if 'beginCombon' returns 'True'!
@@ -386,7 +386,7 @@ colorPicker3 desc ref = liftIO do
   ImVec3{x, y, z} <- get ref
   withArray (realToFrac <$> [x, y, z]) \refPtr -> do
     changed <- withCString desc \descPtr ->
-      (1 == ) <$> [C.exp| bool { ColorPicker3( $(char* descPtr), $(float *refPtr) ) } |]
+      (0 /= ) <$> [C.exp| bool { ColorPicker3( $(char* descPtr), $(float *refPtr) ) } |]
 
     [x', y', z'] <- peekArray 3 refPtr
     ref $=! ImVec3 (realToFrac x') (realToFrac y') (realToFrac z')
@@ -399,7 +399,7 @@ sliderFloat desc ref minValue maxValue = liftIO do
   currentValue <- get ref
   with (realToFrac currentValue) \floatPtr -> do
     changed <- withCString desc \descPtr ->
-      (1 ==) <$> [C.exp| bool { SliderFloat( $(char* descPtr), $(float *floatPtr), $(float min'), $(float max')) } |]
+      (0 /=) <$> [C.exp| bool { SliderFloat( $(char* descPtr), $(float *floatPtr), $(float min'), $(float max')) } |]
 
     newValue <- peek floatPtr
     ref $=! realToFrac newValue
@@ -418,7 +418,7 @@ colorButton desc ref = liftIO do
   currentValue <- get ref
   with currentValue \refPtr -> do
     changed <- withCString desc \descPtr ->
-      (1 == ) <$> [C.exp| bool { ColorButton( $(char* descPtr), *$(ImVec4 *refPtr) ) } |]
+      (0 /=) <$> [C.exp| bool { ColorButton( $(char* descPtr), *$(ImVec4 *refPtr) ) } |]
 
     newValue <- peek refPtr
     ref $=! newValue
@@ -430,7 +430,7 @@ colorButton desc ref = liftIO do
 selectable :: MonadIO m => String -> m Bool
 selectable label = liftIO do
   withCString label \labelPtr ->
-    (1 == ) <$> [C.exp| bool { Selectable($(char* labelPtr)) } |]
+    (0 /=) <$> [C.exp| bool { Selectable($(char* labelPtr)) } |]
 
 
 -- | Wraps @ImGui::PlotHistogram()@.
@@ -448,7 +448,7 @@ plotHistogram label values = liftIO $
 -- Wraps @ImGui::BeginMenuBar()@.
 beginMenuBar :: MonadIO m => m Bool
 beginMenuBar = liftIO do
-  (1 == ) <$> [C.exp| bool { BeginMenuBar() } |]
+  (0 /=) <$> [C.exp| bool { BeginMenuBar() } |]
 
 
 -- | Only call 'endMenuBar' if 'beginMenuBar' returns true!
@@ -464,7 +464,7 @@ endMenuBar = liftIO do
 -- Wraps @ImGui::BeginMainMenuBar()@.
 beginMainMenuBar :: MonadIO m => m Bool
 beginMainMenuBar = liftIO do
-  (1 == ) <$> [C.exp| bool { BeginMainMenuBar() } |]
+  (0 /=) <$> [C.exp| bool { BeginMainMenuBar() } |]
 
 
 -- | Only call 'endMainMenuBar' if 'beginMainMenuBar' returns true!
@@ -481,7 +481,7 @@ endMainMenuBar = liftIO do
 beginMenu :: MonadIO m => String -> m Bool
 beginMenu label = liftIO do
   withCString label \labelPtr ->
-    (1 == ) <$> [C.exp| bool { BeginMenu($(char* labelPtr)) } |]
+    (0 /=) <$> [C.exp| bool { BeginMenu($(char* labelPtr)) } |]
 
 
 -- | Only call 'endMenu' if 'beginMenu' returns true!
@@ -499,7 +499,7 @@ endMenu = liftIO do
 menuItem :: MonadIO m => String -> m Bool
 menuItem label = liftIO do
   withCString label \labelPtr ->
-    (1 ==) <$> [C.exp| bool { MenuItem($(char* labelPtr)) } |]
+    (0 /=) <$> [C.exp| bool { MenuItem($(char* labelPtr)) } |]
 
 
 -- | Begin/append a tooltip window to create full-featured tooltip (with any
@@ -523,7 +523,7 @@ endTooltip = liftIO do
 beginPopup :: MonadIO m => String -> m Bool
 beginPopup popupId = liftIO do
   withCString popupId \popupIdPtr ->
-    (1 ==) <$> [C.exp| bool { BeginPopup($(char* popupIdPtr)) } |]
+    (0 /=) <$> [C.exp| bool { BeginPopup($(char* popupIdPtr)) } |]
 
 
 -- | Returns 'True' if the modal is open, and you can start outputting to it.
@@ -532,7 +532,7 @@ beginPopup popupId = liftIO do
 beginPopupModal :: MonadIO m => String -> m Bool
 beginPopupModal popupId = liftIO do
   withCString popupId \popupIdPtr ->
-    (1 ==) <$> [C.exp| bool { BeginPopupModal($(char* popupIdPtr)) } |]
+    (0 /=) <$> [C.exp| bool { BeginPopupModal($(char* popupIdPtr)) } |]
 
 
 -- | Only call 'endPopup' if 'beginPopup' or 'beginPopupModal' returns 'True'!
@@ -565,7 +565,7 @@ closeCurrentPopup = liftIO do
 -- Wraps @ImGui::IsItemHovered()@
 isItemHovered :: MonadIO m => m Bool
 isItemHovered = liftIO do
-  (1 ==) <$> [C.exp| bool { IsItemHovered() } |]
+  (0 /=) <$> [C.exp| bool { IsItemHovered() } |]
 
 
 -- | A cardinal direction.

@@ -20,6 +20,7 @@ module DearImGui.SDL (
     sdl2NewFrame
   , sdl2Shutdown
   , pollEventWithImGui
+  , pollEventsWithImGui
   )
   where
 
@@ -81,3 +82,12 @@ pollEventWithImGui = liftIO do
       [C.exp| void { ImGui_ImplSDL2_ProcessEvent((SDL_Event*) $(void* evPtr')) } |]
 
     pollEvent
+
+-- | Like the SDL2 'pollEvents' function, while also dispatching the events to
+-- Dear ImGui. See 'pollEventWithImGui'.
+pollEventsWithImGui :: MonadIO m => m [Event]
+pollEventsWithImGui = do
+  e <- pollEventWithImGui
+  case e of
+    Nothing -> pure []
+    Just e' -> ( e' : ) <$> pollEventsWithImGui
