@@ -1,6 +1,7 @@
 {-# LANGUAGE BlockArguments #-}
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE PatternSynonyms #-}
@@ -26,6 +27,9 @@ module DearImGui
   , DrawData(..)
   , getDrawData
   , checkVersion
+
+    -- ** @ImGUIIO@
+  , iniFilename
 
     -- * Demo, Debug, Information
   , showDemoWindow
@@ -126,7 +130,7 @@ import qualified Language.C.Inline.Cpp as Cpp
 
 -- StateVar
 import Data.StateVar
-  ( HasGetter(get), HasSetter, ($=!) )
+  ( HasGetter(get), HasSetter, StateVar(..), ($=!) )
 
 -- transformers
 import Control.Monad.IO.Class
@@ -194,6 +198,24 @@ getDrawData = liftIO do
 checkVersion :: MonadIO m => m ()
 checkVersion = liftIO do
   [C.exp| void { IMGUI_CHECKVERSION(); } |]
+
+
+-- | Path to @.ini@ file. Set to 'Nothing' to disable automatic .ini
+-- loading/saving, if e.g. you want to manually load/save from memory.
+iniFilename :: StateVar (Maybe String)
+iniFilename = StateVar getter setter
+  where
+    getter = do
+      cStr <- [C.exp| const char* { GetIO().IniFilename } |]
+      if cStr == nullPtr then return Nothing else Just <$> peekCString cStr
+
+    setter = \case
+      Nothing ->
+        [C.block| void { GetIO().IniFilename = $(char* nullPtr); } |]
+
+      Just str -> do
+        strPtr <- newCString str
+        [C.block| void { GetIO().IniFilename = $(char* strPtr); } |]
 
 
 -- | Create demo window. Demonstrate most ImGui features. Call this to learn

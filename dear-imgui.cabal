@@ -120,7 +120,7 @@ library
 executable test
   main-is: Main.hs
   default-language: Haskell2010
-  build-depends: base, sdl2, gl, dear-imgui
+  build-depends: base, sdl2, gl, dear-imgui, StateVar
   ghc-options: -Wall
 
 
