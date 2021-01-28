@@ -28,12 +28,12 @@ main = do
 
       checked <- newIORef False
       color <- newIORef $ ImVec3 1 0 0
-      slider <- newIORef 0.42
+      slider <- newIORef (0.42, 0, 0.314)
       loop w checked color slider
 
       openGL2Shutdown
 
-loop :: Window -> IORef Bool -> IORef ImVec3 -> IORef Float -> IO ()
+loop :: Window -> IORef Bool -> IORef ImVec3 -> IORef (Float, Float, Float) -> IO ()
 loop w checked color slider = do
   quit <- pollEvents
 
@@ -74,14 +74,18 @@ loop w checked color slider = do
 
   separator
 
-  sliderFloat "Slider" slider 0.0 1.0
+  sliderFloat3 "Slider" slider 0.0 1.0
 
   progressBar 0.314 (Just "Pi")
+
+  beginChild "Child"
 
   beginCombo "Label" "Preview" >>= whenTrue do
     selectable "Testing 1"
     selectable "Testing 2"
     endCombo
+
+  endChild
 
   plotHistogram "A histogram" [ 10, 10, 20, 30, 90 ]
 
