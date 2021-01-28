@@ -29,12 +29,14 @@ main = do
       checked <- newIORef False
       color <- newIORef $ ImVec3 1 0 0
       slider <- newIORef (0.42, 0, 0.314)
-      loop w checked color slider
+      r <- newIORef 4
+      loop w checked color slider r
 
       openGL2Shutdown
 
-loop :: Window -> IORef Bool -> IORef ImVec3 -> IORef (Float, Float, Float) -> IO ()
-loop w checked color slider = do
+
+loop :: Window -> IORef Bool -> IORef ImVec3 -> IORef (Float, Float, Float) -> IORef Int -> IO ()
+loop w checked color slider r = do
   quit <- pollEvents
 
   openGL2NewFrame
@@ -48,6 +50,8 @@ loop w checked color slider = do
 
   begin "My Window"
   text "Hello!"
+
+  listBox "Items" r [ "A", "B", "C" ]
 
   button "Click me" >>= \case
     True  -> openPopup "Button Popup"
@@ -120,7 +124,7 @@ loop w checked color slider = do
 
   glSwapWindow w
 
-  if quit then return () else loop w checked color slider
+  if quit then return () else loop w checked color slider r
 
   where
 

@@ -52,6 +52,7 @@ library
   build-depends:
       base
     , containers
+    , managed
     , inline-c
     , inline-c-cpp
     , StateVar

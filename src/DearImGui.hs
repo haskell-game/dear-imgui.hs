@@ -1,6 +1,7 @@
 {-# LANGUAGE BlockArguments #-}
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE PatternSynonyms #-}
@@ -91,6 +92,9 @@ module DearImGui
     -- ** Selectables
   , selectable
 
+    -- ** List Boxes
+  , listBox
+
     -- * Data Plotting
   , plotHistogram
 
@@ -141,6 +145,9 @@ import qualified Language.C.Inline as C
 
 -- inline-c-cpp
 import qualified Language.C.Inline.Cpp as Cpp
+
+-- managed
+import qualified Control.Monad.Managed as Managed
 
 -- StateVar
 import Data.StateVar
@@ -613,6 +620,26 @@ selectable :: MonadIO m => String -> m Bool
 selectable label = liftIO do
   withCString label \labelPtr ->
     (0 /=) <$> [C.exp| bool { Selectable($(char* labelPtr)) } |]
+
+
+listBox :: (MonadIO m, HasGetter ref Int, HasSetter ref Int) => String -> ref -> [String] -> m Bool
+listBox label selectedIndex items = liftIO $ Managed.with m return
+  where
+    m = do
+      i <- get selectedIndex
+
+      cStrings <- traverse (\str -> Managed.managed (withCString str)) items
+      labelPtr <- Managed.managed $ withCString label
+      iPtr     <- Managed.managed $ with (fromIntegral i)
+
+      liftIO $ withArrayLen cStrings \len itemsPtr -> do
+        let len' = fromIntegral len
+        [C.exp| bool { ListBox($(char* labelPtr), $(int* iPtr), $(char** itemsPtr), $(int len')) }|] >>= \case
+          0 -> return False
+          _ -> do
+            i' <- peek iPtr
+            selectedIndex $=! fromIntegral i'
+            return True
 
 
 -- | Wraps @ImGui::PlotHistogram()@.
