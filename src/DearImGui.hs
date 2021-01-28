@@ -59,12 +59,18 @@ module DearImGui
   , progressBar
   , bullet
 
-    -- ** Slider
-  , sliderFloat
-
     -- ** Combo Box
   , beginCombo
   , endCombo
+
+    -- ** Drag Sliders
+  , dragFloat
+  , dragFloat2
+  , dragFloat3
+  , dragFloat4
+
+    -- ** Slider
+  , sliderFloat
 
     -- * Color Editor/Picker
   , colorPicker3
@@ -380,18 +386,81 @@ endCombo = liftIO do
   [C.exp| void { EndCombo() } |]
 
 
--- | Wraps @ImGui::ColorPicker3()@.
-colorPicker3 :: (MonadIO m, HasSetter ref ImVec3, HasGetter ref ImVec3) => String -> ref -> m Bool
-colorPicker3 desc ref = liftIO do
-  ImVec3{x, y, z} <- get ref
-  withArray (realToFrac <$> [x, y, z]) \refPtr -> do
+-- | Wraps @ImGui::DragFloat()@
+dragFloat :: (MonadIO m, HasSetter ref Float, HasGetter ref Float) => String -> ref -> Float -> Float -> Float -> m Bool
+dragFloat desc ref speed minValue maxValue = liftIO do
+  currentValue <- get ref
+  with (realToFrac currentValue) \floatPtr -> do
     changed <- withCString desc \descPtr ->
-      (0 /= ) <$> [C.exp| bool { ColorPicker3( $(char* descPtr), $(float *refPtr) ) } |]
+      (0 /=) <$> [C.exp| bool { DragFloat( $(char* descPtr), $(float *floatPtr), $(float speed'), $(float min'), $(float max')) } |]
 
-    [x', y', z'] <- peekArray 3 refPtr
-    ref $=! ImVec3 (realToFrac x') (realToFrac y') (realToFrac z')
+    newValue <- peek floatPtr
+    ref $=! realToFrac newValue
 
     return changed
+  where
+    min', max', speed' :: CFloat
+    min'   = realToFrac minValue
+    max'   = realToFrac maxValue
+    speed' = realToFrac speed
+
+
+-- | Wraps @ImGui::DragFloat2()@
+dragFloat2 :: (MonadIO m, HasSetter ref (Float, Float), HasGetter ref (Float, Float)) => String -> ref -> Float -> Float -> Float -> m Bool
+dragFloat2 desc ref speed minValue maxValue = liftIO do
+  (x, y) <- get ref
+  withArray [ realToFrac x, realToFrac y ] \floatPtr -> do
+    changed <- withCString desc \descPtr ->
+      (0 /=) <$> [C.exp| bool { DragFloat2( $(char* descPtr), $(float *floatPtr), $(float speed'), $(float min'), $(float max')) } |]
+
+    [x', y'] <- peekArray 2 floatPtr
+    ref $=! (realToFrac x', realToFrac y')
+
+    return changed
+  where
+    min', max', speed' :: CFloat
+    min'   = realToFrac minValue
+    max'   = realToFrac maxValue
+    speed' = realToFrac speed
+
+
+-- | Wraps @ImGui::DragFloat3()@
+dragFloat3 :: (MonadIO m, HasSetter ref (Float, Float, Float), HasGetter ref (Float, Float, Float)) => String -> ref -> Float -> Float -> Float -> m Bool
+dragFloat3 desc ref speed minValue maxValue = liftIO do
+  (x, y, z) <- get ref
+  withArray [ realToFrac x, realToFrac y, realToFrac z ] \floatPtr -> do
+    changed <- withCString desc \descPtr ->
+      (0 /=) <$> [C.exp| bool { DragFloat3( $(char* descPtr), $(float *floatPtr), $(float speed'), $(float min'), $(float max')) } |]
+
+    [x', y', z'] <- peekArray 3 floatPtr
+    ref $=! (realToFrac x', realToFrac y', realToFrac z')
+
+    return changed
+  where
+    min', max', speed' :: CFloat
+    min'   = realToFrac minValue
+    max'   = realToFrac maxValue
+    speed' = realToFrac speed
+
+
+-- | Wraps @ImGui::DragFloat4()@
+dragFloat4 :: (MonadIO m, HasSetter ref (Float, Float, Float, Float), HasGetter ref (Float, Float, Float, Float)) => String -> ref -> Float -> Float -> Float -> m Bool
+dragFloat4 desc ref speed minValue maxValue = liftIO do
+  (x, y, z, u) <- get ref
+  withArray [ realToFrac x, realToFrac y, realToFrac z, realToFrac u ] \floatPtr -> do
+    changed <- withCString desc \descPtr ->
+      (0 /=) <$> [C.exp| bool { DragFloat4( $(char* descPtr), $(float *floatPtr), $(float speed'), $(float min'), $(float max')) } |]
+
+    [x', y', z', u'] <- peekArray 4 floatPtr
+    ref $=! (realToFrac x', realToFrac y', realToFrac z', realToFrac u')
+
+    return changed
+  where
+    min', max', speed' :: CFloat
+    min'   = realToFrac minValue
+    max'   = realToFrac maxValue
+    speed' = realToFrac speed
+
 
 -- | Wraps @ImGui::SliderFloat()@
 sliderFloat :: (MonadIO m, HasSetter ref Float, HasGetter ref Float) => String -> ref -> Float -> Float -> m Bool
@@ -409,6 +478,21 @@ sliderFloat desc ref minValue maxValue = liftIO do
     min', max' :: CFloat
     min' = realToFrac minValue
     max' = realToFrac maxValue
+
+
+-- | Wraps @ImGui::ColorPicker3()@.
+colorPicker3 :: (MonadIO m, HasSetter ref ImVec3, HasGetter ref ImVec3) => String -> ref -> m Bool
+colorPicker3 desc ref = liftIO do
+  ImVec3{x, y, z} <- get ref
+  withArray (realToFrac <$> [x, y, z]) \refPtr -> do
+    changed <- withCString desc \descPtr ->
+      (0 /= ) <$> [C.exp| bool { ColorPicker3( $(char* descPtr), $(float *refPtr) ) } |]
+
+    [x', y', z'] <- peekArray 3 refPtr
+    ref $=! ImVec3 (realToFrac x') (realToFrac y') (realToFrac z')
+
+    return changed
+
 
 -- | Display a color square/button, hover for details, return true when pressed.
 --
