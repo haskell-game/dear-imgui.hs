@@ -43,6 +43,10 @@ module DearImGui
   , begin
   , end
 
+    -- * Child Windows
+  , beginChild
+  , endChild
+
     -- * Cursor/Layout
   , separator
   , sameLine
@@ -71,6 +75,9 @@ module DearImGui
 
     -- ** Slider
   , sliderFloat
+  , sliderFloat2
+  , sliderFloat3
+  , sliderFloat4
 
     -- * Color Editor/Picker
   , colorPicker3
@@ -282,6 +289,19 @@ end = liftIO do
   [C.exp| void { ImGui::End(); } |]
 
 
+-- | Wraps @ImGui::BeginChild()@.
+beginChild :: MonadIO m => String -> m Bool
+beginChild name = liftIO do
+  withCString name \namePtr ->
+    (0 /=) <$> [C.exp| bool { ImGui::BeginChild($(char* namePtr)) } |]
+
+
+-- | Wraps @ImGui::EndChild()@.
+endChild :: MonadIO m => m ()
+endChild = liftIO do
+  [C.exp| void { ImGui::EndChild(); } |]
+
+
 -- | Separator, generally horizontal. inside a menu bar or in horizontal layout
 -- mode, this becomes a vertical separator.
 --
@@ -472,6 +492,60 @@ sliderFloat desc ref minValue maxValue = liftIO do
 
     newValue <- peek floatPtr
     ref $=! realToFrac newValue
+
+    return changed
+  where
+    min', max' :: CFloat
+    min' = realToFrac minValue
+    max' = realToFrac maxValue
+
+
+-- | Wraps @ImGui::SliderFloat2()@
+sliderFloat2 :: (MonadIO m, HasSetter ref (Float, Float), HasGetter ref (Float, Float)) => String -> ref -> Float -> Float -> m Bool
+sliderFloat2 desc ref minValue maxValue = liftIO do
+  (x, y) <- get ref
+  withArray [ realToFrac x, realToFrac y ] \floatPtr -> do
+    changed <- withCString desc \descPtr ->
+      (0 /=) <$> [C.exp| bool { SliderFloat2( $(char* descPtr), $(float *floatPtr), $(float min'), $(float max')) } |]
+
+    [x', y'] <- peekArray 2 floatPtr
+    ref $=! (realToFrac x', realToFrac y')
+
+    return changed
+  where
+    min', max' :: CFloat
+    min' = realToFrac minValue
+    max' = realToFrac maxValue
+
+
+-- | Wraps @ImGui::SliderFloat3()@
+sliderFloat3 :: (MonadIO m, HasSetter ref (Float, Float, Float), HasGetter ref (Float, Float, Float)) => String -> ref -> Float -> Float -> m Bool
+sliderFloat3 desc ref minValue maxValue = liftIO do
+  (x, y, z) <- get ref
+  withArray [ realToFrac x, realToFrac y, realToFrac z ] \floatPtr -> do
+    changed <- withCString desc \descPtr ->
+      (0 /=) <$> [C.exp| bool { SliderFloat3( $(char* descPtr), $(float *floatPtr), $(float min'), $(float max')) } |]
+
+    [x', y', z'] <- peekArray 3 floatPtr
+    ref $=! (realToFrac x', realToFrac y', realToFrac z')
+
+    return changed
+  where
+    min', max' :: CFloat
+    min' = realToFrac minValue
+    max' = realToFrac maxValue
+
+
+-- | Wraps @ImGui::SliderFloat4()@
+sliderFloat4 :: (MonadIO m, HasSetter ref (Float, Float, Float, Float), HasGetter ref (Float, Float, Float, Float)) => String -> ref -> Float -> Float -> m Bool
+sliderFloat4 desc ref minValue maxValue = liftIO do
+  (x, y, z, u) <- get ref
+  withArray [ realToFrac x, realToFrac y, realToFrac z, realToFrac u ] \floatPtr -> do
+    changed <- withCString desc \descPtr ->
+      (0 /=) <$> [C.exp| bool { SliderFloat4( $(char* descPtr), $(float *floatPtr), $(float min'), $(float max')) } |]
+
+    [x', y', z', u'] <- peekArray 4 floatPtr
+    ref $=! (realToFrac x', realToFrac y', realToFrac z', realToFrac u')
 
     return changed
   where
