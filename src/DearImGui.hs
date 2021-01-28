@@ -84,6 +84,11 @@ module DearImGui
   , colorPicker3
   , colorButton
 
+    -- * Trees
+  , treeNode
+  , treePush
+  , treePop
+
     -- ** Selectables
   , selectable
 
@@ -589,6 +594,25 @@ colorButton desc ref = liftIO do
     ref $=! newValue
 
     return changed
+
+-- | Wraps @ImGui::TreeNode()@.
+treeNode :: MonadIO m => String -> m Bool
+treeNode label = liftIO do
+  withCString label \labelPtr ->
+    (0 /=) <$> [C.exp| bool { TreeNode($(char* labelPtr)) } |]
+
+
+-- | Wraps @ImGui::TreePush()@.
+treePush :: MonadIO m => String -> m ()
+treePush label = liftIO do
+  withCString label \labelPtr ->
+    [C.exp| void { TreePush($(char* labelPtr)) } |]
+
+
+-- | Wraps @ImGui::TreePop()@.
+treePop :: MonadIO m => m ()
+treePop = liftIO do
+  [C.exp| void { TreePop() } |]
 
 
 -- | Wraps @ImGui::Selectable()@.

@@ -95,6 +95,15 @@ loop w checked color slider r = do
 
   colorPicker3 "Test" color
 
+  treeNode "Tree Node 1" >>= whenTrue do
+    treeNode "Tree Node 2" >>= whenTrue do
+      treePop
+
+    treeNode "Tree Node 3" >>= whenTrue do
+      treePop
+
+    treePop
+
   beginMainMenuBar >>= whenTrue do
     beginMenu "Hello" >>= whenTrue do
       menuItem "Hello"
