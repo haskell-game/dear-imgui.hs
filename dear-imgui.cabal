@@ -2,6 +2,8 @@ cabal-version: 3.0
 name: dear-imgui
 version: 1.0.0
 build-type: Simple
+data-files:
+  imgui/imgui.h
 
 flag opengl
   description:
@@ -27,16 +29,25 @@ flag sdl
   manual:
     False
 
+common common
+  build-depends:
+      base
+        >= 4.12 && < 4.17
+  default-language:
+      Haskell2010
+  ghc-options:
+      -Wall
+
 library
-  exposed-modules:
-    DearImGui
-    DearImGui.Context
+  import: common
   hs-source-dirs:
     src
-  default-language:
-    Haskell2010
-  ghc-options:
-    -Wall
+  exposed-modules:
+    DearImGui
+  other-modules:
+    DearImGui.Context
+    DearImGui.Enums
+    DearImGui.Structs
   cxx-sources:
     imgui/imgui.cpp
     imgui/imgui_demo.cpp
@@ -50,7 +61,7 @@ library
   include-dirs:
     imgui
   build-depends:
-      base
+      dear-imgui-generator
     , containers
     , managed
     , inline-c
@@ -117,30 +128,57 @@ library
       exposed-modules:
         DearImGui.SDL.Vulkan
 
+library dear-imgui-generator
+  import: common
+  hs-source-dirs: generator
+  exposed-modules:
+      DearImGui.Generator
+    , DearImGui.Generator.Parser
+    , DearImGui.Generator.Tokeniser
+    , DearImGui.Generator.Types
+  other-modules:
+    Paths_dear_imgui
+  autogen-modules:
+    Paths_dear_imgui
+  build-depends:
+      template-haskell
+        >= 2.15 && < 2.19
+    , directory
+        >= 1.3 && < 1.4
+    , megaparsec
+        >= 9.0 && < 9.1
+    , parser-combinators
+        >= 1.2.0 && < 1.3
+    , scientific
+        >= 0.3.6.2 && < 0.3.7
+    , text
+        >= 1.2.4 && < 1.3
+    , th-lift
+        >= 0.7 && < 0.9
+    , transformers
+        >= 0.5.6 && < 0.6
+    , unordered-containers
+        >= 0.2.11 && < 0.2.14
 
 executable test
+  import: common
   main-is: Main.hs
-  default-language: Haskell2010
-  build-depends: base, sdl2, gl, dear-imgui
-  ghc-options: -Wall
-
+  build-depends: sdl2, gl, dear-imgui
 
 executable readme
+  import: common
   main-is: Readme.hs
   hs-source-dirs: examples
-  default-language: Haskell2010
-  build-depends: base, sdl2, gl, dear-imgui, managed
-  ghc-options: -Wall
+  build-depends: sdl2, gl, dear-imgui, managed
 
 executable vulkan
+  import: common
   main-is: Main.hs
   other-modules: Attachments, Backend, Input, Util
   hs-source-dirs: examples/vulkan
   default-language: Haskell2010
   build-depends:
       dear-imgui
-    , base
-        >= 4.13 && < 4.16
     , bytestring
         >= 0.10.10.0 && < 0.12
     , containers
