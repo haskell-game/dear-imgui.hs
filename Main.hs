@@ -7,7 +7,7 @@ module Main (main) where
 
 import Data.IORef
 import DearImGui
-import DearImGui.OpenGL
+import DearImGui.OpenGL3
 import DearImGui.SDL
 import DearImGui.SDL.OpenGL
 import Control.Exception
@@ -22,7 +22,7 @@ main = do
     bracket (glCreateContext w) glDeleteContext \glContext ->
     bracket createContext destroyContext \_imguiContext ->
     bracket_ (sdl2InitForOpenGL w glContext) sdl2Shutdown $
-    bracket_ openGL2Init openGL2Shutdown do
+    bracket_ openGL3Init openGL3Shutdown do
       checkVersion
       styleColorsLight
 
@@ -31,13 +31,13 @@ main = do
       slider <- newIORef 0.42
       loop w checked color slider
 
-      openGL2Shutdown
+      openGL3Shutdown
 
 loop :: Window -> IORef Bool -> IORef ImVec3 -> IORef Float -> IO ()
 loop w checked color slider = do
   quit <- pollEvents
 
-  openGL2NewFrame
+  openGL3NewFrame
   sdl2NewFrame w
   newFrame
 
@@ -103,7 +103,7 @@ loop w checked color slider = do
   render
 
   glClear GL_COLOR_BUFFER_BIT
-  openGL2RenderDrawData =<< getDrawData
+  openGL3RenderDrawData =<< getDrawData
 
   glSwapWindow w
 
