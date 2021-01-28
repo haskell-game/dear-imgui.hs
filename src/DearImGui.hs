@@ -43,6 +43,10 @@ module DearImGui
   , begin
   , end
 
+    -- * Child Windows
+  , beginChild
+  , endChild
+
     -- * Cursor/Layout
   , separator
   , sameLine
@@ -277,6 +281,19 @@ begin name = liftIO do
 end :: MonadIO m => m ()
 end = liftIO do
   [C.exp| void { ImGui::End(); } |]
+
+
+-- | Wraps @ImGui::BeginChild()@.
+beginChild :: MonadIO m => String -> m Bool
+beginChild name = liftIO do
+  withCString name \namePtr ->
+    (0 /=) <$> [C.exp| bool { ImGui::BeginChild($(char* namePtr)) } |]
+
+
+-- | Wraps @ImGui::EndChild()@.
+endChild :: MonadIO m => m ()
+endChild = liftIO do
+  [C.exp| void { ImGui::EndChild(); } |]
 
 
 -- | Separator, generally horizontal. inside a menu bar or in horizontal layout

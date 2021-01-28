@@ -78,10 +78,14 @@ loop w checked color slider = do
 
   progressBar 0.314 (Just "Pi")
 
+  beginChild "Child"
+
   beginCombo "Label" "Preview" >>= whenTrue do
     selectable "Testing 1"
     selectable "Testing 2"
     endCombo
+
+  endChild
 
   plotHistogram "A histogram" [ 10, 10, 20, 30, 90 ]
 
