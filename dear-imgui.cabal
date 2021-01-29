@@ -133,8 +133,9 @@ library
     cxx-sources:
       imgui/backends/imgui_impl_glfw.cpp
 
-    pkgconfig-depends:
-      glfw3
+    if os(linux) || os(darwin)
+      pkgconfig-depends:
+        glfw3
 
     if flag(opengl)
       exposed-modules:
