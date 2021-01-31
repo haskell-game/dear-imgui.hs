@@ -46,7 +46,7 @@ loop w checked color slider = do
   -- showAboutWindow
   -- showUserGuide
 
-  begin "My Window"
+  begin Begin{ name = "My Window", isOpen = Nothing }
   text "Hello!"
 
   button "Click me" >>= \case

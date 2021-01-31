@@ -41,6 +41,7 @@ module DearImGui
 
     -- * Windows
   , begin
+  , Begin(..)
   , end
 
     -- * Cursor/Layout
@@ -126,7 +127,7 @@ import qualified Language.C.Inline.Cpp as Cpp
 
 -- StateVar
 import Data.StateVar
-  ( HasGetter(get), HasSetter, ($=!) )
+  ( HasGetter(get), HasSetter, ($=!), StateVar )
 
 -- transformers
 import Control.Monad.IO.Class
@@ -262,10 +263,21 @@ styleColorsClassic = liftIO do
 -- matching 'end' for each 'begin' call, regardless of its return value!
 --
 -- Wraps @ImGui::Begin()@.
-begin :: MonadIO m => String -> m Bool
-begin name = liftIO do
+begin :: MonadIO m => Begin -> m Bool
+begin Begin{ name, isOpen } = liftIO $
   withCString name \namePtr ->
-    (0 /=) <$> [C.exp| bool { ImGui::Begin($(char* namePtr)) } |]
+  withMaybeStateVar isOpen \isOpenPtr -> do
+    (0 /=) <$> [C.exp| bool { ImGui::Begin($(char* namePtr), $(bool* isOpenPtr)) } |]
+
+
+data Begin = Begin
+  { name :: String
+
+  , isOpen :: Maybe (StateVar CBool)
+    -- ^ When set shows a window-closing widget in the upper-right corner of the
+    -- window, which clicking will set this 'Bool' reference to 'False' when
+    -- clicked.
+  }
 
 
 -- | Pop window from the stack.
@@ -582,3 +594,16 @@ pattern ImGuiDirDown  = ImGuiDir 3
 withCStringOrNull :: Maybe String -> (Ptr CChar -> IO a) -> IO a
 withCStringOrNull Nothing k  = k nullPtr
 withCStringOrNull (Just s) k = withCString s k
+
+
+withMaybeStateVar :: Storable x => Maybe (StateVar x) -> (Ptr x -> IO r) -> IO r
+withMaybeStateVar Nothing k = k nullPtr
+withMaybeStateVar (Just r) k = do
+  x <- get r
+  with x \xPtr -> do
+    y  <- k xPtr
+
+    x' <- peek xPtr
+    r $=! x'
+
+    return y
