@@ -1,4 +1,5 @@
 {-# LANGUAGE BlockArguments #-}
+{-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedStrings #-}
@@ -68,7 +69,7 @@ loop w checked color slider = do
 
   sameLine >> arrowButton "Arrow" ImGuiDirUp
 
-  sameLine >> checkbox "Check!" checked >>= \case
+  sameLine >> checkbox Checkbox{ label = "Check!", checked = toStateVar checked } >>= \case
     True  -> readIORef checked >>= print
     False -> return ()
 

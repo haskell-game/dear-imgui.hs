@@ -57,6 +57,7 @@ module DearImGui
   , smallButton
   , arrowButton
   , checkbox
+  , Checkbox(..)
   , progressBar
   , bullet
 
@@ -108,6 +109,9 @@ module DearImGui
   , pattern ImGuiDirDown
   , ImVec3(..)
   , ImVec4(..)
+
+    -- * TODO
+  , toStateVar
   )
   where
 
@@ -127,7 +131,7 @@ import qualified Language.C.Inline.Cpp as Cpp
 
 -- StateVar
 import Data.StateVar
-  ( HasGetter(get), HasSetter, ($=!), StateVar )
+  ( HasGetter(get), HasSetter, ($=!), mapStateVar, StateVar(..) )
 
 -- transformers
 import Control.Monad.IO.Class
@@ -342,17 +346,17 @@ arrowButton strId (ImGuiDir dir) = liftIO do
 
 
 -- | Wraps @ImGui::Checkbox()@.
-checkbox :: (HasSetter ref Bool, HasGetter ref Bool, MonadIO m) => String -> ref -> m Bool
-checkbox label ref = liftIO do
-  currentValue <- get ref
-  with (bool 0 1 currentValue :: CBool) \boolPtr -> do
-    changed <- withCString label \labelPtr ->
-      (0 /=) <$> [C.exp| bool { Checkbox($(char* labelPtr), $(bool* boolPtr)) } |]
+checkbox :: MonadIO m => Checkbox -> m Bool
+checkbox Checkbox{ label, checked } = liftIO $
+  withStateVar (mapStateVar cBoolToBool boolToCBool checked) \boolPtr ->
+  withCString label \labelPtr ->
+  cBoolToBool <$> [C.exp| bool { Checkbox($(char* labelPtr), $(bool* boolPtr)) } |]
 
-    newValue <- peek boolPtr
-    ref $=! (newValue == 1)
 
-    return changed
+data Checkbox = Checkbox
+  { label   :: String
+  , checked :: StateVar Bool
+  }
 
 
 progressBar :: MonadIO m => Float -> Maybe String -> m ()
@@ -597,8 +601,12 @@ withCStringOrNull (Just s) k = withCString s k
 
 
 withMaybeStateVar :: Storable x => Maybe (StateVar x) -> (Ptr x -> IO r) -> IO r
-withMaybeStateVar Nothing k = k nullPtr
-withMaybeStateVar (Just r) k = do
+withMaybeStateVar Nothing k  = k nullPtr
+withMaybeStateVar (Just r) k = withStateVar r k
+
+
+withStateVar :: Storable x => StateVar x -> (Ptr x -> IO r) -> IO r
+withStateVar r k = do
   x <- get r
   with x \xPtr -> do
     y  <- k xPtr
@@ -607,3 +615,15 @@ withMaybeStateVar (Just r) k = do
     r $=! x'
 
     return y
+
+
+boolToCBool :: Bool -> CBool
+boolToCBool = bool 0 1
+
+
+cBoolToBool :: CBool -> Bool
+cBoolToBool = (/= 0)
+
+
+toStateVar :: (HasGetter r a, HasSetter r a) => r -> StateVar a
+toStateVar r = StateVar (get r) (r $=!)
