@@ -49,10 +49,9 @@ loop w checked color slider r pos = do
   -- showAboutWindow
   -- showUserGuide
 
+  setNextWindowPos pos ImGuiCondOnce Nothing
   begin "My Window"
   text "Hello!"
-
-  setNextWindowPos pos ImGuiCondAlways Nothing
 
   listBox "Items" r [ "A", "B", "C" ]
 
