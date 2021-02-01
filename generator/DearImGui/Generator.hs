@@ -23,6 +23,10 @@ import Data.Traversable
 import System.Directory
   ( canonicalizePath )
 
+-- filepath
+import System.FilePath
+  ( takeDirectory )
+
 -- megaparsec
 import qualified Text.Megaparsec as Megaparsec
   ( ParseErrorBundle(bundleErrors), parse, parseErrorPretty )
@@ -44,24 +48,24 @@ import DearImGui.Generator.Tokeniser
   ( tokenise )
 import DearImGui.Generator.Types
   ( Comment(..), Enumeration(..), Headers(..) )
-import Paths_dear_imgui
-  ( getDataFileName )
 
 --------------------------------------------------------------------------------
 -- Obtaining parsed header data.
 
 headers :: Headers
-headers = $( TH.lift =<< TH.runIO do
-  headersPath <- canonicalizePath =<< getDataFileName "imgui/imgui.h"
-  headersSource <- Text.readFile headersPath
-  tokens <- case tokenise headersSource of
-    Left  err  -> error ( "Couldn't tokenise Dear ImGui headers:\n\n" <> show err )
-    Right toks -> pure toks
-  case Megaparsec.parse Parser.headers "" tokens of
-    Left  err -> error $
-      "Couldn't parse Dear ImGui headers:\n\n" <>
-      ( unlines ( map Megaparsec.parseErrorPretty . toList $ Megaparsec.bundleErrors err ) )
-    Right res -> pure res
+headers = $( do
+  currentPath <- TH.loc_filename <$> TH.location
+  TH.lift =<< TH.runIO do
+    headersPath  <- canonicalizePath ( takeDirectory currentPath <> "/../../imgui/imgui.h" )
+    headersSource <- Text.readFile headersPath
+    tokens <- case tokenise headersSource of
+      Left  err  -> error ( "Couldn't tokenise Dear ImGui headers:\n\n" <> show err )
+      Right toks -> pure toks
+    case Megaparsec.parse Parser.headers "" tokens of
+      Left  err -> error $
+        "Couldn't parse Dear ImGui headers:\n\n" <>
+        ( unlines ( map Megaparsec.parseErrorPretty . toList $ Megaparsec.bundleErrors err ) )
+      Right res -> pure res
   )
 
 --------------------------------------------------------------------------------
