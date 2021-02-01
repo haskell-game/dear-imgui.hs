@@ -44,6 +44,7 @@ module DearImGui
   , begin
   , end
   , setNextWindowPos
+  , setNextWindowSize
 
     -- * Child Windows
   , beginChild
@@ -791,14 +792,20 @@ pattern ImGuiCondFirstUseEver = ImGuiCond 4
 pattern ImGuiCondAppearing    = ImGuiCond 8
 
 
-setNextWindowPos :: (MonadIO m, HasGetter ref ImVec2 )=> ref -> ImGuiCond -> Maybe ref -> m ()
+setNextWindowPos :: (MonadIO m, HasGetter ref ImVec2) => ref -> ImGuiCond -> Maybe ref -> m ()
 setNextWindowPos posRef (ImGuiCond con) pivotMaybe = liftIO do
   pos <- get posRef
   with pos $ \posPtr ->
-      case pivotMaybe of 
-        Just pivotRef -> do 
-          pivot <- get pivotRef
-          with pivot $ \pivotPtr -> 
-            [C.exp| void { SetNextWindowPos(*$(ImVec2 *posPtr), $(int con), *$(ImVec2 *pivotPtr)) } |]
-        Nothing -> 
-          [C.exp| void { SetNextWindowPos(*$(ImVec2 *posPtr), $(int con)) } |]
+    case pivotMaybe of
+      Just pivotRef -> do
+        pivot <- get pivotRef
+        with pivot $ \pivotPtr ->
+          [C.exp| void { SetNextWindowPos(*$(ImVec2 *posPtr), $(int con), *$(ImVec2 *pivotPtr)) } |]
+      Nothing ->
+        [C.exp| void { SetNextWindowPos(*$(ImVec2 *posPtr), $(int con)) } |]
+
+setNextWindowSize :: (MonadIO m, HasGetter ref ImVec2) => ref -> ImGuiCond -> m ()
+setNextWindowSize sizeRef (ImGuiCond con) = liftIO do
+  size' <- get sizeRef
+  with size' $ 
+    \sizePtr ->[C.exp| void { SetNextWindowSize(*$(ImVec2 *sizePtr), $(int con)) } |]

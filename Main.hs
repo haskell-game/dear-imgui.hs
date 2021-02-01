@@ -30,14 +30,15 @@ main = do
       color <- newIORef $ ImVec3 1 0 0
       slider <- newIORef (0.42, 0, 0.314)
       r <- newIORef 4
-      pos <- newIORef $ ImVec2 10 10
-      loop w checked color slider r pos
+      pos <- newIORef $ ImVec2 64 64
+      size' <- newIORef $ ImVec2 512 512
+      loop w checked color slider r pos size'
 
       openGL2Shutdown
 
 
-loop :: Window -> IORef Bool -> IORef ImVec3 -> IORef (Float, Float, Float) -> IORef Int -> IORef ImVec2 -> IO ()
-loop w checked color slider r pos = do
+loop :: Window -> IORef Bool -> IORef ImVec3 -> IORef (Float, Float, Float) -> IORef Int -> IORef ImVec2 -> IORef ImVec2 -> IO ()
+loop w checked color slider r pos size' = do
   quit <- pollEvents
 
   openGL2NewFrame
@@ -50,6 +51,8 @@ loop w checked color slider r pos = do
   -- showUserGuide
 
   setNextWindowPos pos ImGuiCondOnce Nothing
+  setNextWindowSize size' ImGuiCondOnce
+
   begin "My Window"
   text "Hello!"
 
@@ -126,7 +129,7 @@ loop w checked color slider r pos = do
 
   glSwapWindow w
 
-  if quit then return () else loop w checked color slider r pos
+  if quit then return () else loop w checked color slider r pos size'
 
   where
 
