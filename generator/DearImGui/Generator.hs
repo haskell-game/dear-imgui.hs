@@ -18,6 +18,8 @@ import Data.Foldable
   ( toList )
 import Data.Traversable
   ( for )
+import Foreign.Storable
+  ( Storable )
 
 -- directory
 import System.Directory
@@ -71,11 +73,12 @@ headers = $( do
 --------------------------------------------------------------------------------
 -- Generating TH splices.
 
-declareEnumerations :: TH.Q [ TH.Dec ]
-declareEnumerations = concat <$> mapM declareEnumeration ( enums headers )
+declareEnumerations :: TH.Name -> TH.Name -> TH.Q [ TH.Dec ]
+declareEnumerations finiteEnumName countName = do
+  concat <$> mapM ( declareEnumeration finiteEnumName countName ) ( enums headers )
 
-declareEnumeration :: Enumeration -> TH.Q [ TH.Dec ]
-declareEnumeration ( Enumeration {..} ) = do
+declareEnumeration :: TH.Name -> TH.Name -> Enumeration -> TH.Q [ TH.Dec ]
+declareEnumeration finiteEnumName countName ( Enumeration {..} ) = do
   let
     enumNameStr :: String
     enumNameStr = Text.unpack enumName
@@ -95,9 +98,9 @@ declareEnumeration ( Enumeration {..} ) = do
     classes :: [ TH.Q TH.Type ]
     classes
       | isFlagEnum
-      = map TH.conT [ ''Eq, ''Ord, ''Bits ]
+      = map TH.conT [ ''Eq, ''Ord, ''Storable, ''Bits ]
       | otherwise
-      = map TH.conT [ ''Eq, ''Ord ]
+      = map TH.conT [ ''Eq, ''Ord, ''Storable ]
     derivClause :: TH.Q TH.DerivClause
     derivClause = TH.derivClause ( Just TH.NewtypeStrategy ) classes
   newtypeDecl <-
@@ -114,12 +117,19 @@ declareEnumeration ( Enumeration {..} ) = do
 #endif
     ( pure [] ) tyName [] Nothing newtypeCon [ derivClause ]
 
-  -- TODO: define the size of the enum for those with explicit count, e.g.
-  -- instance Finitary EnumName where
-  --   type Cardinality EnumName = enumSize
-  --   fromFinite a = EnumCon ( fromIntegral a )
-  --   toFinite ( EnumCon a ) = fromIntegral a
-  
+  mbAddFiniteEnumInst <-
+    if hasExplicitCount
+    then do
+      finiteEnumInst <-
+        TH.instanceD ( pure [] ) ( TH.appT ( TH.conT finiteEnumName ) ( TH.conT tyName ) )
+          [ TH.tySynInstD ( TH.TySynEqn Nothing
+                        <$> TH.appT ( TH.conT countName ) ( TH.conT tyName )
+                        <*> TH.litT ( TH.numTyLit enumSize )
+                          )
+          ]  
+      pure ( finiteEnumInst : )
+    else pure id
+
   synonyms <- for patterns \ ( patternName, patternValue, CommentText patDoc ) -> do
     let
       patNameStr :: String
@@ -142,7 +152,7 @@ declareEnumeration ( Enumeration {..} ) = do
         ( TH.conP conName [ TH.litP $ TH.integerL patternValue ] )
     pure ( patSynSig, pat )
 
-  pure ( newtypeDecl : unpairs synonyms )
+  pure ( newtypeDecl : mbAddFiniteEnumInst ( unpairs synonyms ) )
 
 unpairs :: [ ( a, a ) ] -> [ a ]
 unpairs [] = []
