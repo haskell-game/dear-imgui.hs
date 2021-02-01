@@ -30,13 +30,14 @@ main = do
       color <- newIORef $ ImVec3 1 0 0
       slider <- newIORef (0.42, 0, 0.314)
       r <- newIORef 4
-      loop w checked color slider r
+      pos <- newIORef $ ImVec2 10 10
+      loop w checked color slider r pos
 
       openGL2Shutdown
 
 
-loop :: Window -> IORef Bool -> IORef ImVec3 -> IORef (Float, Float, Float) -> IORef Int -> IO ()
-loop w checked color slider r = do
+loop :: Window -> IORef Bool -> IORef ImVec3 -> IORef (Float, Float, Float) -> IORef Int -> IORef ImVec2 -> IO ()
+loop w checked color slider r pos = do
   quit <- pollEvents
 
   openGL2NewFrame
@@ -50,6 +51,8 @@ loop w checked color slider r = do
 
   begin "My Window"
   text "Hello!"
+
+  setNextWindowPos pos ImGuiCondAlways Nothing
 
   listBox "Items" r [ "A", "B", "C" ]
 
@@ -124,7 +127,7 @@ loop w checked color slider r = do
 
   glSwapWindow w
 
-  if quit then return () else loop w checked color slider r
+  if quit then return () else loop w checked color slider r pos
 
   where
 

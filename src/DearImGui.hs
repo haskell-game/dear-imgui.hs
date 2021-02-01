@@ -43,6 +43,7 @@ module DearImGui
     -- * Windows
   , begin
   , end
+  , setNextWindowPos
 
     -- * Child Windows
   , beginChild
@@ -778,3 +779,26 @@ isItemHovered = liftIO do
 withCStringOrNull :: Maybe String -> (Ptr CChar -> IO a) -> IO a
 withCStringOrNull Nothing k  = k nullPtr
 withCStringOrNull (Just s) k = withCString s k
+
+newtype ImGuiCond      = ImGuiCond CInt
+
+
+pattern ImGuiCondNone, ImGuiCondAlways, ImGuiCondOnce, ImGuiCondFirstUseEver, ImGuiCondAppearing :: ImGuiCond
+pattern ImGuiCondNone         = ImGuiCond 0
+pattern ImGuiCondAlways       = ImGuiCond 1
+pattern ImGuiCondOnce         = ImGuiCond 2
+pattern ImGuiCondFirstUseEver = ImGuiCond 4
+pattern ImGuiCondAppearing    = ImGuiCond 8
+
+
+setNextWindowPos :: (MonadIO m, HasGetter ref ImVec2 )=> ref -> ImGuiCond -> Maybe ref -> m ()
+setNextWindowPos posRef (ImGuiCond con) pivotMaybe = liftIO do
+  pos <- get posRef
+  with pos $ \posPtr ->
+      case pivotMaybe of 
+        Just pivotRef -> do 
+          pivot <- get pivotRef
+          with pivot $ \pivotPtr -> 
+            [C.exp| void { SetNextWindowPos(*$(ImVec2 *posPtr), $(int con), *$(ImVec2 *pivotPtr)) } |]
+        Nothing -> 
+          [C.exp| void { SetNextWindowPos(*$(ImVec2 *posPtr), $(int con)) } |]
