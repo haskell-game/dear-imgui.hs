@@ -45,6 +45,10 @@ module DearImGui
   , end
   , setNextWindowPos
   , setNextWindowSize
+  , setNextWindowContentSize
+  , setNextWindowSizeConstraints
+  , setNextWindowCollapsed
+  , setNextWindowBgAlpha
 
     -- * Child Windows
   , beginChild
@@ -809,3 +813,27 @@ setNextWindowSize sizeRef (ImGuiCond con) = liftIO do
   size' <- get sizeRef
   with size' $ 
     \sizePtr ->[C.exp| void { SetNextWindowSize(*$(ImVec2 *sizePtr), $(int con)) } |]
+
+setNextWindowContentSize :: (MonadIO m, HasGetter ref ImVec2) => ref -> m ()
+setNextWindowContentSize sizeRef = liftIO do
+  size' <- get sizeRef
+  with size' $ 
+    \sizePtr ->[C.exp| void { SetNextWindowContentSize(*$(ImVec2 *sizePtr)) } |]
+
+setNextWindowSizeConstraints :: (MonadIO m, HasGetter ref ImVec2) => ref -> ref -> m ()
+setNextWindowSizeConstraints sizeMinRef sizeMaxRef = liftIO do
+  sizeMin <- get sizeMinRef
+  sizeMax <- get sizeMaxRef
+  with sizeMin $ 
+    \sizeMinPtr -> 
+      with sizeMax $ \sizeMaxPtr -> 
+        [C.exp| void { SetNextWindowSizeConstraints(*$(ImVec2 *sizeMinPtr), *$(ImVec2 *sizeMaxPtr)) } |]
+
+
+setNextWindowCollapsed :: (MonadIO m) => CBool -> ImGuiCond -> m ()
+setNextWindowCollapsed b (ImGuiCond con) = liftIO do
+  [C.exp| void { SetNextWindowCollapsed($(bool b), $(int con)) } |]
+
+setNextWindowBgAlpha :: (MonadIO m) => CFloat -> m ()
+setNextWindowBgAlpha f = liftIO do
+  [C.exp| void { SetNextWindowBgAlpha($(float f)) } |]
