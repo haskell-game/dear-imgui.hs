@@ -19,7 +19,7 @@ import Language.C.Types
 
 -- dear-imgui
 import DearImGui.Structs
-  ( ImVec3, ImVec4 )
+  ( ImVec2, ImVec3, ImVec4 )
 
 --------------------------------------------------------------------------------
 
