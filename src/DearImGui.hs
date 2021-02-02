@@ -785,6 +785,9 @@ withCStringOrNull :: Maybe String -> (Ptr CChar -> IO a) -> IO a
 withCStringOrNull Nothing k  = k nullPtr
 withCStringOrNull (Just s) k = withCString s k
 
+-- | Set next window position. Call before `begin` Use pivot=(0.5,0.5) to center on given point, etc.
+--
+-- Wraps @ImGui::SetNextWindowPos()@
 setNextWindowPos :: (MonadIO m, HasGetter ref ImVec2) => ref -> ImGuiCond -> Maybe ref -> m ()
 setNextWindowPos posRef (ImGuiCond con) pivotMaybe = liftIO do
   pos <- get posRef
@@ -797,18 +800,27 @@ setNextWindowPos posRef (ImGuiCond con) pivotMaybe = liftIO do
       Nothing ->
         [C.exp| void { SetNextWindowPos(*$(ImVec2 *posPtr), $(int con)) } |]
 
+-- | Set next window size. Call before `begin` 
+--
+-- Wraps @ImGui::SetNextWindowSize()@
 setNextWindowSize :: (MonadIO m, HasGetter ref ImVec2) => ref -> ImGuiCond -> m ()
 setNextWindowSize sizeRef (ImGuiCond con) = liftIO do
   size' <- get sizeRef
   with size' $ 
     \sizePtr ->[C.exp| void { SetNextWindowSize(*$(ImVec2 *sizePtr), $(int con)) } |]
 
+-- | Set next window content size (~ scrollable client area, which enforce the range of scrollbars). Not including window decorations (title bar, menu bar, etc.) nor WindowPadding. call before `begin`
+--
+-- Wraps @ImGui::SetNextWindowContentSize()@
 setNextWindowContentSize :: (MonadIO m, HasGetter ref ImVec2) => ref -> m ()
 setNextWindowContentSize sizeRef = liftIO do
   size' <- get sizeRef
   with size' $ 
     \sizePtr ->[C.exp| void { SetNextWindowContentSize(*$(ImVec2 *sizePtr)) } |]
 
+-- | Set next window size limits. use -1,-1 on either X/Y axis to preserve the current size. Sizes will be rounded down.
+--
+-- Wraps @ImGui::SetNextWindowContentSize()@
 setNextWindowSizeConstraints :: (MonadIO m, HasGetter ref ImVec2) => ref -> ref -> m ()
 setNextWindowSizeConstraints sizeMinRef sizeMaxRef = liftIO do
   sizeMin <- get sizeMinRef
@@ -818,11 +830,16 @@ setNextWindowSizeConstraints sizeMinRef sizeMaxRef = liftIO do
       with sizeMax $ \sizeMaxPtr -> 
         [C.exp| void { SetNextWindowSizeConstraints(*$(ImVec2 *sizeMinPtr), *$(ImVec2 *sizeMaxPtr)) } |]
 
-
+-- | Set next window collapsed state. call before `begin`
+--
+-- Wraps @ImGui::SetNextWindowCollapsed()@
 setNextWindowCollapsed :: (MonadIO m) => CBool -> ImGuiCond -> m ()
 setNextWindowCollapsed b (ImGuiCond con) = liftIO do
   [C.exp| void { SetNextWindowCollapsed($(bool b), $(int con)) } |]
 
+-- | Set next window background color alpha. helper to easily override the Alpha component of `ImGuiCol_WindowBg`, `ChildBg`, `PopupBg`. you may also use `ImGuiWindowFlags_NoBackground`.
+--
+-- Wraps @ImGui::SetNextWindowBgAlpha()@
 setNextWindowBgAlpha :: (MonadIO m) => CFloat -> m ()
 setNextWindowBgAlpha f = liftIO do
   [C.exp| void { SetNextWindowBgAlpha($(float f)) } |]
