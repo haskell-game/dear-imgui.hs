@@ -135,6 +135,10 @@ module DearImGui
 
 -- base
 import Data.Bool
+import Data.Coerce 
+  ( coerce )
+import Data.Int 
+  ( Int32 )
 import Foreign
 import Foreign.C
 
@@ -833,16 +837,18 @@ setNextWindowSizeConstraints sizeMinRef sizeMaxRef = liftIO do
 -- | Set next window collapsed state. call before `begin`
 --
 -- Wraps @ImGui::SetNextWindowCollapsed()@
-setNextWindowCollapsed :: (MonadIO m) => CBool -> ImGuiCond -> m ()
+setNextWindowCollapsed :: (MonadIO m) => Bool -> ImGuiCond -> m ()
 setNextWindowCollapsed b (ImGuiCond con) = liftIO do
-  [C.exp| void { SetNextWindowCollapsed($(bool b), $(int con)) } |]
+  let b' = bool 0 1 b
+  [C.exp| void { SetNextWindowCollapsed($(bool b'), $(int con)) } |]
 
 -- | Set next window background color alpha. helper to easily override the Alpha component of `ImGuiCol_WindowBg`, `ChildBg`, `PopupBg`. you may also use `ImGuiWindowFlags_NoBackground`.
 --
 -- Wraps @ImGui::SetNextWindowBgAlpha()@
-setNextWindowBgAlpha :: (MonadIO m) => CFloat -> m ()
+setNextWindowBgAlpha :: (MonadIO m) => Float -> m ()
 setNextWindowBgAlpha f = liftIO do
-  [C.exp| void { SetNextWindowBgAlpha($(float f)) } |]
+  let f' = coerce f
+  [C.exp| void { SetNextWindowBgAlpha($(float f')) } |]
 
 -- | undo a sameLine or force a new line when in an horizontal-layout context.
 --
@@ -869,16 +875,18 @@ dummy sizeRef = liftIO do
 -- | Move content position toward the right, by indent_w, or style.IndentSpacing if indent_w <= 0
 --
 -- Wraps @ImGui::Indent()@
-indent :: (MonadIO m) => CFloat -> m ()
+indent :: (MonadIO m) => Float -> m ()
 indent indent_w = liftIO do
-  [C.exp| void { Indent($(float indent_w)) } |]
+  let indent_w' = coerce indent_w
+  [C.exp| void { Indent($(float indent_w')) } |]
 
 -- | Move content position back to the left, by indent_w, or style.IndentSpacing if indent_w <= 0
 --
 -- Wraps @ImGui::Unindent()@
-unindent :: (MonadIO m) => CFloat -> m ()
+unindent :: (MonadIO m) => Float -> m ()
 unindent f = liftIO do
-  [C.exp| void { Unindent($(float f)) } |]
+  let f' = coerce f
+  [C.exp| void { Unindent($(float f')) } |]
 
 -- | lock horizontal starting position
 --
@@ -911,7 +919,7 @@ setCursorPos posRef = liftIO do
 
 -- | Modify a style color by pushing to the shared stack. always use this if you modify the style after `newFrame`
 -- 
--- Wraps @ImGui::PushStyleColor()
+-- Wraps @ImGui::PushStyleColor()@
 pushStyleColor :: (MonadIO m, HasGetter ref ImVec4) => ImGuiCol -> ref -> m ()
 pushStyleColor (ImGuiCol idx) colorRef = liftIO do 
   color <- get colorRef
@@ -919,14 +927,15 @@ pushStyleColor (ImGuiCol idx) colorRef = liftIO do
 
 -- | Remove style color modifications from the shared stack
 -- 
--- Wraps @ImGui::PopStyleColor()
-popStyleColor :: (MonadIO m) => CInt -> m ()
+-- Wraps @ImGui::PopStyleColor()@
+popStyleColor :: (MonadIO m) => Int32 -> m ()
 popStyleColor count = liftIO do
-  [C.exp| void { PopStyleColor($(int count)) } |]
+  let count' = coerce count
+  [C.exp| void { PopStyleColor($(int count')) } |]
 
 -- | Modify a style variable by pushing to the shared stack. always use this if you modify the style after `newFrame`
 -- 
--- Wraps @ImGui::PushStyleVar()
+-- Wraps @ImGui::PushStyleVar()@
 pushStyleVar :: (MonadIO m, HasGetter ref ImVec2) => ImGuiStyleVar -> ref -> m ()
 pushStyleVar (ImGuiStyleVar idx) valRef = liftIO do 
   val <- get valRef
@@ -935,7 +944,8 @@ pushStyleVar (ImGuiStyleVar idx) valRef = liftIO do
 
 -- | Remove style variable modifications from the shared stack
 -- 
--- Wraps @ImGui::PopStyleVar()
-popStyleVar :: (MonadIO m) => CInt -> m ()
+-- Wraps @ImGui::PopStyleVar()@
+popStyleVar :: (MonadIO m) => Int32 -> m ()
 popStyleVar count = liftIO do
-  [C.exp| void { PopStyleVar($(int count)) } |]
+  let count' = coerce count
+  [C.exp| void { PopStyleVar($(int count')) } |]

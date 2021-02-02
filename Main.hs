@@ -55,7 +55,7 @@ loop w checked color slider r pos size' = do
   -- Works, but will make the window contents illegible without doing something more involved.
   -- setNextWindowContentSize size' 
   -- setNextWindowSizeConstraints size' size'
-  setNextWindowCollapsed 0 ImGuiCond_Once
+  setNextWindowCollapsed False ImGuiCond_Once
 
   setNextWindowBgAlpha 0.42
 
