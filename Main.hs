@@ -50,12 +50,12 @@ loop w checked color slider r pos size' = do
   -- showAboutWindow
   -- showUserGuide
 
-  setNextWindowPos pos ImGuiCondOnce Nothing
-  setNextWindowSize size' ImGuiCondOnce
+  setNextWindowPos pos ImGuiCond_Once Nothing
+  setNextWindowSize size' ImGuiCond_Once
   -- Works, but will make the window contents illegible without doing something more involved.
   -- setNextWindowContentSize size' 
   -- setNextWindowSizeConstraints size' size'
-  setNextWindowCollapsed 0 ImGuiCondOnce
+  setNextWindowCollapsed 0 ImGuiCond_Once
 
   setNextWindowBgAlpha 0.42
 
