@@ -843,3 +843,99 @@ setNextWindowCollapsed b (ImGuiCond con) = liftIO do
 setNextWindowBgAlpha :: (MonadIO m) => CFloat -> m ()
 setNextWindowBgAlpha f = liftIO do
   [C.exp| void { SetNextWindowBgAlpha($(float f)) } |]
+
+-- | undo a sameLine or force a new line when in an horizontal-layout context.
+--
+-- Wraps @ImGui::NewLine()@
+newLine :: (MonadIO m) => m ()
+newLine = liftIO do
+  [C.exp| void { NewLine() } |]
+
+-- | Add vertical spacing.
+--
+-- Wraps @ImGui::Spacing()@
+spacing :: (MonadIO m) => m ()
+spacing = liftIO do
+  [C.exp| void { Spacing() } |]
+
+-- | Add a dummy item of given size. unlike `invisibleButton`, `dummy` won't take the mouse click or be navigable into.
+--
+-- Wraps @ImGui::Dummy()@
+dummy :: (MonadIO m, HasGetter ref ImVec2) => ref -> m ()
+dummy sizeRef = liftIO do 
+  size' <- get sizeRef
+  with size' $ \ sizePtr -> [C.exp| void { Dummy(*$(ImVec2 *sizePtr)) } |]
+
+-- | Move content position toward the right, by indent_w, or style.IndentSpacing if indent_w <= 0
+--
+-- Wraps @ImGui::Indent()@
+indent :: (MonadIO m) => CFloat -> m ()
+indent indent_w = liftIO do
+  [C.exp| void { Indent($(float indent_w)) } |]
+
+-- | Move content position back to the left, by indent_w, or style.IndentSpacing if indent_w <= 0
+--
+-- Wraps @ImGui::Unindent()@
+unindent :: (MonadIO m) => CFloat -> m ()
+unindent f = liftIO do
+  [C.exp| void { Unindent($(float f)) } |]
+
+-- | lock horizontal starting position
+--
+--  Wraps @ImGui::BeginGroup()@
+beginGroup :: (MonadIO m) => m ()
+beginGroup = liftIO do
+  [C.exp| void { BeginGroup() } |]
+
+-- | unlock horizontal starting position + capture the whole group bounding box into one "item" (so you can use `isItemHovered` or layout primitives such as `sameLine` on whole group, etc.)
+--
+-- Wraps @ImGui::EndGroup()@
+endGroup :: (MonadIO m) => m ()
+endGroup = liftIO do
+  [C.exp| void { EndGroup() } |]
+
+-- | Vertically align upcoming text baseline to FramePadding.y so that it will align properly to regularly framed items (call if you have text on a line before a framed item)
+-- 
+-- Wraps @ImGui::AlignTextToFramePadding()@
+alignTextToFramePadding :: (MonadIO m) => m ()
+alignTextToFramePadding = liftIO do
+  [C.exp| void { AlignTextToFramePadding() } |]
+
+-- | Set cursor position in window-local coordinates
+-- 
+-- Wraps @ImGui::SetCursorPos()@
+setCursorPos :: (MonadIO m, HasGetter ref ImVec2) => ref -> m ()
+setCursorPos posRef = liftIO do 
+  pos <- get posRef
+  with pos $ \ posPtr -> [C.exp| void { SetCursorPos(*$(ImVec2 *posPtr)) } |]
+
+-- | Modify a style color by pushing to the shared stack. always use this if you modify the style after `newFrame`
+-- 
+-- Wraps @ImGui::PushStyleColor()
+pushStyleColor :: (MonadIO m, HasGetter ref ImVec4) => ImGuiCol -> ref -> m ()
+pushStyleColor (ImGuiCol idx) colorRef = liftIO do 
+  color <- get colorRef
+  with color $ \ colorPtr -> [C.exp| void { PushStyleColor($(int idx), *$(ImVec4 *colorPtr)) } |]
+
+-- | Remove style color modifications from the shared stack
+-- 
+-- Wraps @ImGui::PopStyleColor()
+popStyleColor :: (MonadIO m) => CInt -> m ()
+popStyleColor count = liftIO do
+  [C.exp| void { PopStyleColor($(int count)) } |]
+
+-- | Modify a style variable by pushing to the shared stack. always use this if you modify the style after `newFrame`
+-- 
+-- Wraps @ImGui::PushStyleVar()
+pushStyleVar :: (MonadIO m, HasGetter ref ImVec2) => ImGuiStyleVar -> ref -> m ()
+pushStyleVar (ImGuiStyleVar idx) valRef = liftIO do 
+  val <- get valRef
+  with val $ \ valPtr -> [C.exp| void { PushStyleVar($(int idx), *$(ImVec2 *valPtr)) } |]
+
+
+-- | Remove style variable modifications from the shared stack
+-- 
+-- Wraps @ImGui::PopStyleVar()
+popStyleVar :: (MonadIO m) => CInt -> m ()
+popStyleVar count = liftIO do
+  [C.exp| void { PopStyleVar($(int count)) } |]
