@@ -32,13 +32,23 @@ main = do
       r <- newIORef 4
       pos <- newIORef $ ImVec2 64 64
       size' <- newIORef $ ImVec2 512 512
-      loop w checked color slider r pos size'
+      selected <- newIORef 4
+      loop w checked color slider r pos size' selected
 
       openGL2Shutdown
 
 
-loop :: Window -> IORef Bool -> IORef ImVec3 -> IORef (Float, Float, Float) -> IORef Int -> IORef ImVec2 -> IORef ImVec2 -> IO ()
-loop w checked color slider r pos size' = do
+loop 
+  :: Window 
+  -> IORef Bool 
+  -> IORef ImVec3 
+  -> IORef (Float, Float, Float) 
+  -> IORef Int 
+  -> IORef ImVec2 
+  -> IORef ImVec2
+  -> IORef Int 
+  -> IO ()
+loop w checked color slider r pos size' selected = do
   quit <- pollEvents
 
   openGL2NewFrame
@@ -100,6 +110,8 @@ loop w checked color slider r pos size' = do
     selectable "Testing 2"
     endCombo
 
+  combo "Simple" selected [ "1", "2", "3" ]
+
   endChild
 
   plotHistogram "A histogram" [ 10, 10, 20, 30, 90 ]
@@ -135,7 +147,7 @@ loop w checked color slider r pos size' = do
 
   glSwapWindow w
 
-  if quit then return () else loop w checked color slider r pos size'
+  if quit then return () else loop w checked color slider r pos size' selected
 
   where
 
