@@ -78,7 +78,7 @@ loop w checked color slider r selected = do
     True  -> putStrLn "Oh hi Mark"
     False -> return ()
 
-  sameLine >> arrowButton "Arrow" ImGuiDirUp
+  sameLine >> arrowButton "Arrow" ImGuiDir_Up
 
   sameLine >> checkbox "Check!" checked >>= \case
     True  -> readIORef checked >>= print
