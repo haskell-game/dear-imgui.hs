@@ -29,6 +29,14 @@ flag sdl
   manual:
     False
 
+flag glfw
+  description:
+    Enable GLFW backend.
+  default:
+    False
+  manual:
+    True
+
 common common
   build-depends:
       base
@@ -128,6 +136,26 @@ library
       exposed-modules:
         DearImGui.SDL.Vulkan
 
+  if flag(glfw)
+    exposed-modules:
+      DearImGui.GLFW
+    build-depends:
+      GLFW-b
+    cxx-sources:
+      imgui/backends/imgui_impl_glfw.cpp
+
+    if os(linux) || os(darwin)
+      pkgconfig-depends:
+        glfw3
+
+    if flag(opengl)
+      exposed-modules:
+        DearImGui.GLFW.OpenGL
+
+    if flag(vulkan)
+      exposed-modules:
+        DearImGui.GLFW.Vulkan
+
 library dear-imgui-generator
   import: common
   hs-source-dirs: generator
@@ -161,7 +189,16 @@ library dear-imgui-generator
 executable test
   import: common
   main-is: Main.hs
-  build-depends: sdl2, gl, dear-imgui
+  default-language: Haskell2010
+  build-depends: base, sdl2, gl, dear-imgui
+  ghc-options: -Wall
+
+executable glfw
+  main-is: Main.hs
+  hs-source-dirs: examples/glfw
+  default-language: Haskell2010
+  build-depends: base, GLFW-b, gl, dear-imgui, managed
+  ghc-options: -Wall
 
 executable readme
   import: common
