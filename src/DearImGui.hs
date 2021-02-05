@@ -122,13 +122,8 @@ module DearImGui
   , isItemHovered
 
     -- * Types
-  , ImGuiDir
-  , pattern ImGuiDirLeft
-  , pattern ImGuiDirRight
-  , pattern ImGuiDirUp
-  , pattern ImGuiDirDown
-  , ImVec3(..)
-  , ImVec4(..)
+  , module DearImGui.Enums
+  , module DearImGui.Structs
   )
   where
 
@@ -139,6 +134,9 @@ import Foreign.C
 
 -- dear-imgui
 import DearImGui.Context
+  ( imguiContext )
+import DearImGui.Enums
+import DearImGui.Structs
 
 -- inline-c
 import qualified Language.C.Inline as C
@@ -775,17 +773,6 @@ closeCurrentPopup = liftIO do
 isItemHovered :: MonadIO m => m Bool
 isItemHovered = liftIO do
   (0 /=) <$> [C.exp| bool { IsItemHovered() } |]
-
-
--- | A cardinal direction.
-newtype ImGuiDir      = ImGuiDir CInt
-
-
-pattern ImGuiDirLeft, ImGuiDirRight, ImGuiDirUp, ImGuiDirDown :: ImGuiDir
-pattern ImGuiDirLeft  = ImGuiDir 0
-pattern ImGuiDirRight = ImGuiDir 1
-pattern ImGuiDirUp    = ImGuiDir 2
-pattern ImGuiDirDown  = ImGuiDir 3
 
 
 withCStringOrNull :: Maybe String -> (Ptr CChar -> IO a) -> IO a
