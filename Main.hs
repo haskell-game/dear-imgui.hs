@@ -30,8 +30,10 @@ main = do
       color <- newIORef $ ImVec3 1 0 0
       slider <- newIORef (0.42, 0, 0.314)
       r <- newIORef 4
+      pos <- newIORef $ ImVec2 64 64
+      size' <- newIORef $ ImVec2 512 512
       selected <- newIORef 4
-      loop w checked color slider r selected
+      loop w checked color slider r pos size' selected
 
       openGL2Shutdown
 
@@ -42,9 +44,11 @@ loop
   -> IORef ImVec3 
   -> IORef (Float, Float, Float) 
   -> IORef Int 
+  -> IORef ImVec2 
+  -> IORef ImVec2
   -> IORef Int 
   -> IO ()
-loop w checked color slider r selected = do
+loop w checked color slider r pos size' selected = do
   quit <- pollEvents
 
   openGL2NewFrame
@@ -55,6 +59,15 @@ loop w checked color slider r selected = do
   -- showMetricsWindow
   -- showAboutWindow
   -- showUserGuide
+
+  setNextWindowPos pos ImGuiCond_Once Nothing
+  setNextWindowSize size' ImGuiCond_Once
+  -- Works, but will make the window contents illegible without doing something more involved.
+  -- setNextWindowContentSize size' 
+  -- setNextWindowSizeConstraints size' size'
+  setNextWindowCollapsed False ImGuiCond_Once
+
+  setNextWindowBgAlpha 0.42
 
   begin "My Window"
   text "Hello!"
@@ -134,7 +147,7 @@ loop w checked color slider r selected = do
 
   glSwapWindow w
 
-  if quit then return () else loop w checked color slider r selected
+  if quit then return () else loop w checked color slider r pos size' selected
 
   where
 

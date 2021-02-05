@@ -19,14 +19,15 @@ import Language.C.Types
 
 -- dear-imgui
 import DearImGui.Structs
-  ( ImVec3, ImVec4 )
+  ( ImVec2, ImVec3, ImVec4 )
 
 --------------------------------------------------------------------------------
 
 imguiContext :: Context
 imguiContext = mempty
   { ctxTypesTable = Map.fromList
-      [ ( TypeName "ImVec3", [t| ImVec3 |] )
+      [ ( TypeName "ImVec2", [t| ImVec2 |] )
+      , ( TypeName "ImVec3", [t| ImVec3 |] )
       , ( TypeName "ImVec4", [t| ImVec4 |] )
       ]
   }

@@ -43,6 +43,12 @@ module DearImGui
     -- * Windows
   , begin
   , end
+  , setNextWindowPos
+  , setNextWindowSize
+  , setNextWindowContentSize
+  , setNextWindowSizeConstraints
+  , setNextWindowCollapsed
+  , setNextWindowBgAlpha
 
     -- * Child Windows
   , beginChild
@@ -130,6 +136,10 @@ module DearImGui
 
 -- base
 import Data.Bool
+import Data.Coerce 
+  ( coerce )
+import Data.Int 
+  ( Int32 )
 import Foreign
 import Foreign.C
 
@@ -800,3 +810,166 @@ isItemHovered = liftIO do
 withCStringOrNull :: Maybe String -> (Ptr CChar -> IO a) -> IO a
 withCStringOrNull Nothing k  = k nullPtr
 withCStringOrNull (Just s) k = withCString s k
+
+
+-- | Set next window position. Call before `begin` Use pivot=(0.5,0.5) to center on given point, etc.
+--
+-- Wraps @ImGui::SetNextWindowPos()@
+setNextWindowPos :: (MonadIO m, HasGetter ref ImVec2) => ref -> ImGuiCond -> Maybe ref -> m ()
+setNextWindowPos posRef (ImGuiCond con) pivotMaybe = liftIO do
+  pos <- get posRef
+  with pos $ \posPtr ->
+    case pivotMaybe of
+      Just pivotRef -> do
+        pivot <- get pivotRef
+        with pivot $ \pivotPtr ->
+          [C.exp| void { SetNextWindowPos(*$(ImVec2 *posPtr), $(int con), *$(ImVec2 *pivotPtr)) } |]
+      Nothing ->
+        [C.exp| void { SetNextWindowPos(*$(ImVec2 *posPtr), $(int con)) } |]
+
+-- | Set next window size. Call before `begin` 
+--
+-- Wraps @ImGui::SetNextWindowSize()@
+setNextWindowSize :: (MonadIO m, HasGetter ref ImVec2) => ref -> ImGuiCond -> m ()
+setNextWindowSize sizeRef (ImGuiCond con) = liftIO do
+  size' <- get sizeRef
+  with size' $ 
+    \sizePtr ->[C.exp| void { SetNextWindowSize(*$(ImVec2 *sizePtr), $(int con)) } |]
+
+-- | Set next window content size (~ scrollable client area, which enforce the range of scrollbars). Not including window decorations (title bar, menu bar, etc.) nor WindowPadding. call before `begin`
+--
+-- Wraps @ImGui::SetNextWindowContentSize()@
+setNextWindowContentSize :: (MonadIO m, HasGetter ref ImVec2) => ref -> m ()
+setNextWindowContentSize sizeRef = liftIO do
+  size' <- get sizeRef
+  with size' $ 
+    \sizePtr ->[C.exp| void { SetNextWindowContentSize(*$(ImVec2 *sizePtr)) } |]
+
+-- | Set next window size limits. use -1,-1 on either X/Y axis to preserve the current size. Sizes will be rounded down.
+--
+-- Wraps @ImGui::SetNextWindowContentSize()@
+setNextWindowSizeConstraints :: (MonadIO m, HasGetter ref ImVec2) => ref -> ref -> m ()
+setNextWindowSizeConstraints sizeMinRef sizeMaxRef = liftIO do
+  sizeMin <- get sizeMinRef
+  sizeMax <- get sizeMaxRef
+  with sizeMin $ 
+    \sizeMinPtr -> 
+      with sizeMax $ \sizeMaxPtr -> 
+        [C.exp| void { SetNextWindowSizeConstraints(*$(ImVec2 *sizeMinPtr), *$(ImVec2 *sizeMaxPtr)) } |]
+
+-- | Set next window collapsed state. call before `begin`
+--
+-- Wraps @ImGui::SetNextWindowCollapsed()@
+setNextWindowCollapsed :: (MonadIO m) => Bool -> ImGuiCond -> m ()
+setNextWindowCollapsed b (ImGuiCond con) = liftIO do
+  let b' = bool 0 1 b
+  [C.exp| void { SetNextWindowCollapsed($(bool b'), $(int con)) } |]
+
+-- | Set next window background color alpha. helper to easily override the Alpha component of `ImGuiCol_WindowBg`, `ChildBg`, `PopupBg`. you may also use `ImGuiWindowFlags_NoBackground`.
+--
+-- Wraps @ImGui::SetNextWindowBgAlpha()@
+setNextWindowBgAlpha :: (MonadIO m) => Float -> m ()
+setNextWindowBgAlpha f = liftIO do
+  let f' = coerce f
+  [C.exp| void { SetNextWindowBgAlpha($(float f')) } |]
+
+-- | undo a sameLine or force a new line when in an horizontal-layout context.
+--
+-- Wraps @ImGui::NewLine()@
+newLine :: (MonadIO m) => m ()
+newLine = liftIO do
+  [C.exp| void { NewLine() } |]
+
+-- | Add vertical spacing.
+--
+-- Wraps @ImGui::Spacing()@
+spacing :: (MonadIO m) => m ()
+spacing = liftIO do
+  [C.exp| void { Spacing() } |]
+
+-- | Add a dummy item of given size. unlike `invisibleButton`, `dummy` won't take the mouse click or be navigable into.
+--
+-- Wraps @ImGui::Dummy()@
+dummy :: (MonadIO m, HasGetter ref ImVec2) => ref -> m ()
+dummy sizeRef = liftIO do 
+  size' <- get sizeRef
+  with size' $ \ sizePtr -> [C.exp| void { Dummy(*$(ImVec2 *sizePtr)) } |]
+
+-- | Move content position toward the right, by indent_w, or style.IndentSpacing if indent_w <= 0
+--
+-- Wraps @ImGui::Indent()@
+indent :: (MonadIO m) => Float -> m ()
+indent indent_w = liftIO do
+  let indent_w' = coerce indent_w
+  [C.exp| void { Indent($(float indent_w')) } |]
+
+-- | Move content position back to the left, by indent_w, or style.IndentSpacing if indent_w <= 0
+--
+-- Wraps @ImGui::Unindent()@
+unindent :: (MonadIO m) => Float -> m ()
+unindent f = liftIO do
+  let f' = coerce f
+  [C.exp| void { Unindent($(float f')) } |]
+
+-- | lock horizontal starting position
+--
+--  Wraps @ImGui::BeginGroup()@
+beginGroup :: (MonadIO m) => m ()
+beginGroup = liftIO do
+  [C.exp| void { BeginGroup() } |]
+
+-- | unlock horizontal starting position + capture the whole group bounding box into one "item" (so you can use `isItemHovered` or layout primitives such as `sameLine` on whole group, etc.)
+--
+-- Wraps @ImGui::EndGroup()@
+endGroup :: (MonadIO m) => m ()
+endGroup = liftIO do
+  [C.exp| void { EndGroup() } |]
+
+-- | Vertically align upcoming text baseline to FramePadding.y so that it will align properly to regularly framed items (call if you have text on a line before a framed item)
+-- 
+-- Wraps @ImGui::AlignTextToFramePadding()@
+alignTextToFramePadding :: (MonadIO m) => m ()
+alignTextToFramePadding = liftIO do
+  [C.exp| void { AlignTextToFramePadding() } |]
+
+-- | Set cursor position in window-local coordinates
+-- 
+-- Wraps @ImGui::SetCursorPos()@
+setCursorPos :: (MonadIO m, HasGetter ref ImVec2) => ref -> m ()
+setCursorPos posRef = liftIO do 
+  pos <- get posRef
+  with pos $ \ posPtr -> [C.exp| void { SetCursorPos(*$(ImVec2 *posPtr)) } |]
+
+-- | Modify a style color by pushing to the shared stack. always use this if you modify the style after `newFrame`
+-- 
+-- Wraps @ImGui::PushStyleColor()@
+pushStyleColor :: (MonadIO m, HasGetter ref ImVec4) => ImGuiCol -> ref -> m ()
+pushStyleColor (ImGuiCol idx) colorRef = liftIO do 
+  color <- get colorRef
+  with color $ \ colorPtr -> [C.exp| void { PushStyleColor($(int idx), *$(ImVec4 *colorPtr)) } |]
+
+-- | Remove style color modifications from the shared stack
+-- 
+-- Wraps @ImGui::PopStyleColor()@
+popStyleColor :: (MonadIO m) => Int32 -> m ()
+popStyleColor count = liftIO do
+  let count' = coerce count
+  [C.exp| void { PopStyleColor($(int count')) } |]
+
+-- | Modify a style variable by pushing to the shared stack. always use this if you modify the style after `newFrame`
+-- 
+-- Wraps @ImGui::PushStyleVar()@
+pushStyleVar :: (MonadIO m, HasGetter ref ImVec2) => ImGuiStyleVar -> ref -> m ()
+pushStyleVar (ImGuiStyleVar idx) valRef = liftIO do 
+  val <- get valRef
+  with val $ \ valPtr -> [C.exp| void { PushStyleVar($(int idx), *$(ImVec2 *valPtr)) } |]
+
+
+-- | Remove style variable modifications from the shared stack
+-- 
+-- Wraps @ImGui::PopStyleVar()@
+popStyleVar :: (MonadIO m) => Int32 -> m ()
+popStyleVar count = liftIO do
+  let count' = coerce count
+  [C.exp| void { PopStyleVar($(int count')) } |]
+  
