@@ -31,9 +31,6 @@ package dear-imgui
 With this done, the following module is the "Hello, World!" of ImGui:
 
 ``` haskell
--- NOTE: If this is file is edited, please also copy and paste it into
--- README.md.
-
 {-# language BlockArguments #-}
 {-# language LambdaCase #-}
 {-# language OverloadedStrings #-}
