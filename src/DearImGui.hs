@@ -67,6 +67,7 @@ module DearImGui
     -- ** Combo Box
   , beginCombo
   , endCombo
+  , combo
 
     -- ** Drag Sliders
   , dragFloat
@@ -414,6 +415,27 @@ beginCombo label previewValue = liftIO $
 endCombo :: MonadIO m => m ()
 endCombo = liftIO do
   [C.exp| void { EndCombo() } |]
+
+
+-- Wraps @ImGui::Combo()@.
+combo :: (MonadIO m, HasGetter ref Int, HasSetter ref Int) => String -> ref -> [String] -> m Bool
+combo label selectedIndex items = liftIO $ Managed.with m return
+  where
+    m = do
+      i <- get selectedIndex
+
+      cStrings <- traverse (\str -> Managed.managed (withCString str)) items
+      labelPtr <- Managed.managed $ withCString label
+      iPtr     <- Managed.managed $ with (fromIntegral i)
+
+      liftIO $ withArrayLen cStrings \len itemsPtr -> do
+        let len' = fromIntegral len
+        [C.exp| bool { Combo($(char* labelPtr), $(int* iPtr), $(char** itemsPtr), $(int len')) }|] >>= \case
+          0 -> return False
+          _ -> do
+            i' <- peek iPtr
+            selectedIndex $=! fromIntegral i'
+            return True
 
 
 -- | Wraps @ImGui::DragFloat()@
