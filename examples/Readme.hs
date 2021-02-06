@@ -11,7 +11,7 @@ import Control.Exception
 import Control.Monad.IO.Class
 import Control.Monad.Managed
 import DearImGui
-import DearImGui.OpenGL
+import DearImGui.OpenGL2
 import DearImGui.SDL
 import DearImGui.SDL.OpenGL
 import Graphics.GL
@@ -55,7 +55,7 @@ mainLoop w = do
   newFrame
 
   -- Build the GUI
-  bracket_ (begin "Hello, ImGui!") end do
+  bracket_ (begin Begin{ name = "Hello, ImGui!", isOpen = Nothing }) end do
     -- Add a text widget
     text "Hello, ImGui!"
 

@@ -6,9 +6,10 @@
 
 module Main (main) where
 
+import Control.Monad
 import Data.IORef
 import DearImGui
-import DearImGui.OpenGL
+import DearImGui.OpenGL3
 import DearImGui.SDL
 import DearImGui.SDL.OpenGL
 import Control.Exception
@@ -23,22 +24,40 @@ main = do
     bracket (glCreateContext w) glDeleteContext \glContext ->
     bracket createContext destroyContext \_imguiContext ->
     bracket_ (sdl2InitForOpenGL w glContext) sdl2Shutdown $
-    bracket_ openGL2Init openGL2Shutdown do
+    bracket_ openGL3Init openGL3Shutdown do
       checkVersion
       styleColorsLight
 
       checked <- newIORef False
       color <- newIORef $ ImVec3 1 0 0
-      slider <- newIORef 0.42
-      loop w checked color slider
+      slider <- newIORef (0.42, 0, 0.314)
+      r <- newIORef 4
+      pos <- newIORef $ ImVec2 64 64
+      size' <- newIORef $ ImVec2 512 512
+      selected <- newIORef 4
+      tab1 <- newIORef True
+      tab2 <- newIORef True
+      loop w checked color slider r pos size' selected tab1 tab2
 
-      openGL2Shutdown
+      openGL3Shutdown
 
-loop :: Window -> IORef Bool -> IORef ImVec3 -> IORef Float -> IO ()
-loop w checked color slider = do
+
+loop 
+  :: Window 
+  -> IORef Bool 
+  -> IORef ImVec3 
+  -> IORef (Float, Float, Float) 
+  -> IORef Int 
+  -> IORef ImVec2 
+  -> IORef ImVec2
+  -> IORef Int 
+  -> IORef Bool
+  -> IORef Bool
+  -> IO ()
+loop w checked color slider r pos size' selected tab1Ref tab2Ref = do
   quit <- pollEvents
 
-  openGL2NewFrame
+  openGL3NewFrame
   sdl2NewFrame w
   newFrame
 
@@ -47,8 +66,33 @@ loop w checked color slider = do
   -- showAboutWindow
   -- showUserGuide
 
+  setNextWindowPos pos ImGuiCond_Once Nothing
+  setNextWindowSize size' ImGuiCond_Once
+  -- Works, but will make the window contents illegible without doing something more involved.
+  -- setNextWindowContentSize size' 
+  -- setNextWindowSizeConstraints size' size'
+  setNextWindowCollapsed False ImGuiCond_Once
+
+  setNextWindowBgAlpha 0.42
+
   begin Begin{ name = "My Window", isOpen = Nothing }
+
   text "Hello!"
+
+  beginTabBar "My tab bar" ImGuiTabBarFlags_Reorderable >>= whenTrue do
+    beginTabItem "Tab 1" tab1Ref ImGuiTabBarFlags_None >>= whenTrue do
+      text "Tab 1 is currently selected."
+      endTabItem
+    beginTabItem "Tab 2" tab2Ref ImGuiTabBarFlags_None >>= whenTrue do
+      text "Tab 2 is selected now."
+      endTabItem
+    reOpen <- tabItemButton "ReopenTabs" ImGuiTabItemFlags_Trailing
+    when reOpen do
+      writeIORef tab1Ref True
+      writeIORef tab2Ref True
+    endTabBar
+
+  listBox "Items" r [ "A", "B", "C" ]
 
   button "Click me" >>= \case
     True  -> openPopup "Button Popup"
@@ -67,7 +111,7 @@ loop w checked color slider = do
     True  -> putStrLn "Oh hi Mark"
     False -> return ()
 
-  sameLine >> arrowButton "Arrow" ImGuiDirUp
+  sameLine >> arrowButton "Arrow" ImGuiDir_Up
 
   sameLine >> checkbox Checkbox{ label = "Check!", checked = toStateVar checked } >>= \case
     True  -> readIORef checked >>= print
@@ -75,18 +119,33 @@ loop w checked color slider = do
 
   separator
 
-  sliderFloat "Slider" slider 0.0 1.0
+  dragFloat3 "Slider" slider 0.1 0.0 1.0
 
   progressBar 0.314 (Just "Pi")
+
+  beginChild "Child"
 
   beginCombo "Label" "Preview" >>= whenTrue do
     selectable "Testing 1"
     selectable "Testing 2"
     endCombo
 
+  combo "Simple" selected [ "1", "2", "3" ]
+
+  endChild
+
   plotHistogram "A histogram" [ 10, 10, 20, 30, 90 ]
 
   colorPicker3 "Test" color
+
+  treeNode "Tree Node 1" >>= whenTrue do
+    treeNode "Tree Node 2" >>= whenTrue do
+      treePop
+
+    treeNode "Tree Node 3" >>= whenTrue do
+      treePop
+
+    treePop
 
   beginMainMenuBar >>= whenTrue do
     beginMenu "Hello" >>= whenTrue do
@@ -104,11 +163,11 @@ loop w checked color slider = do
   render
 
   glClear GL_COLOR_BUFFER_BIT
-  openGL2RenderDrawData =<< getDrawData
+  openGL3RenderDrawData =<< getDrawData
 
   glSwapWindow w
 
-  if quit then return () else loop w checked color slider
+  if quit then return () else loop w checked color slider r pos size' selected tab1Ref tab2Ref
 
   where
 
