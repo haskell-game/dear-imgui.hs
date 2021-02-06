@@ -54,9 +54,24 @@ module DearImGui
   , beginChild
   , endChild
 
+    -- * Parameter stacks
+  , pushStyleColor
+  , popStyleColor
+  , pushStyleVar
+  , popStyleVar
+
     -- * Cursor/Layout
   , separator
   , sameLine
+  , newLine
+  , spacing
+  , dummy
+  , indent
+  , unindent
+  , beginGroup
+  , endGroup
+  , setCursorPos
+  , alignTextToFramePadding
 
     -- * Widgets
     -- ** Text
@@ -371,9 +386,9 @@ smallButton label = liftIO do
 --
 -- Wraps @ImGui::ArrowButton()@.
 arrowButton :: MonadIO m => String -> ImGuiDir -> m Bool
-arrowButton strId (ImGuiDir dir) = liftIO do
+arrowButton strId dir = liftIO do
   withCString strId \strIdPtr ->
-    (0 /=) <$> [C.exp| bool { ArrowButton($(char* strIdPtr), $(int dir)) } |]
+    (0 /=) <$> [C.exp| bool { ArrowButton($(char* strIdPtr), $(ImGuiDir dir)) } |]
 
 
 -- | Wraps @ImGui::Checkbox()@.
@@ -419,7 +434,7 @@ beginCombo label previewValue = liftIO $
   (0 /=) <$> [C.exp| bool { BeginCombo($(char* labelPtr), $(char* previewValuePtr)) } |]
 
 
--- | Only call 'endCombo' if 'beginCombon' returns 'True'!
+-- | Only call 'endCombo' if 'beginCombo' returns 'True'!
 --
 -- Wraps @ImGui::EndCombo()@.
 endCombo :: MonadIO m => m ()
@@ -427,7 +442,7 @@ endCombo = liftIO do
   [C.exp| void { EndCombo() } |]
 
 
--- Wraps @ImGui::Combo()@.
+-- | Wraps @ImGui::Combo()@.
 combo :: (MonadIO m, HasGetter ref Int, HasSetter ref Int) => String -> ref -> [String] -> m Bool
 combo label selectedIndex items = liftIO $ Managed.with m return
   where
@@ -651,7 +666,6 @@ selectable label = liftIO do
   withCString label \labelPtr ->
     (0 /=) <$> [C.exp| bool { Selectable($(char* labelPtr)) } |]
 
-
 listBox :: (MonadIO m, HasGetter ref Int, HasSetter ref Int) => String -> ref -> [String] -> m Bool
 listBox label selectedIndex items = liftIO $ Managed.with m return
   where
@@ -731,7 +745,7 @@ endMenu = liftIO do
   [C.exp| void { EndMenu(); } |]
 
 
--- Return true when activated. Shortcuts are displayed for convenience but not
+-- | Return true when activated. Shortcuts are displayed for convenience but not
 -- processed by ImGui at the moment
 --
 -- Wraps @ImGui::MenuItem()@
@@ -816,25 +830,25 @@ withCStringOrNull (Just s) k = withCString s k
 --
 -- Wraps @ImGui::SetNextWindowPos()@
 setNextWindowPos :: (MonadIO m, HasGetter ref ImVec2) => ref -> ImGuiCond -> Maybe ref -> m ()
-setNextWindowPos posRef (ImGuiCond con) pivotMaybe = liftIO do
+setNextWindowPos posRef cond pivotMaybe = liftIO do
   pos <- get posRef
   with pos $ \posPtr ->
     case pivotMaybe of
       Just pivotRef -> do
         pivot <- get pivotRef
         with pivot $ \pivotPtr ->
-          [C.exp| void { SetNextWindowPos(*$(ImVec2 *posPtr), $(int con), *$(ImVec2 *pivotPtr)) } |]
+          [C.exp| void { SetNextWindowPos(*$(ImVec2 *posPtr), $(ImGuiCond cond), *$(ImVec2 *pivotPtr)) } |]
       Nothing ->
-        [C.exp| void { SetNextWindowPos(*$(ImVec2 *posPtr), $(int con)) } |]
+        [C.exp| void { SetNextWindowPos(*$(ImVec2 *posPtr), $(ImGuiCond cond)) } |]
 
 -- | Set next window size. Call before `begin` 
 --
 -- Wraps @ImGui::SetNextWindowSize()@
 setNextWindowSize :: (MonadIO m, HasGetter ref ImVec2) => ref -> ImGuiCond -> m ()
-setNextWindowSize sizeRef (ImGuiCond con) = liftIO do
+setNextWindowSize sizeRef cond = liftIO do
   size' <- get sizeRef
   with size' $ 
-    \sizePtr ->[C.exp| void { SetNextWindowSize(*$(ImVec2 *sizePtr), $(int con)) } |]
+    \sizePtr ->[C.exp| void { SetNextWindowSize(*$(ImVec2 *sizePtr), $(ImGuiCond cond)) } |]
 
 -- | Set next window content size (~ scrollable client area, which enforce the range of scrollbars). Not including window decorations (title bar, menu bar, etc.) nor WindowPadding. call before `begin`
 --
@@ -861,9 +875,9 @@ setNextWindowSizeConstraints sizeMinRef sizeMaxRef = liftIO do
 --
 -- Wraps @ImGui::SetNextWindowCollapsed()@
 setNextWindowCollapsed :: (MonadIO m) => Bool -> ImGuiCond -> m ()
-setNextWindowCollapsed b (ImGuiCond con) = liftIO do
+setNextWindowCollapsed b cond = liftIO do
   let b' = bool 0 1 b
-  [C.exp| void { SetNextWindowCollapsed($(bool b'), $(int con)) } |]
+  [C.exp| void { SetNextWindowCollapsed($(bool b'), $(ImGuiCond cond)) } |]
 
 -- | Set next window background color alpha. helper to easily override the Alpha component of `ImGuiCol_WindowBg`, `ChildBg`, `PopupBg`. you may also use `ImGuiWindowFlags_NoBackground`.
 --
@@ -944,32 +958,34 @@ setCursorPos posRef = liftIO do
 -- 
 -- Wraps @ImGui::PushStyleColor()@
 pushStyleColor :: (MonadIO m, HasGetter ref ImVec4) => ImGuiCol -> ref -> m ()
-pushStyleColor (ImGuiCol idx) colorRef = liftIO do 
+pushStyleColor col colorRef = liftIO do 
   color <- get colorRef
-  with color $ \ colorPtr -> [C.exp| void { PushStyleColor($(int idx), *$(ImVec4 *colorPtr)) } |]
+  with color $ \ colorPtr -> [C.exp| void { PushStyleColor($(ImGuiCol col), *$(ImVec4 *colorPtr)) } |]
 
 -- | Remove style color modifications from the shared stack
 -- 
 -- Wraps @ImGui::PopStyleColor()@
 popStyleColor :: (MonadIO m) => Int32 -> m ()
-popStyleColor count = liftIO do
-  let count' = coerce count
-  [C.exp| void { PopStyleColor($(int count')) } |]
+popStyleColor n = liftIO do
+  let
+    m :: CInt
+    m = coerce n
+  [C.exp| void { PopStyleColor($(int m)) } |]
 
 -- | Modify a style variable by pushing to the shared stack. always use this if you modify the style after `newFrame`
 -- 
 -- Wraps @ImGui::PushStyleVar()@
 pushStyleVar :: (MonadIO m, HasGetter ref ImVec2) => ImGuiStyleVar -> ref -> m ()
-pushStyleVar (ImGuiStyleVar idx) valRef = liftIO do 
+pushStyleVar style valRef = liftIO do 
   val <- get valRef
-  with val $ \ valPtr -> [C.exp| void { PushStyleVar($(int idx), *$(ImVec2 *valPtr)) } |]
-
+  with val $ \ valPtr -> [C.exp| void { PushStyleVar($(ImGuiStyleVar style), *$(ImVec2 *valPtr)) } |]
 
 -- | Remove style variable modifications from the shared stack
 -- 
 -- Wraps @ImGui::PopStyleVar()@
 popStyleVar :: (MonadIO m) => Int32 -> m ()
-popStyleVar count = liftIO do
-  let count' = coerce count
-  [C.exp| void { PopStyleVar($(int count')) } |]
-  
+popStyleVar n = liftIO do
+  let
+    m :: CInt
+    m = coerce n
+  [C.exp| void { PopStyleVar($(int m)) } |]
