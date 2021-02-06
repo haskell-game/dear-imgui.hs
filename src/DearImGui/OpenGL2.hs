@@ -9,10 +9,10 @@
 {-|
 Module: DearImGui.OpenGL
 
-OpenGL backend for Dear ImGui.
+OpenGL 2 backend for Dear ImGui.
 -}
 
-module DearImGui.OpenGL
+module DearImGui.OpenGL2
   ( openGL2Init
   , openGL2Shutdown
   , openGL2NewFrame

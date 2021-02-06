@@ -5,9 +5,17 @@ build-type: Simple
 data-files:
   imgui/imgui.h
 
-flag opengl
+flag opengl2
   description:
-    Enable OpenGL backend.
+    Enable OpenGL 2 backend.
+  default:
+    False
+  manual:
+    False
+
+flag opengl3
+  description:
+    Enable OpenGL 3 backend.
   default:
     True
   manual:
@@ -76,21 +84,29 @@ library
     , inline-c-cpp
     , StateVar
 
-  if flag(opengl)
+  if flag(opengl2)
     exposed-modules:
-      DearImGui.OpenGL
+      DearImGui.OpenGL2
     cxx-sources:
       imgui/backends/imgui_impl_opengl2.cpp
+    build-depends:
+      gl
+
+  if flag(opengl3)
+    exposed-modules:
+      DearImGui.OpenGL3
+    cxx-sources:
+      imgui/backends/imgui_impl_opengl3.cpp
     if os(windows)
-      extra-libraries:
-        opengl32
+      buildable:
+        False
     else
       if os(darwin)
-        frameworks:
-          OpenGL
+        buildable:
+          False
       else
-        extra-libraries:
-          GL
+        pkgconfig-depends:
+          glew
 
   if flag(vulkan)
     exposed-modules:
@@ -128,7 +144,7 @@ library
       pkgconfig-depends:
         sdl2
 
-    if flag(opengl)
+    if flag(opengl2) || flag(opengl3)
       exposed-modules:
         DearImGui.SDL.OpenGL
 
@@ -148,7 +164,7 @@ library
       pkgconfig-depends:
         glfw3
 
-    if flag(opengl)
+    if flag(opengl2) || flag(opengl3)
       exposed-modules:
         DearImGui.GLFW.OpenGL
 

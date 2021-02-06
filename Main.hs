@@ -8,7 +8,7 @@ module Main (main) where
 import Control.Monad
 import Data.IORef
 import DearImGui
-import DearImGui.OpenGL
+import DearImGui.OpenGL3
 import DearImGui.SDL
 import DearImGui.SDL.OpenGL
 import Control.Exception
@@ -23,7 +23,7 @@ main = do
     bracket (glCreateContext w) glDeleteContext \glContext ->
     bracket createContext destroyContext \_imguiContext ->
     bracket_ (sdl2InitForOpenGL w glContext) sdl2Shutdown $
-    bracket_ openGL2Init openGL2Shutdown do
+    bracket_ openGL3Init openGL3Shutdown do
       checkVersion
       styleColorsLight
 
@@ -38,7 +38,7 @@ main = do
       tab2 <- newIORef True
       loop w checked color slider r pos size' selected tab1 tab2
 
-      openGL2Shutdown
+      openGL3Shutdown
 
 
 loop 
@@ -56,7 +56,7 @@ loop
 loop w checked color slider r pos size' selected tab1Ref tab2Ref = do
   quit <- pollEvents
 
-  openGL2NewFrame
+  openGL3NewFrame
   sdl2NewFrame w
   newFrame
 
@@ -162,7 +162,7 @@ loop w checked color slider r pos size' selected tab1Ref tab2Ref = do
   render
 
   glClear GL_COLOR_BUFFER_BIT
-  openGL2RenderDrawData =<< getDrawData
+  openGL3RenderDrawData =<< getDrawData
 
   glSwapWindow w
 

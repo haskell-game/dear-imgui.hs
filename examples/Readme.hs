@@ -11,7 +11,7 @@ import Control.Exception
 import Control.Monad.IO.Class
 import Control.Monad.Managed
 import DearImGui
-import DearImGui.OpenGL
+import DearImGui.OpenGL2
 import DearImGui.SDL
 import DearImGui.SDL.OpenGL
 import Graphics.GL
