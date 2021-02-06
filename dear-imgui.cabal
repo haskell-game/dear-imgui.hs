@@ -97,16 +97,8 @@ library
       DearImGui.OpenGL3
     cxx-sources:
       imgui/backends/imgui_impl_opengl3.cpp
-    if os(windows)
-      buildable:
-        False
-    else
-      if os(darwin)
-        buildable:
-          False
-      else
-        pkgconfig-depends:
-          glew
+    pkgconfig-depends:
+      glew
 
   if flag(vulkan)
     exposed-modules:
