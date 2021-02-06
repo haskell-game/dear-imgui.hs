@@ -28,13 +28,27 @@ main = do
 
       checked <- newIORef False
       color <- newIORef $ ImVec3 1 0 0
-      slider <- newIORef 0.42
-      loop w checked color slider
+      slider <- newIORef (0.42, 0, 0.314)
+      r <- newIORef 4
+      pos <- newIORef $ ImVec2 64 64
+      size' <- newIORef $ ImVec2 512 512
+      selected <- newIORef 4
+      loop w checked color slider r pos size' selected
 
       openGL3Shutdown
 
-loop :: Window -> IORef Bool -> IORef ImVec3 -> IORef Float -> IO ()
-loop w checked color slider = do
+
+loop 
+  :: Window 
+  -> IORef Bool 
+  -> IORef ImVec3 
+  -> IORef (Float, Float, Float) 
+  -> IORef Int 
+  -> IORef ImVec2 
+  -> IORef ImVec2
+  -> IORef Int 
+  -> IO ()
+loop w checked color slider r pos size' selected = do
   quit <- pollEvents
 
   openGL3NewFrame
@@ -46,8 +60,19 @@ loop w checked color slider = do
   -- showAboutWindow
   -- showUserGuide
 
+  setNextWindowPos pos ImGuiCond_Once Nothing
+  setNextWindowSize size' ImGuiCond_Once
+  -- Works, but will make the window contents illegible without doing something more involved.
+  -- setNextWindowContentSize size' 
+  -- setNextWindowSizeConstraints size' size'
+  setNextWindowCollapsed False ImGuiCond_Once
+
+  setNextWindowBgAlpha 0.42
+
   begin "My Window"
   text "Hello!"
+
+  listBox "Items" r [ "A", "B", "C" ]
 
   button "Click me" >>= \case
     True  -> openPopup "Button Popup"
@@ -66,7 +91,7 @@ loop w checked color slider = do
     True  -> putStrLn "Oh hi Mark"
     False -> return ()
 
-  sameLine >> arrowButton "Arrow" ImGuiDirUp
+  sameLine >> arrowButton "Arrow" ImGuiDir_Up
 
   sameLine >> checkbox "Check!" checked >>= \case
     True  -> readIORef checked >>= print
@@ -74,18 +99,33 @@ loop w checked color slider = do
 
   separator
 
-  sliderFloat "Slider" slider 0.0 1.0
+  dragFloat3 "Slider" slider 0.1 0.0 1.0
 
   progressBar 0.314 (Just "Pi")
+
+  beginChild "Child"
 
   beginCombo "Label" "Preview" >>= whenTrue do
     selectable "Testing 1"
     selectable "Testing 2"
     endCombo
 
+  combo "Simple" selected [ "1", "2", "3" ]
+
+  endChild
+
   plotHistogram "A histogram" [ 10, 10, 20, 30, 90 ]
 
   colorPicker3 "Test" color
+
+  treeNode "Tree Node 1" >>= whenTrue do
+    treeNode "Tree Node 2" >>= whenTrue do
+      treePop
+
+    treeNode "Tree Node 3" >>= whenTrue do
+      treePop
+
+    treePop
 
   beginMainMenuBar >>= whenTrue do
     beginMenu "Hello" >>= whenTrue do
@@ -107,7 +147,7 @@ loop w checked color slider = do
 
   glSwapWindow w
 
-  if quit then return () else loop w checked color slider
+  if quit then return () else loop w checked color slider r pos size' selected
 
   where
 

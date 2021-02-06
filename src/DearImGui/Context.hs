@@ -1,62 +1,37 @@
+{-# language DerivingStrategies #-}
 {-# language DuplicateRecordFields #-}
+{-# language GeneralizedNewtypeDeriving #-}
 {-# language NamedFieldPuns #-}
 {-# language OverloadedStrings #-}
+{-# language PatternSynonyms #-}
 {-# language TemplateHaskell #-}
 
 module DearImGui.Context where
 
-import Language.C.Types
-import Language.C.Inline.Context
+-- containers
 import qualified Data.Map.Strict as Map
-import Foreign
 
+-- inline-c
+import Language.C.Inline.Context
+  ( Context(..) )
+import Language.C.Types
+  ( pattern TypeName )
 
-data ImVec3 = ImVec3 { x, y, z :: {-# unpack #-} !Float }
+-- dear-imgui
+import DearImGui.Enums
+import DearImGui.Structs
 
-
-instance Storable ImVec3 where
-  sizeOf ~ImVec3{x, y, z} = sizeOf x + sizeOf y + sizeOf z
-
-  alignment _ = 0
-
-  poke ptr ImVec3{ x, y, z } = do
-    poke (castPtr ptr `plusPtr` (sizeOf x * 0)) x
-    poke (castPtr ptr `plusPtr` (sizeOf x * 1)) y
-    poke (castPtr ptr `plusPtr` (sizeOf x * 2)) z
-
-  peek ptr = do
-    x <- peek (castPtr ptr                         )
-    y <- peek (castPtr ptr `plusPtr` (sizeOf x * 1))
-    z <- peek (castPtr ptr `plusPtr` (sizeOf x * 2))
-    return ImVec3{ x, y, z }
-
-
-data ImVec4 = ImVec4 { x, y, z, w :: {-# unpack #-} !Float }
-
-
-instance Storable ImVec4 where
-  sizeOf ~ImVec4{x, y, z, w} = sizeOf x + sizeOf y + sizeOf z + sizeOf w
-
-  alignment _ = 0
-
-  poke ptr ImVec4{ x, y, z, w } = do
-    poke (castPtr ptr `plusPtr` (sizeOf x * 0)) x
-    poke (castPtr ptr `plusPtr` (sizeOf x * 1)) y
-    poke (castPtr ptr `plusPtr` (sizeOf x * 2)) z
-    poke (castPtr ptr `plusPtr` (sizeOf x * 3)) w
-
-  peek ptr = do
-    x <- peek (castPtr ptr                         )
-    y <- peek (castPtr ptr `plusPtr` (sizeOf x * 1))
-    z <- peek (castPtr ptr `plusPtr` (sizeOf x * 2))
-    w <- peek (castPtr ptr `plusPtr` (sizeOf x * 3))
-    return ImVec4{ x, y, z, w }
-
+--------------------------------------------------------------------------------
 
 imguiContext :: Context
 imguiContext = mempty
   { ctxTypesTable = Map.fromList
-      [ ( TypeName "ImVec3", [t| ImVec3 |] )
-      , ( TypeName "ImVec4", [t| ImVec4 |] )
+      [ ( TypeName "ImGuiCol"  , [t| ImGuiCol |] )
+      , ( TypeName "ImGuiCond" , [t| ImGuiCond |] )
+      , ( TypeName "ImGuiDir"  , [t| ImGuiDir |] )
+      , ( TypeName "ImGuiStyleVar", [t| ImGuiStyleVar |] )
+      , ( TypeName "ImVec2"    , [t| ImVec2 |] )
+      , ( TypeName "ImVec3"    , [t| ImVec3 |] )
+      , ( TypeName "ImVec4"    , [t| ImVec4 |] )
       ]
   }
