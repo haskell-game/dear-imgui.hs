@@ -129,6 +129,14 @@ module DearImGui
   , endMenu
   , menuItem
 
+    -- ** Tabs, tab bar
+  , beginTabBar
+  , endTabBar
+  , beginTabItem
+  , endTabItem
+  , tabItemButton
+  , setTabItemClosed
+
     -- * Tooltips
   , beginTooltip
   , endTooltip
@@ -754,6 +762,57 @@ menuItem label = liftIO do
   withCString label \labelPtr ->
     (0 /=) <$> [C.exp| bool { MenuItem($(char* labelPtr)) } |]
 
+-- | Create a @TabBar@ and start appending to it.
+--
+-- Wraps @ImGui::BeginTabBar@.
+beginTabBar :: MonadIO m => String -> ImGuiTabBarFlags -> m Bool
+beginTabBar tabBarID flags = liftIO do
+  withCString tabBarID \ptr ->
+    (0 /=) <$> [C.exp| bool { BeginTabBar($(char* ptr), $(ImGuiTabBarFlags flags) ) } |]
+
+-- | Finish appending elements to a tab bar. Only call if 'beginTabBar' returns @True@.
+--
+-- Wraps @ImGui::EndTabBar@.
+endTabBar :: MonadIO m => m ()
+endTabBar = liftIO do
+  [C.exp| void { EndTabBar(); } |]
+
+-- | Create a new tab. Returns @True@ if the tab is selected.
+--
+-- Wraps @ImGui::BeginTabItem@.
+beginTabItem :: ( MonadIO m, HasGetter ref Bool, HasSetter ref Bool ) => String -> ref -> ImGuiTabBarFlags -> m Bool
+beginTabItem tabName ref flags = liftIO do
+  currentValue <- get ref
+  with ( bool 0 1 currentValue :: CBool ) \ refPtr -> do
+    open <- withCString tabName \ ptrName ->
+      (0 /=) <$> [C.exp| bool { BeginTabItem($(char* ptrName), $(bool* refPtr), $(ImGuiTabBarFlags flags) ) } |]
+    newValue <- (0 /=) <$> peek refPtr
+    ref $=! newValue
+    pure open
+
+-- | Finish appending elements to a tab. Only call if 'beginTabItem' returns @True@.
+--
+-- Wraps @ImGui::EndTabItem@.
+endTabItem :: MonadIO m => m ()
+endTabItem = liftIO do
+  [C.exp| void { EndTabItem(); } |]
+
+-- | Create a tab that behaves like a button. Returns @True@ when clicked. Cannot be selected in the tab bar.
+--
+-- Wraps @ImGui.TabItemButton@.
+tabItemButton :: MonadIO m => String -> ImGuiTabItemFlags -> m Bool
+tabItemButton tabName flags = liftIO do
+  withCString tabName \ namePtr ->
+    (0 /=) <$> [C.exp| bool { TabItemButton($(char* namePtr), $(ImGuiTabItemFlags flags) ) } |]
+
+-- | Notify the tab bar (or the docking system) that a tab/window is about to close.
+-- Useful to reduce visual flicker on reorderable tab bars.
+--
+-- __For tab-bar__: call after 'beginTabBar' and before tab submission. Otherwise, call with a window name.
+setTabItemClosed :: MonadIO m => String -> m ()
+setTabItemClosed tabName = liftIO do
+  withCString tabName \ namePtr ->
+    [C.exp| void { SetTabItemClosed($(char* namePtr)); } |]
 
 -- | Begin/append a tooltip window to create full-featured tooltip (with any
 -- kind of items).
