@@ -9,7 +9,7 @@ import Control.Monad
 import Control.Monad.IO.Class
 import Control.Monad.Managed
 import DearImGui
-import DearImGui.OpenGL
+import DearImGui.OpenGL2
 import DearImGui.GLFW
 import DearImGui.GLFW.OpenGL
 import Graphics.GL
