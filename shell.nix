@@ -9,7 +9,7 @@ in
     # You might want some extra tools in the shell (optional).
 
     # Some common tools can be added with the `tools` argument
-    tools = { cabal = "3.2.0.0"; };
+    tools = { cabal = "3.2.0.0"; haskell-language-server = "latest"; };
 
     # Prevents cabal from choosing alternate plans, so that
     # *all* dependencies are provided by Nix.
