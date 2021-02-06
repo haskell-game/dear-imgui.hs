@@ -164,7 +164,7 @@ library
       pkgconfig-depends:
         glfw3
 
-    if flag(opengl)
+    if flag(opengl2) || flag(opengl3)
       exposed-modules:
         DearImGui.GLFW.OpenGL
 
