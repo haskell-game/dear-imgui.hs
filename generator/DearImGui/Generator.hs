@@ -6,20 +6,32 @@
 {-# LANGUAGE TemplateHaskell #-}
 
 module DearImGui.Generator
-  ( declareEnumerations )
+  ( declareEnumerations, enumerationsTypesTable )
   where
 
 -- base
+import Control.Arrow
+  ( second )
 import Data.Coerce
   ( coerce )
 import Data.Bits
   ( Bits )
 import Data.Foldable
   ( toList )
+import qualified Data.List.NonEmpty as NonEmpty
+  ( head )
+import Data.String
+  ( fromString )
 import Data.Traversable
   ( for )
 import Foreign.Storable
   ( Storable )
+
+-- containers
+import Data.Map.Strict
+  ( Map )
+import qualified Data.Map.Strict as Map
+  ( fromList )
 
 -- directory
 import System.Directory
@@ -29,9 +41,12 @@ import System.Directory
 import System.FilePath
   ( takeDirectory )
 
+-- inline-c
+import qualified Language.C.Types as InlineC
+  ( TypeSpecifier(TypeName) )
+
 -- megaparsec
 import qualified Text.Megaparsec as Megaparsec
-  ( ParseErrorBundle(bundleErrors), parse, parseErrorPretty )
 
 -- template-haskell
 import qualified Language.Haskell.TH        as TH
@@ -47,53 +62,68 @@ import qualified Data.Text.IO as Text
 import qualified DearImGui.Generator.Parser as Parser
   ( headers )
 import DearImGui.Generator.Tokeniser
-  ( tokenise )
+  ( Tok, tokenise )
 import DearImGui.Generator.Types
-  ( Comment(..), Enumeration(..), Headers(..) )
+  ( Comment(..), Enumeration(..), Headers(..)
+  , generateNames
+  )
 
 --------------------------------------------------------------------------------
 -- Obtaining parsed header data.
 
-headers :: Headers
+headers :: Headers ( TH.Name, TH.Name )
 headers = $( do
   currentPath <- TH.loc_filename <$> TH.location
-  TH.lift =<< TH.runIO do
+  basicHeaders <- TH.runIO do
     headersPath  <- canonicalizePath ( takeDirectory currentPath <> "/../../imgui/imgui.h" )
     headersSource <- Text.readFile headersPath
     tokens <- case tokenise headersSource of
       Left  err  -> error ( "Couldn't tokenise Dear ImGui headers:\n\n" <> show err )
       Right toks -> pure toks
     case Megaparsec.parse Parser.headers "" tokens of
-      Left  err -> error $
-        "Couldn't parse Dear ImGui headers:\n\n" <>
-        ( unlines ( map Megaparsec.parseErrorPretty . toList $ Megaparsec.bundleErrors err ) )
+      Left  err -> do
+        let
+          errorPos :: Int
+          errorPos = Megaparsec.errorOffset . NonEmpty.head $ Megaparsec.bundleErrors err
+          prev, rest :: [ Tok ]
+          ( prev, rest ) = second ( take 15 ) . splitAt 5 . drop ( errorPos - 5 ) $ tokens
+        error $
+          "Couldn't parse Dear ImGui headers:\n\n" <>
+          ( unlines ( map Megaparsec.parseErrorPretty . toList $ Megaparsec.bundleErrors err ) ) <> "\n" <>
+          ( unlines ( map show prev ) <> "\n\n" <> unlines ( map show rest ) )
       Right res -> pure res
+  TH.lift =<< generateNames basicHeaders
   )
 
 --------------------------------------------------------------------------------
 -- Generating TH splices.
 
+enumerationsTypesTable :: Map InlineC.TypeSpecifier ( TH.Q TH.Type )
+enumerationsTypesTable = Map.fromList . map mkTypePair $ enums headers
+  where
+    mkTypePair :: Enumeration ( TH.Name, TH.Name ) -> ( InlineC.TypeSpecifier, TH.Q TH.Type )
+    mkTypePair ( Enumeration { enumName, enumTypeName } ) =
+      ( InlineC.TypeName $ fromString ( Text.unpack enumName )
+      , TH.conT ( fst $ enumTypeName )
+      )
+
 declareEnumerations :: TH.Name -> TH.Name -> TH.Q [ TH.Dec ]
 declareEnumerations finiteEnumName countName = do
   concat <$> mapM ( declareEnumeration finiteEnumName countName ) ( enums headers )
 
-declareEnumeration :: TH.Name -> TH.Name -> Enumeration -> TH.Q [ TH.Dec ]
+declareEnumeration :: TH.Name -> TH.Name -> Enumeration ( TH.Name, TH.Name ) -> TH.Q [ TH.Dec ]
 declareEnumeration finiteEnumName countName ( Enumeration {..} ) = do
   let
-    enumNameStr :: String
-    enumNameStr = Text.unpack enumName
+    tyName, conName :: TH.Name
+    ( tyName, conName ) = enumTypeName
     isFlagEnum :: Bool
     isFlagEnum = "Flags" `Text.isInfixOf` enumName
-  tyName  <- TH.newName enumNameStr
-
-  conName <- TH.newName enumNameStr
-  let
     newtypeCon :: TH.Q TH.Con
     newtypeCon =
       TH.normalC conName
         [ TH.bangType
           ( TH.bang TH.noSourceUnpackedness TH.noSourceStrictness )
-          ( TH.conT enumType )
+          ( TH.conT underlyingType )
         ]
     classes :: [ TH.Q TH.Type ]
     classes
@@ -103,6 +133,7 @@ declareEnumeration finiteEnumName countName ( Enumeration {..} ) = do
       = map TH.conT [ ''Eq, ''Ord, ''Storable ]
     derivClause :: TH.Q TH.DerivClause
     derivClause = TH.derivClause ( Just TH.NewtypeStrategy ) classes
+
   newtypeDecl <-
 #if MIN_VERSION_base(4,16,0)
     ( if   null docs

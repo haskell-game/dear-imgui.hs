@@ -111,27 +111,44 @@ instance ShowErrorComponent CustomParseError where
 --------------------------------------------------------------------------------
 -- Parsing headers.
 
-headers :: MonadParsec CustomParseError [Tok] m => m Headers
+headers :: MonadParsec CustomParseError [Tok] m => m ( Headers () )
 headers = do
   _ <- skipManyTill anySingle ( namedSection "Header mess" )
+
   _ <- skipManyTill anySingle ( namedSection "Forward declarations" )
   ( _structNames, enumNamesAndTypes ) <- forwardDeclarations
+
   _ <- skipManyTill anySingle ( namedSection "Dear ImGui end-user API functions" )
+
   _ <- skipManyTill anySingle ( namedSection "Flags & Enumerations" )
-  ( _defines, enums ) <- partitionEithers <$>
+  ( _defines, basicEnums ) <- partitionEithers <$>
     manyTill
       (   ( Left  <$> try ignoreDefine )
       <|> ( Right <$> enumeration enumNamesAndTypes )
       )
       ( namedSection "Helpers: Memory allocations macros, ImVector<>" )
-  _ <- skipManyTill anySingle ( namedSection "ImGuiStyle" )
-  _ <- skipManyTill anySingle ( namedSection "ImGuiIO" )
-  _ <- skipManyTill anySingle ( namedSection "Misc data structures" )
-  _ <- skipManyTill anySingle ( namedSection "Obsolete functions" )
-  _ <- skipManyTill anySingle ( namedSection "Helpers" )
-  _ <- skipManyTill anySingle ( namedSection "Drawing API" )
-  _ <- skipManyTill anySingle ( namedSection "Font API" )
 
+  _ <- skipManyTill anySingle ( namedSection "ImGuiStyle" )
+
+  _ <- skipManyTill anySingle ( namedSection "ImGuiIO" )
+
+  _ <- skipManyTill anySingle ( namedSection "Misc data structures" )
+
+  _ <- skipManyTill anySingle ( namedSection "Obsolete functions" )
+
+  _ <- skipManyTill anySingle ( namedSection "Helpers" )
+
+  _ <- skipManyTill anySingle ( namedSection "Drawing API" )
+  skipManyTill anySingle ( try . lookAhead $ many comment *> keyword "enum" )
+  drawingEnums <- many ( enumeration enumNamesAndTypes )
+
+  _ <- skipManyTill anySingle ( namedSection "Font API" )
+  skipManyTill anySingle ( try . lookAhead $ many comment *> keyword "enum" )
+  fontEnums <- many ( enumeration enumNamesAndTypes )
+
+  let
+    enums :: [ Enumeration () ]
+    enums = basicEnums <> drawingEnums <> fontEnums
   pure ( Headers { enums } )
 
 --------------------------------------------------------------------------------
@@ -151,7 +168,7 @@ forwardDeclarations = do
   _ <- many comment
   enums <- many do
     keyword "typedef"
-    ty <- enumTypeName
+    ty <- cTypeName
     enumName <- identifier
     reservedSymbol ';'
     doc <- commentText <$> comment
@@ -159,8 +176,8 @@ forwardDeclarations = do
   -- Stopping after simple structs and enums for now.
   pure ( HashMap.fromList structs, HashMap.fromList enums )
 
-enumTypeName :: MonadParsec e [Tok] m => m TH.Name
-enumTypeName = keyword "int" $> ''CInt
+cTypeName :: MonadParsec e [Tok] m => m TH.Name
+cTypeName = keyword "int" $> ''CInt
 
 --------------------------------------------------------------------------------
 -- Parsing enumerations.
@@ -172,15 +189,19 @@ data EnumState = EnumState
   , hasExplicitCount :: Bool
   }
 
-enumeration :: MonadParsec CustomParseError [Tok] m => HashMap Text ( TH.Name, Comment ) -> m Enumeration
+enumeration :: MonadParsec CustomParseError [Tok] m => HashMap Text ( TH.Name, Comment ) -> m ( Enumeration () )
 enumeration enumNamesAndTypes = do
-  inlineDocs <- many comment
-  keyword "enum"
+  inlineDocs <- try do
+    inlineDocs <- many comment
+    keyword "enum"
+    pure inlineDocs
   fullEnumName <- identifier
   let
     enumName :: Text
     enumName = Text.dropWhileEnd ( == '_' ) fullEnumName
-  ( enumType, forwardDoc ) <- case HashMap.lookup enumName enumNamesAndTypes of
+    enumTypeName :: ()
+    enumTypeName = ()
+  ( underlyingType, forwardDoc ) <- case HashMap.lookup enumName enumNamesAndTypes of
     Just res -> pure res
     Nothing  -> customFailure ( MissingForwardDeclaration { enumName } )
   let
