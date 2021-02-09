@@ -1,4 +1,5 @@
 {-# LANGUAGE BlockArguments #-}
+{-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedStrings #-}
@@ -74,7 +75,7 @@ loop w checked color slider r pos size' selected tab1Ref tab2Ref = do
 
   setNextWindowBgAlpha 0.42
 
-  begin "My Window"
+  begin Begin{ name = "My Window", isOpen = Nothing }
 
   text "Hello!"
 
@@ -112,7 +113,7 @@ loop w checked color slider r pos size' selected tab1Ref tab2Ref = do
 
   sameLine >> arrowButton "Arrow" ImGuiDir_Up
 
-  sameLine >> checkbox "Check!" checked >>= \case
+  sameLine >> checkbox Checkbox{ label = "Check!", checked = toStateVar checked } >>= \case
     True  -> readIORef checked >>= print
     False -> return ()
 

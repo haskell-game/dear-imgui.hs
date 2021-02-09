@@ -42,6 +42,7 @@ module DearImGui
 
     -- * Windows
   , begin
+  , Begin(..)
   , end
   , setNextWindowPos
   , setNextWindowSize
@@ -79,32 +80,48 @@ module DearImGui
 
     -- ** Main
   , button
+  , Button(..)
   , smallButton
+  , SmallButton(..)
   , arrowButton
   , checkbox
+  , Checkbox(..)
   , progressBar
+  , ProgressBar(..)
   , bullet
 
     -- ** Combo Box
   , beginCombo
+  , BeginCombo(..)
   , endCombo
   , combo
+  , Combo(..)
 
     -- ** Drag Sliders
   , dragFloat
+  , DragFloat(..)
   , dragFloat2
+  , DragFloat2(..)
   , dragFloat3
+  , DragFloat3(..)
   , dragFloat4
+  , DragFloat4(..)
 
     -- ** Slider
   , sliderFloat
+  , SliderFloat(..)
   , sliderFloat2
+  , SliderFloat2(..)
   , sliderFloat3
+  , SliderFloat3(..)
   , sliderFloat4
+  , SliderFloat4(..)
 
     -- * Color Editor/Picker
   , colorPicker3
+  , ColorPicker3(..)
   , colorButton
+  , ColorButton(..)
 
     -- * Trees
   , treeNode
@@ -116,9 +133,11 @@ module DearImGui
 
     -- ** List Boxes
   , listBox
+  , ListBox(..)
 
     -- * Data Plotting
   , plotHistogram
+  , PlotHistogram(..)
 
     -- ** Menus
   , beginMenuBar
@@ -131,10 +150,12 @@ module DearImGui
 
     -- ** Tabs, tab bar
   , beginTabBar
+  , BeginTabBar(..)
   , endTabBar
   , beginTabItem
   , endTabItem
   , tabItemButton
+  , TabItemButton(..)
   , setTabItemClosed
 
     -- * Tooltips
@@ -154,15 +175,16 @@ module DearImGui
     -- * Types
   , module DearImGui.Enums
   , module DearImGui.Structs
+
+    -- * TODO
+  , toStateVar
   )
   where
 
 -- base
 import Data.Bool
-import Data.Coerce 
+import Data.Coerce
   ( coerce )
-import Data.Int 
-  ( Int32 )
 import Foreign
 import Foreign.C
 
@@ -183,7 +205,7 @@ import qualified Control.Monad.Managed as Managed
 
 -- StateVar
 import Data.StateVar
-  ( HasGetter(get), HasSetter, ($=!) )
+  ( HasGetter(get), HasSetter, ($=!), mapStateVar, StateVar(..) )
 
 -- transformers
 import Control.Monad.IO.Class
@@ -319,10 +341,21 @@ styleColorsClassic = liftIO do
 -- matching 'end' for each 'begin' call, regardless of its return value!
 --
 -- Wraps @ImGui::Begin()@.
-begin :: MonadIO m => String -> m Bool
-begin name = liftIO do
+begin :: MonadIO m => Begin -> m Bool
+begin Begin{ name, isOpen } = liftIO $
   withCString name \namePtr ->
-    (0 /=) <$> [C.exp| bool { ImGui::Begin($(char* namePtr)) } |]
+  withMaybeStateVar isOpen \isOpenPtr -> do
+    (0 /=) <$> [C.exp| bool { ImGui::Begin($(char* namePtr), $(bool* isOpenPtr)) } |]
+
+
+data Begin = Begin
+  { name :: String
+
+  , isOpen :: Maybe (StateVar CBool)
+    -- ^ When set shows a window-closing widget in the upper-right corner of the
+    -- window, which clicking will set this 'Bool' reference to 'False' when
+    -- clicked.
+  }
 
 
 -- | Pop window from the stack.
@@ -372,49 +405,69 @@ text t = liftIO do
     [C.exp| void { Text("%s", $(char* textPtr)) } |]
 
 
+data Button = Button
+  { label :: String
+  }
+
+
 -- | A button. Returns 'True' when clicked.
 --
 -- Wraps @ImGui::Button()@.
-button :: MonadIO m => String -> m Bool
-button label = liftIO do
+button :: MonadIO m => Button -> m Bool
+button Button{ label } = liftIO $
   withCString label \labelPtr ->
     (0 /=) <$> [C.exp| bool { Button($(char* labelPtr)) } |]
 
 
+data SmallButton = SmallButton
+  { label :: String
+  }
+
 -- | Button with @FramePadding=(0,0)@ to easily embed within text.
 --
 -- Wraps @ImGui::SmallButton()@.
-smallButton :: MonadIO m => String -> m Bool
-smallButton label = liftIO do
+smallButton :: MonadIO m => SmallButton -> m Bool
+smallButton SmallButton{ label } = liftIO do
   withCString label \labelPtr ->
     (0 /=) <$> [C.exp| bool { SmallButton($(char* labelPtr)) } |]
 
 
+data ArrowButton = ArrowButton
+  { strId :: String
+  , dir :: ImGuiDir
+  }
+
 -- | Square button with an arrow shape.
 --
 -- Wraps @ImGui::ArrowButton()@.
-arrowButton :: MonadIO m => String -> ImGuiDir -> m Bool
-arrowButton strId dir = liftIO do
+arrowButton :: MonadIO m => ArrowButton -> m Bool
+arrowButton ArrowButton{ strId, dir } = liftIO do
   withCString strId \strIdPtr ->
     (0 /=) <$> [C.exp| bool { ArrowButton($(char* strIdPtr), $(ImGuiDir dir)) } |]
 
 
+data Checkbox = Checkbox
+  { label :: String
+  , checked :: StateVar Bool
+  }
+
+
 -- | Wraps @ImGui::Checkbox()@.
-checkbox :: (HasSetter ref Bool, HasGetter ref Bool, MonadIO m) => String -> ref -> m Bool
-checkbox label ref = liftIO do
-  currentValue <- get ref
-  with (bool 0 1 currentValue :: CBool) \boolPtr -> do
-    changed <- withCString label \labelPtr ->
-      (0 /=) <$> [C.exp| bool { Checkbox($(char* labelPtr), $(bool* boolPtr)) } |]
-
-    newValue <- peek boolPtr
-    ref $=! (newValue == 1)
-
-    return changed
+checkbox :: MonadIO m => Checkbox -> m Bool
+checkbox Checkbox{ label, checked } = liftIO $
+  withStateVar (mapStateVar cBoolToBool boolToCBool checked) \boolPtr ->
+  withCString label \labelPtr ->
+  cBoolToBool <$> [C.exp| bool { Checkbox($(char* labelPtr), $(bool* boolPtr)) } |]
 
 
-progressBar :: MonadIO m => Float -> Maybe String -> m ()
-progressBar progress overlay = liftIO do
+data ProgressBar = ProgressBar
+  { progress :: Float
+  , overlay :: Maybe String
+  }
+
+
+progressBar :: MonadIO m => ProgressBar -> m ()
+progressBar ProgressBar{ progress, overlay } = liftIO do
   withCStringOrNull overlay \overlayPtr ->
     [C.exp| void { ProgressBar($(float c'progress), ImVec2(-FLT_MIN, 0), $(char* overlayPtr)) } |]
   where
@@ -429,14 +482,20 @@ bullet = liftIO do
   [C.exp| void { Bullet() } |]
 
 
+data BeginCombo = BeginCombo
+  { label :: String
+  , previewValue :: String
+  }
+
+
 -- | Begin creating a combo box with a given label and preview value.
 --
 -- Returns 'True' if the combo box is open. In this state, you should populate
 -- the contents of the combo box - for example, by calling 'selectable'.
 --
 -- Wraps @ImGui::BeginCombo()@.
-beginCombo :: MonadIO m => String -> String -> m Bool
-beginCombo label previewValue = liftIO $
+beginCombo :: MonadIO m => BeginCombo -> m Bool
+beginCombo BeginCombo{ label, previewValue } = liftIO $
   withCString label        \labelPtr ->
   withCString previewValue \previewValuePtr ->
   (0 /=) <$> [C.exp| bool { BeginCombo($(char* labelPtr), $(char* previewValuePtr)) } |]
@@ -450,9 +509,15 @@ endCombo = liftIO do
   [C.exp| void { EndCombo() } |]
 
 
+data Combo = Combo
+  { label :: String
+  , selectedIndex :: StateVar Int
+  , items :: [String]
+  }
+
 -- | Wraps @ImGui::Combo()@.
-combo :: (MonadIO m, HasGetter ref Int, HasSetter ref Int) => String -> ref -> [String] -> m Bool
-combo label selectedIndex items = liftIO $ Managed.with m return
+combo :: (MonadIO m) => Combo -> m Bool
+combo Combo{ label, selectedIndex, items } = liftIO $ Managed.with m return
   where
     m = do
       i <- get selectedIndex
@@ -471,16 +536,24 @@ combo label selectedIndex items = liftIO $ Managed.with m return
             return True
 
 
+data DragFloat = DragFloat
+  { desc :: String
+  , value :: StateVar Float
+  , speed :: Float
+  , minValue :: Float
+  , maxValue :: Float
+  }
+
 -- | Wraps @ImGui::DragFloat()@
-dragFloat :: (MonadIO m, HasSetter ref Float, HasGetter ref Float) => String -> ref -> Float -> Float -> Float -> m Bool
-dragFloat desc ref speed minValue maxValue = liftIO do
-  currentValue <- get ref
+dragFloat :: MonadIO m => DragFloat -> m Bool
+dragFloat DragFloat{ desc, value, speed, minValue, maxValue } = liftIO do
+  currentValue <- get value
   with (realToFrac currentValue) \floatPtr -> do
     changed <- withCString desc \descPtr ->
       (0 /=) <$> [C.exp| bool { DragFloat( $(char* descPtr), $(float *floatPtr), $(float speed'), $(float min'), $(float max')) } |]
 
     newValue <- peek floatPtr
-    ref $=! realToFrac newValue
+    value $=! realToFrac newValue
 
     return changed
   where
@@ -490,16 +563,24 @@ dragFloat desc ref speed minValue maxValue = liftIO do
     speed' = realToFrac speed
 
 
+data DragFloat2 = DragFloat2
+  { desc :: String
+  , value :: StateVar (Float, Float)
+  , speed :: Float
+  , minValue :: Float
+  , maxValue :: Float
+  }
+
 -- | Wraps @ImGui::DragFloat2()@
-dragFloat2 :: (MonadIO m, HasSetter ref (Float, Float), HasGetter ref (Float, Float)) => String -> ref -> Float -> Float -> Float -> m Bool
-dragFloat2 desc ref speed minValue maxValue = liftIO do
-  (x, y) <- get ref
+dragFloat2 :: MonadIO m => DragFloat2 -> m Bool
+dragFloat2 DragFloat2{ desc, value, speed, minValue, maxValue } = liftIO do
+  (x, y) <- get value
   withArray [ realToFrac x, realToFrac y ] \floatPtr -> do
     changed <- withCString desc \descPtr ->
       (0 /=) <$> [C.exp| bool { DragFloat2( $(char* descPtr), $(float *floatPtr), $(float speed'), $(float min'), $(float max')) } |]
 
     [x', y'] <- peekArray 2 floatPtr
-    ref $=! (realToFrac x', realToFrac y')
+    value $=! (realToFrac x', realToFrac y')
 
     return changed
   where
@@ -509,16 +590,25 @@ dragFloat2 desc ref speed minValue maxValue = liftIO do
     speed' = realToFrac speed
 
 
+data DragFloat3 = DragFloat3
+  { desc :: String
+  , value :: StateVar (Float, Float, Float)
+  , speed :: Float
+  , minValue :: Float
+  , maxValue :: Float
+  }
+
+
 -- | Wraps @ImGui::DragFloat3()@
-dragFloat3 :: (MonadIO m, HasSetter ref (Float, Float, Float), HasGetter ref (Float, Float, Float)) => String -> ref -> Float -> Float -> Float -> m Bool
-dragFloat3 desc ref speed minValue maxValue = liftIO do
-  (x, y, z) <- get ref
+dragFloat3 :: MonadIO m => DragFloat3 -> m Bool
+dragFloat3 DragFloat3{ desc, value, speed, minValue, maxValue } = liftIO do
+  (x, y, z) <- get value
   withArray [ realToFrac x, realToFrac y, realToFrac z ] \floatPtr -> do
     changed <- withCString desc \descPtr ->
       (0 /=) <$> [C.exp| bool { DragFloat3( $(char* descPtr), $(float *floatPtr), $(float speed'), $(float min'), $(float max')) } |]
 
     [x', y', z'] <- peekArray 3 floatPtr
-    ref $=! (realToFrac x', realToFrac y', realToFrac z')
+    value $=! (realToFrac x', realToFrac y', realToFrac z')
 
     return changed
   where
@@ -528,16 +618,25 @@ dragFloat3 desc ref speed minValue maxValue = liftIO do
     speed' = realToFrac speed
 
 
+data DragFloat4 = DragFloat4
+  { desc :: String
+  , value :: StateVar (Float, Float, Float, Float)
+  , speed :: Float
+  , minValue :: Float
+  , maxValue :: Float
+  }
+
+
 -- | Wraps @ImGui::DragFloat4()@
-dragFloat4 :: (MonadIO m, HasSetter ref (Float, Float, Float, Float), HasGetter ref (Float, Float, Float, Float)) => String -> ref -> Float -> Float -> Float -> m Bool
-dragFloat4 desc ref speed minValue maxValue = liftIO do
-  (x, y, z, u) <- get ref
+dragFloat4 :: MonadIO m => DragFloat4 -> m Bool
+dragFloat4 DragFloat4{ desc, value, speed, minValue, maxValue } = liftIO do
+  (x, y, z, u) <- get value
   withArray [ realToFrac x, realToFrac y, realToFrac z, realToFrac u ] \floatPtr -> do
     changed <- withCString desc \descPtr ->
       (0 /=) <$> [C.exp| bool { DragFloat4( $(char* descPtr), $(float *floatPtr), $(float speed'), $(float min'), $(float max')) } |]
 
     [x', y', z', u'] <- peekArray 4 floatPtr
-    ref $=! (realToFrac x', realToFrac y', realToFrac z', realToFrac u')
+    value $=! (realToFrac x', realToFrac y', realToFrac z', realToFrac u')
 
     return changed
   where
@@ -547,16 +646,24 @@ dragFloat4 desc ref speed minValue maxValue = liftIO do
     speed' = realToFrac speed
 
 
+data SliderFloat = SliderFloat
+  { desc :: String
+  , value :: StateVar Float
+  , minValue :: Float
+  , maxValue :: Float
+  }
+
+
 -- | Wraps @ImGui::SliderFloat()@
-sliderFloat :: (MonadIO m, HasSetter ref Float, HasGetter ref Float) => String -> ref -> Float -> Float -> m Bool
-sliderFloat desc ref minValue maxValue = liftIO do
-  currentValue <- get ref
+sliderFloat :: MonadIO m => SliderFloat -> m Bool
+sliderFloat SliderFloat{ desc, value, minValue, maxValue } = liftIO do
+  currentValue <- get value
   with (realToFrac currentValue) \floatPtr -> do
     changed <- withCString desc \descPtr ->
       (0 /=) <$> [C.exp| bool { SliderFloat( $(char* descPtr), $(float *floatPtr), $(float min'), $(float max')) } |]
 
     newValue <- peek floatPtr
-    ref $=! realToFrac newValue
+    value $=! realToFrac newValue
 
     return changed
   where
@@ -565,16 +672,24 @@ sliderFloat desc ref minValue maxValue = liftIO do
     max' = realToFrac maxValue
 
 
+data SliderFloat2 = SliderFloat2
+  { desc :: String
+  , value :: StateVar (Float, Float)
+  , minValue :: Float
+  , maxValue :: Float
+  }
+
+
 -- | Wraps @ImGui::SliderFloat2()@
-sliderFloat2 :: (MonadIO m, HasSetter ref (Float, Float), HasGetter ref (Float, Float)) => String -> ref -> Float -> Float -> m Bool
-sliderFloat2 desc ref minValue maxValue = liftIO do
-  (x, y) <- get ref
+sliderFloat2 :: MonadIO m => SliderFloat2 -> m Bool
+sliderFloat2 SliderFloat2{ desc, value, minValue, maxValue } = liftIO do
+  (x, y) <- get value
   withArray [ realToFrac x, realToFrac y ] \floatPtr -> do
     changed <- withCString desc \descPtr ->
       (0 /=) <$> [C.exp| bool { SliderFloat2( $(char* descPtr), $(float *floatPtr), $(float min'), $(float max')) } |]
 
     [x', y'] <- peekArray 2 floatPtr
-    ref $=! (realToFrac x', realToFrac y')
+    value $=! (realToFrac x', realToFrac y')
 
     return changed
   where
@@ -583,16 +698,24 @@ sliderFloat2 desc ref minValue maxValue = liftIO do
     max' = realToFrac maxValue
 
 
+data SliderFloat3 = SliderFloat3
+  { desc :: String
+  , value :: StateVar (Float, Float, Float)
+  , minValue :: Float
+  , maxValue :: Float
+  }
+
+
 -- | Wraps @ImGui::SliderFloat3()@
-sliderFloat3 :: (MonadIO m, HasSetter ref (Float, Float, Float), HasGetter ref (Float, Float, Float)) => String -> ref -> Float -> Float -> m Bool
-sliderFloat3 desc ref minValue maxValue = liftIO do
-  (x, y, z) <- get ref
+sliderFloat3 :: MonadIO m => SliderFloat3 -> m Bool
+sliderFloat3 SliderFloat3{ desc, value, minValue, maxValue } = liftIO do
+  (x, y, z) <- get value
   withArray [ realToFrac x, realToFrac y, realToFrac z ] \floatPtr -> do
     changed <- withCString desc \descPtr ->
       (0 /=) <$> [C.exp| bool { SliderFloat3( $(char* descPtr), $(float *floatPtr), $(float min'), $(float max')) } |]
 
     [x', y', z'] <- peekArray 3 floatPtr
-    ref $=! (realToFrac x', realToFrac y', realToFrac z')
+    value $=! (realToFrac x', realToFrac y', realToFrac z')
 
     return changed
   where
@@ -601,16 +724,24 @@ sliderFloat3 desc ref minValue maxValue = liftIO do
     max' = realToFrac maxValue
 
 
+data SliderFloat4 = SliderFloat4
+  { desc :: String
+  , value :: StateVar (Float, Float, Float, Float)
+  , minValue :: Float
+  , maxValue :: Float
+  }
+
+
 -- | Wraps @ImGui::SliderFloat4()@
-sliderFloat4 :: (MonadIO m, HasSetter ref (Float, Float, Float, Float), HasGetter ref (Float, Float, Float, Float)) => String -> ref -> Float -> Float -> m Bool
-sliderFloat4 desc ref minValue maxValue = liftIO do
-  (x, y, z, u) <- get ref
+sliderFloat4 :: MonadIO m => SliderFloat4 -> m Bool
+sliderFloat4 SliderFloat4{ desc, value, minValue, maxValue } = liftIO do
+  (x, y, z, u) <- get value
   withArray [ realToFrac x, realToFrac y, realToFrac z, realToFrac u ] \floatPtr -> do
     changed <- withCString desc \descPtr ->
       (0 /=) <$> [C.exp| bool { SliderFloat4( $(char* descPtr), $(float *floatPtr), $(float min'), $(float max')) } |]
 
     [x', y', z', u'] <- peekArray 4 floatPtr
-    ref $=! (realToFrac x', realToFrac y', realToFrac z', realToFrac u')
+    value $=! (realToFrac x', realToFrac y', realToFrac z', realToFrac u')
 
     return changed
   where
@@ -619,34 +750,47 @@ sliderFloat4 desc ref minValue maxValue = liftIO do
     max' = realToFrac maxValue
 
 
--- | Wraps @ImGui::ColorPicker3()@.
-colorPicker3 :: (MonadIO m, HasSetter ref ImVec3, HasGetter ref ImVec3) => String -> ref -> m Bool
-colorPicker3 desc ref = liftIO do
-  ImVec3{x, y, z} <- get ref
-  withArray (realToFrac <$> [x, y, z]) \refPtr -> do
-    changed <- withCString desc \descPtr ->
-      (0 /= ) <$> [C.exp| bool { ColorPicker3( $(char* descPtr), $(float *refPtr) ) } |]
+data ColorPicker3 = ColorPicker3
+  { desc :: String
+  , value :: StateVar ImVec3
+  }
 
-    [x', y', z'] <- peekArray 3 refPtr
-    ref $=! ImVec3 (realToFrac x') (realToFrac y') (realToFrac z')
+
+-- | Wraps @ImGui::ColorPicker3()@.
+colorPicker3 :: MonadIO m => ColorPicker3 -> m Bool
+colorPicker3 ColorPicker3{ desc, value } = liftIO do
+  ImVec3{x, y, z} <- get value
+  withArray (realToFrac <$> [x, y, z]) \valuePtr -> do
+    changed <- withCString desc \descPtr ->
+      (0 /= ) <$> [C.exp| bool { ColorPicker3( $(char* descPtr), $(float *valuePtr) ) } |]
+
+    [x', y', z'] <- peekArray 3 valuePtr
+    value $=! ImVec3 (realToFrac x') (realToFrac y') (realToFrac z')
 
     return changed
+
+
+data ColorButton = ColorButton
+  { desc :: String
+  , value :: StateVar ImVec4
+  }
 
 
 -- | Display a color square/button, hover for details, return true when pressed.
 --
 -- Wraps @ImGui::ColorButton()@.
-colorButton :: (MonadIO m, HasSetter ref ImVec4, HasGetter ref ImVec4) => String -> ref -> m Bool
-colorButton desc ref = liftIO do
-  currentValue <- get ref
-  with currentValue \refPtr -> do
+colorButton :: MonadIO m => ColorButton -> m Bool
+colorButton ColorButton{ desc, value } = liftIO do
+  currentValue <- get value
+  with currentValue \valuePtr -> do
     changed <- withCString desc \descPtr ->
-      (0 /=) <$> [C.exp| bool { ColorButton( $(char* descPtr), *$(ImVec4 *refPtr) ) } |]
+      (0 /=) <$> [C.exp| bool { ColorButton( $(char* descPtr), *$(ImVec4 *valuePtr) ) } |]
 
-    newValue <- peek refPtr
-    ref $=! newValue
+    newValue <- peek valuePtr
+    value $=! newValue
 
     return changed
+
 
 -- | Wraps @ImGui::TreeNode()@.
 treeNode :: MonadIO m => String -> m Bool
@@ -674,8 +818,16 @@ selectable label = liftIO do
   withCString label \labelPtr ->
     (0 /=) <$> [C.exp| bool { Selectable($(char* labelPtr)) } |]
 
-listBox :: (MonadIO m, HasGetter ref Int, HasSetter ref Int) => String -> ref -> [String] -> m Bool
-listBox label selectedIndex items = liftIO $ Managed.with m return
+
+data ListBox = ListBox
+  { label :: String
+  , selectedIndex :: StateVar Int
+  , items :: [String]
+  }
+
+
+listBox :: MonadIO m => ListBox -> m Bool
+listBox ListBox{ label, selectedIndex, items } = liftIO $ Managed.with m return
   where
     m = do
       i <- get selectedIndex
@@ -693,10 +845,15 @@ listBox label selectedIndex items = liftIO $ Managed.with m return
             selectedIndex $=! fromIntegral i'
             return True
 
+data PlotHistogram = PlotHistogram
+  { label :: String
+  , values :: [CFloat]
+  }
+
 
 -- | Wraps @ImGui::PlotHistogram()@.
-plotHistogram :: MonadIO m => String -> [CFloat] -> m ()
-plotHistogram label values = liftIO $
+plotHistogram :: MonadIO m => PlotHistogram -> m ()
+plotHistogram PlotHistogram{ label, values } = liftIO $
   withArrayLen values \len valuesPtr ->
     withCString label \labelPtr -> do
       let c'len = fromIntegral len
@@ -762,13 +919,21 @@ menuItem label = liftIO do
   withCString label \labelPtr ->
     (0 /=) <$> [C.exp| bool { MenuItem($(char* labelPtr)) } |]
 
+
+data BeginTabBar = BeginTabBar
+  { tabBarID :: String
+  , flags :: ImGuiTabBarFlags
+  }
+
+
 -- | Create a @TabBar@ and start appending to it.
 --
 -- Wraps @ImGui::BeginTabBar@.
-beginTabBar :: MonadIO m => String -> ImGuiTabBarFlags -> m Bool
-beginTabBar tabBarID flags = liftIO do
+beginTabBar :: MonadIO m => BeginTabBar -> m Bool
+beginTabBar BeginTabBar{ tabBarID, flags } = liftIO do
   withCString tabBarID \ptr ->
     (0 /=) <$> [C.exp| bool { BeginTabBar($(char* ptr), $(ImGuiTabBarFlags flags) ) } |]
+
 
 -- | Finish appending elements to a tab bar. Only call if 'beginTabBar' returns @True@.
 --
@@ -777,18 +942,27 @@ endTabBar :: MonadIO m => m ()
 endTabBar = liftIO do
   [C.exp| void { EndTabBar(); } |]
 
+
+data BeginTabItem = BeginTabItem
+  { tabName :: String
+  , isSelected :: StateVar Bool
+  , flags :: ImGuiTabBarFlags
+  }
+
+
 -- | Create a new tab. Returns @True@ if the tab is selected.
 --
 -- Wraps @ImGui::BeginTabItem@.
-beginTabItem :: ( MonadIO m, HasGetter ref Bool, HasSetter ref Bool ) => String -> ref -> ImGuiTabBarFlags -> m Bool
-beginTabItem tabName ref flags = liftIO do
-  currentValue <- get ref
-  with ( bool 0 1 currentValue :: CBool ) \ refPtr -> do
+beginTabItem :: MonadIO m => BeginTabItem -> m Bool
+beginTabItem BeginTabItem{ tabName, isSelected, flags } = liftIO do
+  currentValue <- get isSelected
+  with ( bool 0 1 currentValue :: CBool ) \ valuePtr -> do
     open <- withCString tabName \ ptrName ->
-      (0 /=) <$> [C.exp| bool { BeginTabItem($(char* ptrName), $(bool* refPtr), $(ImGuiTabBarFlags flags) ) } |]
-    newValue <- (0 /=) <$> peek refPtr
-    ref $=! newValue
+      (0 /=) <$> [C.exp| bool { BeginTabItem($(char* ptrName), $(bool* valuePtr), $(ImGuiTabBarFlags flags) ) } |]
+    newValue <- (0 /=) <$> peek valuePtr
+    isSelected $=! newValue
     pure open
+
 
 -- | Finish appending elements to a tab. Only call if 'beginTabItem' returns @True@.
 --
@@ -797,11 +971,18 @@ endTabItem :: MonadIO m => m ()
 endTabItem = liftIO do
   [C.exp| void { EndTabItem(); } |]
 
+
+data TabItemButton = TabItemButton
+  { tabName :: String
+  , flags :: ImGuiTabItemFlags
+  }
+
+
 -- | Create a tab that behaves like a button. Returns @True@ when clicked. Cannot be selected in the tab bar.
 --
 -- Wraps @ImGui.TabItemButton@.
-tabItemButton :: MonadIO m => String -> ImGuiTabItemFlags -> m Bool
-tabItemButton tabName flags = liftIO do
+tabItemButton :: MonadIO m => TabItemButton -> m Bool
+tabItemButton TabItemButton{ tabName, flags } = liftIO do
   withCString tabName \ namePtr ->
     (0 /=) <$> [C.exp| bool { TabItemButton($(char* namePtr), $(ImGuiTabItemFlags flags) ) } |]
 
@@ -888,7 +1069,7 @@ withCStringOrNull (Just s) k = withCString s k
 -- | Set next window position. Call before `begin` Use pivot=(0.5,0.5) to center on given point, etc.
 --
 -- Wraps @ImGui::SetNextWindowPos()@
-setNextWindowPos :: (MonadIO m, HasGetter ref ImVec2) => ref -> ImGuiCond -> Maybe ref -> m ()
+setNextWindowPos :: (MonadIO m, HasGetter value ImVec2) => value -> ImGuiCond -> Maybe value -> m ()
 setNextWindowPos posRef cond pivotMaybe = liftIO do
   pos <- get posRef
   with pos $ \posPtr ->
@@ -900,34 +1081,34 @@ setNextWindowPos posRef cond pivotMaybe = liftIO do
       Nothing ->
         [C.exp| void { SetNextWindowPos(*$(ImVec2 *posPtr), $(ImGuiCond cond)) } |]
 
--- | Set next window size. Call before `begin` 
+-- | Set next window size. Call before `begin`
 --
 -- Wraps @ImGui::SetNextWindowSize()@
-setNextWindowSize :: (MonadIO m, HasGetter ref ImVec2) => ref -> ImGuiCond -> m ()
+setNextWindowSize :: (MonadIO m, HasGetter value ImVec2) => value -> ImGuiCond -> m ()
 setNextWindowSize sizeRef cond = liftIO do
   size' <- get sizeRef
-  with size' $ 
+  with size' $
     \sizePtr ->[C.exp| void { SetNextWindowSize(*$(ImVec2 *sizePtr), $(ImGuiCond cond)) } |]
 
 -- | Set next window content size (~ scrollable client area, which enforce the range of scrollbars). Not including window decorations (title bar, menu bar, etc.) nor WindowPadding. call before `begin`
 --
 -- Wraps @ImGui::SetNextWindowContentSize()@
-setNextWindowContentSize :: (MonadIO m, HasGetter ref ImVec2) => ref -> m ()
+setNextWindowContentSize :: (MonadIO m, HasGetter value ImVec2) => value -> m ()
 setNextWindowContentSize sizeRef = liftIO do
   size' <- get sizeRef
-  with size' $ 
+  with size' $
     \sizePtr ->[C.exp| void { SetNextWindowContentSize(*$(ImVec2 *sizePtr)) } |]
 
 -- | Set next window size limits. use -1,-1 on either X/Y axis to preserve the current size. Sizes will be rounded down.
 --
 -- Wraps @ImGui::SetNextWindowContentSize()@
-setNextWindowSizeConstraints :: (MonadIO m, HasGetter ref ImVec2) => ref -> ref -> m ()
+setNextWindowSizeConstraints :: (MonadIO m, HasGetter value ImVec2) => value -> value -> m ()
 setNextWindowSizeConstraints sizeMinRef sizeMaxRef = liftIO do
   sizeMin <- get sizeMinRef
   sizeMax <- get sizeMaxRef
-  with sizeMin $ 
-    \sizeMinPtr -> 
-      with sizeMax $ \sizeMaxPtr -> 
+  with sizeMin $
+    \sizeMinPtr ->
+      with sizeMax $ \sizeMaxPtr ->
         [C.exp| void { SetNextWindowSizeConstraints(*$(ImVec2 *sizeMinPtr), *$(ImVec2 *sizeMaxPtr)) } |]
 
 -- | Set next window collapsed state. call before `begin`
@@ -963,8 +1144,8 @@ spacing = liftIO do
 -- | Add a dummy item of given size. unlike `invisibleButton`, `dummy` won't take the mouse click or be navigable into.
 --
 -- Wraps @ImGui::Dummy()@
-dummy :: (MonadIO m, HasGetter ref ImVec2) => ref -> m ()
-dummy sizeRef = liftIO do 
+dummy :: (MonadIO m, HasGetter value ImVec2) => value -> m ()
+dummy sizeRef = liftIO do
   size' <- get sizeRef
   with size' $ \ sizePtr -> [C.exp| void { Dummy(*$(ImVec2 *sizePtr)) } |]
 
@@ -999,30 +1180,30 @@ endGroup = liftIO do
   [C.exp| void { EndGroup() } |]
 
 -- | Vertically align upcoming text baseline to FramePadding.y so that it will align properly to regularly framed items (call if you have text on a line before a framed item)
--- 
+--
 -- Wraps @ImGui::AlignTextToFramePadding()@
 alignTextToFramePadding :: (MonadIO m) => m ()
 alignTextToFramePadding = liftIO do
   [C.exp| void { AlignTextToFramePadding() } |]
 
 -- | Set cursor position in window-local coordinates
--- 
+--
 -- Wraps @ImGui::SetCursorPos()@
-setCursorPos :: (MonadIO m, HasGetter ref ImVec2) => ref -> m ()
-setCursorPos posRef = liftIO do 
+setCursorPos :: (MonadIO m, HasGetter value ImVec2) => value -> m ()
+setCursorPos posRef = liftIO do
   pos <- get posRef
   with pos $ \ posPtr -> [C.exp| void { SetCursorPos(*$(ImVec2 *posPtr)) } |]
 
 -- | Modify a style color by pushing to the shared stack. always use this if you modify the style after `newFrame`
--- 
+--
 -- Wraps @ImGui::PushStyleColor()@
-pushStyleColor :: (MonadIO m, HasGetter ref ImVec4) => ImGuiCol -> ref -> m ()
-pushStyleColor col colorRef = liftIO do 
+pushStyleColor :: (MonadIO m, HasGetter value ImVec4) => ImGuiCol -> value -> m ()
+pushStyleColor col colorRef = liftIO do
   color <- get colorRef
   with color $ \ colorPtr -> [C.exp| void { PushStyleColor($(ImGuiCol col), *$(ImVec4 *colorPtr)) } |]
 
 -- | Remove style color modifications from the shared stack
--- 
+--
 -- Wraps @ImGui::PopStyleColor()@
 popStyleColor :: (MonadIO m) => Int32 -> m ()
 popStyleColor n = liftIO do
@@ -1032,15 +1213,15 @@ popStyleColor n = liftIO do
   [C.exp| void { PopStyleColor($(int m)) } |]
 
 -- | Modify a style variable by pushing to the shared stack. always use this if you modify the style after `newFrame`
--- 
+--
 -- Wraps @ImGui::PushStyleVar()@
-pushStyleVar :: (MonadIO m, HasGetter ref ImVec2) => ImGuiStyleVar -> ref -> m ()
-pushStyleVar style valRef = liftIO do 
+pushStyleVar :: (MonadIO m, HasGetter value ImVec2) => ImGuiStyleVar -> value -> m ()
+pushStyleVar style valRef = liftIO do
   val <- get valRef
   with val $ \ valPtr -> [C.exp| void { PushStyleVar($(ImGuiStyleVar style), *$(ImVec2 *valPtr)) } |]
 
 -- | Remove style variable modifications from the shared stack
--- 
+--
 -- Wraps @ImGui::PopStyleVar()@
 popStyleVar :: (MonadIO m) => Int32 -> m ()
 popStyleVar n = liftIO do
@@ -1048,3 +1229,32 @@ popStyleVar n = liftIO do
     m :: CInt
     m = coerce n
   [C.exp| void { PopStyleVar($(int m)) } |]
+
+
+withMaybeStateVar :: Storable x => Maybe (StateVar x) -> (Ptr x -> IO r) -> IO r
+withMaybeStateVar Nothing k  = k nullPtr
+withMaybeStateVar (Just r) k = withStateVar r k
+
+
+withStateVar :: Storable x => StateVar x -> (Ptr x -> IO r) -> IO r
+withStateVar r k = do
+  x <- get r
+  with x \xPtr -> do
+    y  <- k xPtr
+
+    x' <- peek xPtr
+    r $=! x'
+
+    return y
+
+
+boolToCBool :: Bool -> CBool
+boolToCBool = bool 0 1
+
+
+cBoolToBool :: CBool -> Bool
+cBoolToBool = (/= 0)
+
+
+toStateVar :: (HasGetter r a, HasSetter r a) => r -> StateVar a
+toStateVar r = StateVar (get r) (r $=!)
