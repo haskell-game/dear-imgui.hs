@@ -10,8 +10,8 @@
 module DearImGui.Generator.Types where
 
 -- base
-import Data.Traversable
-  ( for )
+import Data.Functor
+  ( (<&>) )
 
 -- template-haskell
 import qualified Language.Haskell.TH        as TH
@@ -50,13 +50,16 @@ data Headers typeName
   { enums :: [ Enumeration typeName ] }
   deriving stock ( Show, TH.Lift )
 
-generateNames :: Headers () -> TH.Q ( Headers ( TH.Name, TH.Name ) )
-generateNames ( Headers { enums = basicEnums } ) = do
-  enums <- for basicEnums \ enum@( Enumeration { enumName } ) -> do
-    let
-      enumNameStr :: String
-      enumNameStr = Text.unpack enumName
-    tyName  <- TH.newName enumNameStr
-    conName <- TH.newName enumNameStr
-    pure $ enum { enumTypeName = ( tyName, conName ) }
-  pure $ Headers { enums }
+generateNames :: Headers () -> Headers ( TH.Name, TH.Name )
+generateNames ( Headers { enums = basicEnums } ) = Headers { enums = namedEnums }
+  where
+    namedEnums :: [ Enumeration ( TH.Name, TH.Name ) ]
+    namedEnums = basicEnums <&> \ enum@( Enumeration { enumName } ) ->
+      let
+        enumNameStr :: String
+        enumNameStr = Text.unpack enumName
+        tyName, conName :: TH.Name
+        tyName  = TH.mkName enumNameStr
+        conName = TH.mkName enumNameStr
+      in
+        enum { enumTypeName = ( tyName, conName ) }

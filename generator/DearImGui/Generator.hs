@@ -92,7 +92,7 @@ headers = $( do
           ( unlines ( map Megaparsec.parseErrorPretty . toList $ Megaparsec.bundleErrors err ) ) <> "\n" <>
           ( unlines ( map show prev ) <> "\n\n" <> unlines ( map show rest ) )
       Right res -> pure res
-  TH.lift =<< generateNames basicHeaders
+  TH.lift $ generateNames basicHeaders
   )
 
 --------------------------------------------------------------------------------
