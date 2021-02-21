@@ -68,6 +68,8 @@ module DearImGui
   , dummy
   , indent
   , unindent
+  , pushItemWidth
+  , popItemWidth
   , beginGroup
   , endGroup
   , setCursorPos
@@ -101,6 +103,9 @@ module DearImGui
   , sliderFloat2
   , sliderFloat3
   , sliderFloat4
+
+    -- ** Text Input
+  , inputText
 
     -- * Color Editor/Picker
   , colorPicker3
@@ -619,6 +624,22 @@ sliderFloat4 desc ref minValue maxValue = liftIO do
     max' = realToFrac maxValue
 
 
+-- | Wraps @ImGui::InputText()@.
+inputText :: (MonadIO m, HasSetter ref String, HasGetter ref String) => String -> ref -> Int -> m Bool 
+inputText desc ref refSize = liftIO do
+  input <- get ref
+  withCString input \ refPtr -> do
+    withCString desc \ descPtr -> do
+      let refSize' :: CInt
+          refSize' = fromIntegral refSize
+      changed <-
+        (0 /= ) <$> [C.exp|
+          bool { InputText( $(char* descPtr), $(char* refPtr), $(int refSize') ) }
+        |]
+      (peekCString $ coerce refPtr) >>= ($=!) ref
+      return changed
+
+
 -- | Wraps @ImGui::ColorPicker3()@.
 colorPicker3 :: (MonadIO m, HasSetter ref ImVec3, HasGetter ref ImVec3) => String -> ref -> m Bool
 colorPicker3 desc ref = liftIO do
@@ -983,6 +1004,25 @@ unindent :: (MonadIO m) => Float -> m ()
 unindent f = liftIO do
   let f' = coerce f
   [C.exp| void { Unindent($(float f')) } |]
+
+-- | Affect large frame+labels widgets only.
+--
+-- Wraps @ImGui::SetNextItemWidth()@
+setNextItemWidth :: (MonadIO m) => Float -> m ()
+setNextItemWidth itemWidth = liftIO do
+  let itemWidth' = coerce itemWidth
+  [C.exp| void { SetNextItemWidth($(float itemWidth')) } |]
+
+-- Wraps @ImGui::PushItemWidth()@
+pushItemWidth :: (MonadIO m) => Float -> m ()
+pushItemWidth itemWidth = liftIO do
+  let itemWidth' = coerce itemWidth
+  [C.exp| void { PushItemWidth($(float itemWidth')) } |]  
+
+-- Wraps @ImGui::PopItemWidth()@
+popItemWidth :: (MonadIO m) => m ()
+popItemWidth = liftIO do
+  [C.exp| void { PopItemWidth() } |]
 
 -- | lock horizontal starting position
 --
