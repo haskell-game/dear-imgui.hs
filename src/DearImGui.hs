@@ -52,6 +52,7 @@ module DearImGui
 
     -- * Child Windows
   , beginChild
+  , beginChildOfSize
   , endChild
 
     -- * Parameter stacks
@@ -343,6 +344,15 @@ beginChild :: MonadIO m => String -> m Bool
 beginChild name = liftIO do
   withCString name \namePtr ->
     (0 /=) <$> [C.exp| bool { ImGui::BeginChild($(char* namePtr)) } |]
+
+
+-- | Wraps @ImGui::BeginChild()@ with size param.
+beginChildOfSize :: (MonadIO m, HasGetter ref ImVec2) => String -> ref -> m Bool
+beginChildOfSize name sizeRef = liftIO do
+  size <- get sizeRef
+  withCString name \namePtr ->
+    with size $ \sizePtr ->
+      (0 /=) <$> [C.exp| bool { ImGui::BeginChild($(char* namePtr), *$(ImVec2 *sizePtr)) } |]
 
 
 -- | Wraps @ImGui::EndChild()@.
