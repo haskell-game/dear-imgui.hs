@@ -45,6 +45,14 @@ flag glfw
   manual:
     True
 
+flag examples
+  description:
+    Build executable examples.
+  default:
+    False
+  manual:
+    True
+
 common common
   build-depends:
       base
@@ -204,7 +212,7 @@ executable test
   default-language: Haskell2010
   build-depends: base, sdl2, gl, dear-imgui
   ghc-options: -Wall
-  if (!flag(sdl) || !flag(opengl2))
+  if (!flag(examples) || !flag(sdl) || !flag(opengl2))
     buildable: False
 
 executable glfw
@@ -213,7 +221,7 @@ executable glfw
   default-language: Haskell2010
   build-depends: base, GLFW-b, gl, dear-imgui, managed
   ghc-options: -Wall
-  if (!flag(glfw) || !flag(opengl2))
+  if (!flag(examples) || !flag(glfw) || !flag(opengl2))
     buildable: False
 
 executable readme
@@ -221,7 +229,7 @@ executable readme
   main-is: Readme.hs
   hs-source-dirs: examples
   build-depends: sdl2, gl, dear-imgui, managed
-  if (!flag(sdl) || !flag(opengl2))
+  if (!flag(examples) || !flag(sdl) || !flag(opengl2))
     buildable: False
 
 executable vulkan
@@ -257,5 +265,5 @@ executable vulkan
     , vulkan-utils
        ^>= 0.4.1
   ghc-options: -Wall
-  if (!flag(sdl) || !flag(vulkan))
+  if (!flag(examples) || !flag(sdl) || !flag(vulkan))
     buildable: False
