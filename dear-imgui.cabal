@@ -204,6 +204,8 @@ executable test
   default-language: Haskell2010
   build-depends: base, sdl2, gl, dear-imgui
   ghc-options: -Wall
+  if (!flag(sdl) || !flag(opengl2))
+    buildable: False
 
 executable glfw
   main-is: Main.hs
@@ -211,12 +213,16 @@ executable glfw
   default-language: Haskell2010
   build-depends: base, GLFW-b, gl, dear-imgui, managed
   ghc-options: -Wall
+  if (!flag(glfw) || !flag(opengl2))
+    buildable: False
 
 executable readme
   import: common
   main-is: Readme.hs
   hs-source-dirs: examples
   build-depends: sdl2, gl, dear-imgui, managed
+  if (!flag(sdl) || !flag(opengl2))
+    buildable: False
 
 executable vulkan
   import: common
@@ -251,3 +257,5 @@ executable vulkan
     , vulkan-utils
        ^>= 0.4.1
   ghc-options: -Wall
+  if (!flag(sdl) || !flag(vulkan))
+    buildable: False
