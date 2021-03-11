@@ -12,6 +12,8 @@ Vulkan backend for Dear ImGui.
 module DearImGui.Vulkan
   ( InitInfo(..)
   , withVulkan
+  , vulkanInit
+  , vulkanShutdown
   , vulkanNewFrame
   , vulkanRenderDrawData
   , vulkanCreateFontsTexture
@@ -28,7 +30,7 @@ import Data.Word
 import Foreign.Marshal.Alloc
   ( alloca )
 import Foreign.Ptr
-  ( Ptr, freeHaskellFunPtr, nullPtr )
+  ( FunPtr, Ptr, freeHaskellFunPtr, nullPtr )
 import Foreign.Storable
   ( Storable(poke) )
 
@@ -83,7 +85,15 @@ data InitInfo =
 
 -- | Wraps @ImGui_ImplVulkan_Init@ and @ImGui_ImplVulkan_Shutdown@.
 withVulkan :: MonadUnliftIO m => InitInfo -> Vulkan.RenderPass -> ( Bool -> m a ) -> m a
-withVulkan ( InitInfo {..} ) renderPass action = do
+withVulkan initInfo renderPass action =
+  bracket
+    ( vulkanInit initInfo renderPass )
+    vulkanShutdown
+    ( \ ( _, initResult ) -> action initResult )
+
+-- | Wraps @ImGui_ImplVulkan_Init@
+vulkanInit :: MonadUnliftIO m => InitInfo -> Vulkan.RenderPass -> m (FunPtr (Vulkan.Result -> IO ()), Bool)
+vulkanInit ( InitInfo {..} ) renderPass = do
   let
     instancePtr :: Ptr Vulkan.Instance_T
     instancePtr = Vulkan.instanceHandle instance'
@@ -97,38 +107,36 @@ withVulkan ( InitInfo {..} ) renderPass action = do
     withCallbacks f = case mbAllocator of
       Nothing        -> f nullPtr
       Just callbacks -> alloca ( \ ptr -> poke ptr callbacks *> f ptr )
-  bracket
-    ( liftIO do
-        checkResultFunPtr <- $( C.mkFunPtr [t| Vulkan.Result -> IO () |] ) checkResult
-        initResult <- withCallbacks \ callbacksPtr ->
-            [C.block| bool {
-              ImGui_ImplVulkan_InitInfo initInfo;
-              VkInstance instance = { $( VkInstance_T* instancePtr ) };
-              initInfo.Instance = instance;
-              VkPhysicalDevice physicalDevice = { $( VkPhysicalDevice_T* physicalDevicePtr ) };
-              initInfo.PhysicalDevice = physicalDevice;
-              VkDevice device = { $( VkDevice_T* devicePtr ) };
-              initInfo.Device = device;
-              initInfo.QueueFamily = $(uint32_t queueFamily);
-              VkQueue queue = { $( VkQueue_T* queuePtr ) };
-              initInfo.Queue = queue;
-              initInfo.PipelineCache = $(VkPipelineCache pipelineCache);
-              initInfo.DescriptorPool = $(VkDescriptorPool descriptorPool);
-              initInfo.Subpass = $(uint32_t subpass);
-              initInfo.MinImageCount = $(uint32_t minImageCount);
-              initInfo.ImageCount = $(uint32_t imageCount);
-              initInfo.MSAASamples = $(VkSampleCountFlagBits msaaSamples);
-              initInfo.Allocator = $(VkAllocationCallbacks* callbacksPtr);
-              initInfo.CheckVkResultFn = $( void (*checkResultFunPtr)(VkResult) );
-              return ImGui_ImplVulkan_Init(&initInfo, $(VkRenderPass renderPass) );
-            }|]
-        pure ( checkResultFunPtr, initResult /= 0 )
-    )
-    ( \ ( checkResultFunPtr, _ ) -> liftIO do
-      [C.exp| void { ImGui_ImplVulkan_Shutdown(); } |]
-      freeHaskellFunPtr checkResultFunPtr
-    )
-    ( \ ( _, initResult ) -> action initResult )
+  liftIO do
+    checkResultFunPtr <- $( C.mkFunPtr [t| Vulkan.Result -> IO () |] ) checkResult
+    initResult <- withCallbacks \ callbacksPtr ->
+        [C.block| bool {
+          ImGui_ImplVulkan_InitInfo initInfo;
+          VkInstance instance = { $( VkInstance_T* instancePtr ) };
+          initInfo.Instance = instance;
+          VkPhysicalDevice physicalDevice = { $( VkPhysicalDevice_T* physicalDevicePtr ) };
+          initInfo.PhysicalDevice = physicalDevice;
+          VkDevice device = { $( VkDevice_T* devicePtr ) };
+          initInfo.Device = device;
+          initInfo.QueueFamily = $(uint32_t queueFamily);
+          VkQueue queue = { $( VkQueue_T* queuePtr ) };
+          initInfo.Queue = queue;
+          initInfo.PipelineCache = $(VkPipelineCache pipelineCache);
+          initInfo.DescriptorPool = $(VkDescriptorPool descriptorPool);
+          initInfo.Subpass = $(uint32_t subpass);
+          initInfo.MinImageCount = $(uint32_t minImageCount);
+          initInfo.ImageCount = $(uint32_t imageCount);
+          initInfo.MSAASamples = $(VkSampleCountFlagBits msaaSamples);
+          initInfo.Allocator = $(VkAllocationCallbacks* callbacksPtr);
+          initInfo.CheckVkResultFn = $( void (*checkResultFunPtr)(VkResult) );
+          return ImGui_ImplVulkan_Init(&initInfo, $(VkRenderPass renderPass) );
+        }|]
+    pure ( checkResultFunPtr, initResult /= 0 )
+
+vulkanShutdown :: MonadIO m => (FunPtr a, b) -> m ()
+vulkanShutdown ( checkResultFunPtr, _ ) = liftIO do
+  [C.exp| void { ImGui_ImplVulkan_Shutdown(); } |]
+  freeHaskellFunPtr checkResultFunPtr
 
 -- | Wraps @ImGui_ImplVulkan_NewFrame@.
 vulkanNewFrame :: MonadIO m => m ()
