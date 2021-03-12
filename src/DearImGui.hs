@@ -163,6 +163,8 @@ module DearImGui
   where
 
 -- base
+import Control.Monad
+  ( when )
 import Data.Bool
 import Data.Coerce 
   ( coerce )
@@ -412,8 +414,9 @@ checkbox label ref = liftIO do
     changed <- withCString label \labelPtr ->
       (0 /=) <$> [C.exp| bool { Checkbox($(char* labelPtr), $(bool* boolPtr)) } |]
 
-    newValue <- peek boolPtr
-    ref $=! (newValue == 1)
+    when changed do
+      newValue <- peek boolPtr
+      ref $=! (newValue == 1)
 
     return changed
 
@@ -484,8 +487,9 @@ dragFloat desc ref speed minValue maxValue = liftIO do
     changed <- withCString desc \descPtr ->
       (0 /=) <$> [C.exp| bool { DragFloat( $(char* descPtr), $(float *floatPtr), $(float speed'), $(float min'), $(float max')) } |]
 
-    newValue <- peek floatPtr
-    ref $=! realToFrac newValue
+    when changed do
+      newValue <- peek floatPtr
+      ref $=! realToFrac newValue
 
     return changed
   where
@@ -503,8 +507,9 @@ dragFloat2 desc ref speed minValue maxValue = liftIO do
     changed <- withCString desc \descPtr ->
       (0 /=) <$> [C.exp| bool { DragFloat2( $(char* descPtr), $(float *floatPtr), $(float speed'), $(float min'), $(float max')) } |]
 
-    [x', y'] <- peekArray 2 floatPtr
-    ref $=! (realToFrac x', realToFrac y')
+    when changed do
+      [x', y'] <- peekArray 2 floatPtr
+      ref $=! (realToFrac x', realToFrac y')
 
     return changed
   where
@@ -522,8 +527,9 @@ dragFloat3 desc ref speed minValue maxValue = liftIO do
     changed <- withCString desc \descPtr ->
       (0 /=) <$> [C.exp| bool { DragFloat3( $(char* descPtr), $(float *floatPtr), $(float speed'), $(float min'), $(float max')) } |]
 
-    [x', y', z'] <- peekArray 3 floatPtr
-    ref $=! (realToFrac x', realToFrac y', realToFrac z')
+    when changed do
+      [x', y', z'] <- peekArray 3 floatPtr
+      ref $=! (realToFrac x', realToFrac y', realToFrac z')
 
     return changed
   where
@@ -541,8 +547,9 @@ dragFloat4 desc ref speed minValue maxValue = liftIO do
     changed <- withCString desc \descPtr ->
       (0 /=) <$> [C.exp| bool { DragFloat4( $(char* descPtr), $(float *floatPtr), $(float speed'), $(float min'), $(float max')) } |]
 
-    [x', y', z', u'] <- peekArray 4 floatPtr
-    ref $=! (realToFrac x', realToFrac y', realToFrac z', realToFrac u')
+    when changed do
+      [x', y', z', u'] <- peekArray 4 floatPtr
+      ref $=! (realToFrac x', realToFrac y', realToFrac z', realToFrac u')
 
     return changed
   where
@@ -560,8 +567,9 @@ sliderFloat desc ref minValue maxValue = liftIO do
     changed <- withCString desc \descPtr ->
       (0 /=) <$> [C.exp| bool { SliderFloat( $(char* descPtr), $(float *floatPtr), $(float min'), $(float max')) } |]
 
-    newValue <- peek floatPtr
-    ref $=! realToFrac newValue
+    when changed do
+      newValue <- peek floatPtr
+      ref $=! realToFrac newValue
 
     return changed
   where
@@ -578,8 +586,9 @@ sliderFloat2 desc ref minValue maxValue = liftIO do
     changed <- withCString desc \descPtr ->
       (0 /=) <$> [C.exp| bool { SliderFloat2( $(char* descPtr), $(float *floatPtr), $(float min'), $(float max')) } |]
 
-    [x', y'] <- peekArray 2 floatPtr
-    ref $=! (realToFrac x', realToFrac y')
+    when changed do
+      [x', y'] <- peekArray 2 floatPtr
+      ref $=! (realToFrac x', realToFrac y')
 
     return changed
   where
@@ -596,8 +605,9 @@ sliderFloat3 desc ref minValue maxValue = liftIO do
     changed <- withCString desc \descPtr ->
       (0 /=) <$> [C.exp| bool { SliderFloat3( $(char* descPtr), $(float *floatPtr), $(float min'), $(float max')) } |]
 
-    [x', y', z'] <- peekArray 3 floatPtr
-    ref $=! (realToFrac x', realToFrac y', realToFrac z')
+    when changed do
+      [x', y', z'] <- peekArray 3 floatPtr
+      ref $=! (realToFrac x', realToFrac y', realToFrac z')
 
     return changed
   where
@@ -614,8 +624,9 @@ sliderFloat4 desc ref minValue maxValue = liftIO do
     changed <- withCString desc \descPtr ->
       (0 /=) <$> [C.exp| bool { SliderFloat4( $(char* descPtr), $(float *floatPtr), $(float min'), $(float max')) } |]
 
-    [x', y', z', u'] <- peekArray 4 floatPtr
-    ref $=! (realToFrac x', realToFrac y', realToFrac z', realToFrac u')
+    when changed do
+      [x', y', z', u'] <- peekArray 4 floatPtr
+      ref $=! (realToFrac x', realToFrac y', realToFrac z', realToFrac u')
 
     return changed
   where
@@ -648,8 +659,9 @@ colorPicker3 desc ref = liftIO do
     changed <- withCString desc \descPtr ->
       (0 /= ) <$> [C.exp| bool { ColorPicker3( $(char* descPtr), $(float *refPtr) ) } |]
 
-    [x', y', z'] <- peekArray 3 refPtr
-    ref $=! ImVec3 (realToFrac x') (realToFrac y') (realToFrac z')
+    when changed do
+      [x', y', z'] <- peekArray 3 refPtr
+      ref $=! ImVec3 (realToFrac x') (realToFrac y') (realToFrac z')
 
     return changed
 
@@ -664,8 +676,9 @@ colorButton desc ref = liftIO do
     changed <- withCString desc \descPtr ->
       (0 /=) <$> [C.exp| bool { ColorButton( $(char* descPtr), *$(ImVec4 *refPtr) ) } |]
 
-    newValue <- peek refPtr
-    ref $=! newValue
+    when changed do
+      newValue <- peek refPtr
+      ref $=! newValue
 
     return changed
 
