@@ -43,6 +43,8 @@ module DearImGui
     -- * Windows
   , begin
   , end
+  , DrawList(..)
+  , getWindowDrawList
   , setNextWindowPos
   , setNextWindowSize
   , setNextWindowContentSize
@@ -155,6 +157,8 @@ module DearImGui
 
     -- * Item/Widgets Utilities
   , isItemHovered
+
+  , addRect
 
     -- * Types
   , module DearImGui.Enums
