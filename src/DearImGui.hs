@@ -43,6 +43,8 @@ module DearImGui
     -- * Windows
   , begin
   , end
+  , DrawList(..)
+  , getWindowDrawList
   , setNextWindowPos
   , setNextWindowSize
   , setNextWindowContentSize
@@ -156,6 +158,8 @@ module DearImGui
     -- * Item/Widgets Utilities
   , isItemHovered
 
+  , addRect
+
     -- * Types
   , module DearImGui.Enums
   , module DearImGui.Structs
@@ -170,6 +174,8 @@ import Data.Coerce
   ( coerce )
 import Data.Int 
   ( Int32 )
+import Data.Word
+  ( Word32 )
 import Foreign
 import Foreign.C
 
@@ -919,6 +925,19 @@ withCStringOrNull Nothing k  = k nullPtr
 withCStringOrNull (Just s) k = withCString s k
 
 
+-- | Wraps @ImDrawList*@.
+newtype DrawList = DrawList (Ptr ())
+
+
+-- | get draw list associated to the current window, to append your own drawing primitives
+--
+-- Wraps @ImGui::GetWindowDrawList()@
+getWindowDrawList :: (MonadIO m) => m DrawList
+getWindowDrawList = liftIO do
+  DrawList <$> [C.exp| void* { ImGui::GetWindowDrawList() } |]
+  
+
+
 -- | Set next window position. Call before `begin` Use pivot=(0.5,0.5) to center on given point, etc.
 --
 -- Wraps @ImGui::SetNextWindowPos()@
@@ -1101,3 +1120,13 @@ popStyleVar n = liftIO do
     m :: CInt
     m = coerce n
   [C.exp| void { PopStyleVar($(int m)) } |]
+
+
+-- | Wraps @ImGui::AddRect()@
+addRect :: (MonadIO m, HasGetter ref ImVec2) => ref -> ref -> CUInt -> m ()
+addRect minRef maxRef color = liftIO do
+  min <- get minRef
+  max <- get maxRef
+  with min $ \ minPtr ->
+    with max $ \ maxPtr ->
+      [C.exp| void { GetWindowDrawList()->AddRect(*$(ImVec2 *minPtr), *$(ImVec2 *maxPtr), $(unsigned int color)) } |]
