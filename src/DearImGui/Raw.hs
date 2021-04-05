@@ -208,7 +208,7 @@ destroyContext (Context contextPtr) = liftIO do
 -- Wraps @ImGui::NewFrame()@.
 newFrame :: (MonadIO m) => m ()
 newFrame = liftIO do
-  [C.exp| void { ImGui::NewFrame(); } |]
+  [C.exp| void { NewFrame(); } |]
 
 
 -- | Ends the Dear ImGui frame. automatically called by 'render'. If you don't
@@ -217,14 +217,14 @@ newFrame = liftIO do
 -- better to not create any windows and not call 'newFrame' at all!
 endFrame :: (MonadIO m) => m ()
 endFrame = liftIO do
-  [C.exp| void { ImGui::EndFrame(); } |]
+  [C.exp| void { EndFrame(); } |]
 
 
 -- | Ends the Dear ImGui frame, finalize the draw data. You can then get call
 -- 'getDrawData'.
 render :: (MonadIO m) => m ()
 render = liftIO do
-  [C.exp| void { ImGui::Render(); } |]
+  [C.exp| void { Render(); } |]
 
 
 -- | Wraps @ImDrawData*@.
@@ -235,7 +235,7 @@ newtype DrawData = DrawData (Ptr ())
 -- you have to render.
 getDrawData :: (MonadIO m) => m DrawData
 getDrawData = liftIO do
-  DrawData <$> [C.exp| void* { ImGui::GetDrawData() } |]
+  DrawData <$> [C.exp| void* { GetDrawData() } |]
 
 
 -- | Wraps @IMGUI_CHECKVERSION()@
@@ -248,14 +248,14 @@ checkVersion = liftIO do
 -- about the library! Try to make it always available in your application!
 showDemoWindow :: (MonadIO m) => m ()
 showDemoWindow = liftIO do
-  [C.exp| void { ImGui::ShowDemoWindow(); } |]
+  [C.exp| void { ShowDemoWindow(); } |]
 
 
 -- | Create Metrics/Debugger window. Display Dear ImGui internals: windows, draw
 -- commands, various internal state, etc.
 showMetricsWindow :: (MonadIO m) => m ()
 showMetricsWindow = liftIO do
-  [C.exp| void { ImGui::ShowMetricsWindow(); } |]
+  [C.exp| void { ShowMetricsWindow(); } |]
 
 
 -- | Create About window. display Dear ImGui version, credits and build/system
@@ -312,7 +312,7 @@ styleColorsClassic = liftIO do
 -- Wraps @ImGui::Begin()@.
 begin :: (MonadIO m) => CString -> m Bool
 begin namePtr = liftIO do
-  (0 /=) <$> [C.exp| bool { ImGui::Begin($(char* namePtr)) } |]
+  (0 /=) <$> [C.exp| bool { Begin($(char* namePtr)) } |]
 
 
 -- | Pop window from the stack.
@@ -320,19 +320,19 @@ begin namePtr = liftIO do
 -- Wraps @ImGui::End()@.
 end :: (MonadIO m) => m ()
 end = liftIO do
-  [C.exp| void { ImGui::End(); } |]
+  [C.exp| void { End(); } |]
 
 
 -- | Wraps @ImGui::BeginChild()@.
 beginChild :: (MonadIO m) => CString -> m Bool
 beginChild namePtr = liftIO do
-  (0 /=) <$> [C.exp| bool { ImGui::BeginChild($(char* namePtr)) } |]
+  (0 /=) <$> [C.exp| bool { BeginChild($(char* namePtr)) } |]
 
 
 -- | Wraps @ImGui::EndChild()@.
 endChild :: (MonadIO m) => m ()
 endChild = liftIO do
-  [C.exp| void { ImGui::EndChild(); } |]
+  [C.exp| void { EndChild(); } |]
 
 
 -- | Separator, generally horizontal. inside a menu bar or in horizontal layout
