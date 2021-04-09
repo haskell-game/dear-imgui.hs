@@ -243,11 +243,11 @@ patternNameAndValue
 patternNameAndValue enumName =
   try do
       sz <- count
-      modify' ( ( \ st -> st { enumSize = sz, hasExplicitCount = True } ) :: EnumState -> EnumState )
+      modify' ( \ ( EnumState {..} ) -> EnumState { enumSize = sz, hasExplicitCount = True, .. } )
       pure Nothing
   <|> do
         pat@( _, val ) <- value
-        modify' ( \ st -> st { enumSize = ( enumSize :: EnumState -> Integer ) st + 1, currEnumTag = val + 1} )
+        modify' ( \ ( EnumState {..} ) -> EnumState { enumSize = enumSize + 1, currEnumTag = val + 1, .. } )
         pure ( Just pat )
   where
     count :: StateT EnumState m Integer
