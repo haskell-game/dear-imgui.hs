@@ -135,13 +135,13 @@ declareEnumeration finiteEnumName countName ( Enumeration {..} ) = do
     derivClause = TH.derivClause ( Just TH.NewtypeStrategy ) classes
 
   newtypeDecl <-
-#if MIN_VERSION_base(4,16,0)
+#if MIN_VERSION_template_haskell(2,18,0)
     ( if   null docs
       then TH.newtypeD
       else
         \ ctx name bndrs kd con derivs ->
-          TH.newtypeD_doc ctx name ( fmap pure bndrs ) ( fmap pure kd ) ( con, "", [] ) derivs
-            ( Text.unpack . Text.unlines . coerce $ docs )
+          TH.newtypeD_doc ctx name ( fmap pure bndrs ) ( fmap pure kd ) ( con, Nothing, [] ) derivs
+            ( Just . Text.unpack . Text.unlines . coerce $ docs )
     )
 #else
     TH.newtypeD
@@ -168,13 +168,13 @@ declareEnumeration finiteEnumName countName ( Enumeration {..} ) = do
     patName   <- TH.newName patNameStr
     patSynSig <- TH.patSynSigD patName ( TH.conT tyName )
     pat       <-
-#if MIN_VERSION_base(4,16,0)
+#if MIN_VERSION_template_haskell(2,18,0)
       ( if   Text.null patDoc
         then TH.patSynD
         else
           \ nm args dir pat ->
           TH.patSynD_doc nm args dir pat
-            ( Text.unpack patDoc ) []
+            ( Just $ Text.unpack patDoc ) []
       )
 #else
       TH.patSynD
