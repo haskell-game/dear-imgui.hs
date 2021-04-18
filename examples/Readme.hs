@@ -55,7 +55,7 @@ mainLoop w = do
   newFrame
 
   -- Build the GUI
-  bracket_ (begin "Hello, ImGui!") end do
+  withWindowOpen "Hello, ImGui!" do
     -- Add a text widget
     text "Hello, ImGui!"
 

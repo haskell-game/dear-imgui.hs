@@ -92,6 +92,7 @@ library
     , inline-c
     , inline-c-cpp
     , StateVar
+    , unliftio
 
   if flag(opengl2)
     exposed-modules:

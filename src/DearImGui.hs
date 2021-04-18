@@ -41,6 +41,8 @@ module DearImGui
   , Raw.styleColorsClassic
 
     -- * Windows
+  , withWindow
+  , withWindowOpen
   , begin
   , Raw.end
   , setNextWindowPos
@@ -51,6 +53,8 @@ module DearImGui
   , setNextWindowBgAlpha
 
     -- * Child Windows
+  , withChild
+  , withChildOpen
   , beginChild
   , Raw.endChild
 
@@ -71,8 +75,11 @@ module DearImGui
   , setNextItemWidth
   , pushItemWidth
   , Raw.popItemWidth
+
+  , withGroup
   , Raw.beginGroup
   , Raw.endGroup
+
   , setCursorPos
   , Raw.alignTextToFramePadding
 
@@ -89,6 +96,8 @@ module DearImGui
   , Raw.bullet
 
     -- ** Combo Box
+  , withCombo
+  , withComboOpen
   , beginCombo
   , Raw.endCombo
   , combo
@@ -127,30 +136,52 @@ module DearImGui
   , plotHistogram
 
     -- ** Menus
+  , withMenuBar
+  , withMenuBarOpen
   , Raw.beginMenuBar
   , Raw.endMenuBar
+
+  , withMainMenuBar
+  , withMainMenuBarOpen
   , Raw.beginMainMenuBar
   , Raw.endMainMenuBar
+
+  , withMenu
+  , withMenuOpen
   , beginMenu
   , Raw.endMenu
+
   , menuItem
 
     -- ** Tabs, tab bar
+  , withTabBar
+  , withTabBarOpen
   , beginTabBar
   , Raw.endTabBar
+
+  , withTabItem
+  , withTabItemOpen
   , beginTabItem
   , Raw.endTabItem
   , tabItemButton
   , setTabItemClosed
 
     -- * Tooltips
+  , withTooltip
   , Raw.beginTooltip
   , Raw.endTooltip
 
     -- * Popups/Modals
+  , withPopup
+  , withPopupOpen
   , beginPopup
+
+  , withPopupModal
+  , withPopupModalOpen
   , beginPopupModal
+
   , Raw.endPopup
+
   , openPopup
   , Raw.closeCurrentPopup
 
@@ -185,6 +216,10 @@ import Data.StateVar
 import Control.Monad.IO.Class
   ( MonadIO, liftIO )
 
+-- unliftio
+import UnliftIO (MonadUnliftIO)
+import UnliftIO.Exception (bracket, bracket_)
+
 import qualified DearImGui.Raw as Raw
 
 
@@ -206,12 +241,42 @@ begin :: MonadIO m => String -> m Bool
 begin name = liftIO do
   withCString name Raw.begin
 
+-- | Append items to a window.
+--
+-- Action will get 'False' if the window is collapsed or fully clipped.
+--
+-- You may append multiple times to the same window during the same frame
+-- by calling 'withWindow' in multiple places.
+withWindow :: MonadUnliftIO m => String -> (Bool -> m a) -> m a
+withWindow name = bracket (begin name) (const Raw.end)
+
+-- | Append items to a window unless it is collapsed or fully clipped.
+--
+-- You may append multiple times to the same window during the same frame
+-- by calling 'withWindowOpen' in multiple places.
+withWindowOpen :: MonadUnliftIO m => String -> m () -> m ()
+withWindowOpen name action =
+  withWindow name (`when` action)
 
 -- | Wraps @ImGui::BeginChild()@.
 beginChild :: MonadIO m => String -> m Bool
 beginChild name = liftIO do
   withCString name Raw.beginChild
 
+-- | Child windows used for self-contained independent scrolling/clipping regions
+-- within a host window. Child windows can embed their own child.
+--
+-- Action will get 'False' if the child region is collapsed or fully clipped.
+withChild :: MonadUnliftIO m => String -> (Bool -> m a) -> m a
+withChild name = bracket (beginChild name) (const Raw.endChild)
+
+-- | Child windows used for self-contained independent scrolling/clipping regions
+-- within a host window. Child windows can embed their own child.
+--
+-- Action will be skipped if the child region is collapsed or fully clipped.
+withChildOpen :: MonadUnliftIO m => String -> m () -> m ()
+withChildOpen name action =
+  withChild name (`when` action)
 
 -- | Formatted text.
 --
@@ -272,6 +337,8 @@ progressBar progress overlay = liftIO do
 -- Returns 'True' if the combo box is open. In this state, you should populate
 -- the contents of the combo box - for example, by calling 'selectable'.
 --
+-- Only call 'endCombo' if 'beginCombo' returns 'True'!
+--
 -- Wraps @ImGui::BeginCombo()@.
 beginCombo :: MonadIO m => String -> String -> m Bool
 beginCombo label previewValue = liftIO $
@@ -279,6 +346,21 @@ beginCombo label previewValue = liftIO $
   withCString previewValue \previewValuePtr ->
   Raw.beginCombo labelPtr previewValuePtr
 
+-- | Create a combo box with a given label and preview value.
+--
+-- Action will get 'True' if the combo box is open.
+-- In this state, you should populate the contents of the combo box - for example, by calling 'selectable'.
+withCombo :: MonadUnliftIO m => String -> String -> (Bool -> m a) -> m a
+withCombo label previewValue =
+  bracket (beginCombo label previewValue) (`when` Raw.endCombo)
+
+-- | Create a combo box with a given label and preview value.
+--
+-- Action will be called if the combo box is open to populate the contents
+-- of the combo box - for example, by calling 'selectable'.
+withComboOpen :: MonadUnliftIO m => String -> String -> m () -> m ()
+withComboOpen label previewValue action =
+  withCombo label previewValue (`when` action)
 
 -- | Wraps @ImGui::Combo()@.
 combo :: (MonadIO m, HasGetter ref Int, HasSetter ref Int) => String -> ref -> [String] -> m Bool
@@ -513,6 +595,31 @@ plotHistogram label values = liftIO $
     withCString label \labelPtr ->
       Raw.plotHistogram labelPtr valuesPtr (fromIntegral len)
 
+-- | Create a menu bar at the top of the screen and append to it.
+--
+-- The action will get 'False' if the menu is not visible.
+withMainMenuBar :: MonadUnliftIO m => (Bool -> m a) -> m a
+withMainMenuBar = bracket Raw.beginMainMenuBar (`when` Raw.endMainMenuBar)
+
+-- | Create a menu bar at the top of the screen and append to it.
+--
+-- The action will be skipped if the menu is not visible.
+withMainMenuBarOpen :: MonadUnliftIO m => m () -> m ()
+withMainMenuBarOpen action =
+  withMainMenuBar (`when` action)
+
+-- | Append items to a window with MenuBar flag.
+--
+-- The action will get 'False' if the menu is not visible.
+withMenuBar :: MonadUnliftIO m => (Bool -> m a) -> m a
+withMenuBar = bracket Raw.beginMenuBar (`when` Raw.endMenuBar)
+
+-- | Append items to a window with MenuBar flag.
+--
+-- The action will be skipped if the menu is not visible.
+withMenuBarOpen :: MonadUnliftIO m => m () -> m ()
+withMenuBarOpen action =
+  withMenuBar (`when` action)
 
 -- | Create a sub-menu entry.
 --
@@ -521,6 +628,18 @@ beginMenu :: MonadIO m => String -> m Bool
 beginMenu label = liftIO do
   withCString label Raw.beginMenu
 
+-- | Create a sub-menu entry.
+--
+-- The action will get 'False' if the entry is not visible.
+withMenu :: MonadUnliftIO m => String -> (Bool -> m a) -> m a
+withMenu label = bracket (beginMenu label) (`when` Raw.endMenu)
+
+-- | Create a sub-menu entry.
+--
+-- The action will be skipped if the entry is not visible.
+withMenuOpen :: MonadUnliftIO m => String -> m () -> m ()
+withMenuOpen label action =
+  withMenu label (`when` action)
 
 -- | Return true when activated. Shortcuts are displayed for convenience but not
 -- processed by ImGui at the moment
@@ -539,11 +658,24 @@ beginTabBar tabBarID flags = liftIO do
   withCString tabBarID \ptr ->
     Raw.beginTabBar ptr flags
 
+-- | Create a @TabBar@ and start appending to it.
+--
+-- The action will get 'False' if the Tab bar is not visible.
+withTabBar :: MonadUnliftIO m => String -> ImGuiTabBarFlags -> (Bool -> m a) -> m a
+withTabBar tabBarID flags =
+  bracket (beginTabBar tabBarID flags) (`when` Raw.endTabBar)
+
+-- | Create a @TabBar@ and start appending to it.
+--
+-- The action will be skipped if the Tab bar is not visible.
+withTabBarOpen :: MonadUnliftIO m => String -> ImGuiTabBarFlags -> m () -> m ()
+withTabBarOpen tabBarID flags action =
+  withTabBar tabBarID flags (`when` action)
 
 -- | Create a new tab. Returns @True@ if the tab is selected.
 --
 -- Wraps @ImGui::BeginTabItem@.
-beginTabItem :: ( MonadIO m, HasGetter ref Bool, HasSetter ref Bool ) => String -> ref -> ImGuiTabBarFlags -> m Bool
+beginTabItem :: (MonadIO m, HasGetter ref Bool, HasSetter ref Bool) => String -> ref -> ImGuiTabBarFlags -> m Bool
 beginTabItem tabName ref flags = liftIO do
   currentValue <- get ref
   with (bool 0 1 currentValue) \refPtr -> do
@@ -556,6 +688,19 @@ beginTabItem tabName ref flags = liftIO do
 
     pure open
 
+-- | Create a new tab.
+--
+-- The action will get 'True' if the tab is selected.
+withTabItem :: (MonadUnliftIO m, HasGetter ref Bool, HasSetter ref Bool) => String -> ref -> ImGuiTabBarFlags -> (Bool -> m a) -> m a
+withTabItem tabName ref flags =
+  bracket (beginTabItem tabName ref flags) (`when` Raw.endTabItem)
+
+-- | Create a new tab.
+--
+-- The action will be skipped unless the tab is selected.
+withTabItemOpen :: (MonadUnliftIO m, HasGetter ref Bool, HasSetter ref Bool) => String -> ref -> ImGuiTabBarFlags -> m () -> m ()
+withTabItemOpen tabName ref flags action =
+  withTabItem tabName ref flags (`when` action)
 
 -- | Create a tab that behaves like a button. Returns @True@ when clicked. Cannot be selected in the tab bar.
 --
@@ -574,6 +719,12 @@ setTabItemClosed :: MonadIO m => String -> m ()
 setTabItemClosed tabName = liftIO do
   withCString tabName Raw.setTabItemClosed
 
+-- | Create a tooltip.
+--
+-- Those are windows that follow a mouse and don't take focus away.
+-- Can contain any kind of items.
+withTooltip ::  MonadUnliftIO m => m a -> m a
+withTooltip = bracket_ Raw.beginTooltip Raw.endTooltip
 
 -- | Returns 'True' if the popup is open, and you can start outputting to it.
 --
@@ -582,6 +733,28 @@ beginPopup :: MonadIO m => String -> m Bool
 beginPopup popupId = liftIO do
   withCString popupId Raw.beginPopup
 
+-- | Append intems to a non-modal Popup.
+--
+-- Non-modal popups can be closed by clicking anywhere outside them,
+-- or by pressing ESCAPE.
+--
+-- Visibility state is held internally instead of being held by the programmer.
+--
+-- The action will get 'True' if the popup is open.
+withPopup :: MonadUnliftIO m => String -> (Bool -> m a) -> m a
+withPopup popupId = bracket (beginPopup popupId) (`when` Raw.endPopup)
+
+-- | Append intems to a non-modal Popup.
+--
+-- Non-modal popups can be closed by clicking anywhere outside them,
+-- or by pressing ESCAPE.
+--
+-- Visibility state is held internally instead of being held by the programmer.
+--
+-- The action will be called only if the popup is open.
+withPopupOpen :: MonadUnliftIO m => String -> m () -> m ()
+withPopupOpen popupId action =
+  withPopup popupId (`when` action)
 
 -- | Returns 'True' if the modal is open, and you can start outputting to it.
 --
@@ -590,6 +763,26 @@ beginPopupModal :: MonadIO m => String -> m Bool
 beginPopupModal popupId = liftIO do
   withCString popupId Raw.beginPopupModal
 
+-- | Append intems to a modal Popup.
+--
+-- Modal popups can be closed only with 'closeCurrentPopup'.
+--
+-- Visibility state is held internally instead of being held by the programmer.
+--
+-- The action will get 'True' if the popup is open.
+withPopupModal :: MonadUnliftIO m => String -> (Bool -> m a) -> m a
+withPopupModal popupId = bracket (beginPopupModal popupId) (`when` Raw.endPopup)
+
+-- | Append intems to a modal Popup.
+--
+-- Modal popups can be closed only with 'closeCurrentPopup'.
+--
+-- Visibility state is held internally instead of being held by the programmer.
+--
+-- The action will be called only if the popup is open.
+withPopupModalOpen :: MonadUnliftIO m => String -> m () -> m ()
+withPopupModalOpen popupId action =
+  withPopupModal popupId (`when` action)
 
 -- | Call to mark popup as open (don't call every frame!).
 --
@@ -703,6 +896,12 @@ pushItemWidth :: (MonadIO m) => Float -> m ()
 pushItemWidth itemWidth = liftIO do
   Raw.pushItemWidth (CFloat itemWidth)
 
+
+-- | Lock horizontal starting position
+--
+-- Wraps @ImGui::BeginGroup()@ and @ImGui::EndGroup()@
+withGroup :: MonadUnliftIO m => m a -> m a
+withGroup = bracket_ Raw.beginGroup Raw.endGroup
 
 -- | Set cursor position in window-local coordinates
 --
