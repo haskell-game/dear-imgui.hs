@@ -159,6 +159,12 @@ module DearImGui.Raw
   , wantCaptureMouse
   , wantCaptureKeyboard
 
+    -- * Fonts
+  , addFontDefault
+  , addFontFromFileTTF
+  , buildFontAtlas
+  , clearFontAtlas
+
     -- * Types
   , module DearImGui.Enums
   , module DearImGui.Structs
@@ -883,3 +889,35 @@ wantCaptureMouse = liftIO do
 wantCaptureKeyboard :: MonadIO m => m Bool
 wantCaptureKeyboard = liftIO do
   (0 /=) <$> [C.exp| bool { GetIO().WantCaptureKeyboard } |]
+
+addFontDefault :: MonadIO m => m (Ptr ())
+addFontDefault = liftIO do
+  [C.block|
+    void* {
+      return GetIO().Fonts->AddFontDefault();
+    }
+  |]
+
+addFontFromFileTTF :: MonadIO m => CString -> CFloat -> m (Ptr ())
+addFontFromFileTTF font size = liftIO do
+  [C.block|
+    void* {
+      return GetIO().Fonts->AddFontFromFileTTF($(char* font), $(float size));
+    }
+  |]
+
+buildFontAtlas :: MonadIO m => m ()
+buildFontAtlas = liftIO do
+  [C.block|
+    void {
+      GetIO().Fonts->Build();
+    }
+  |]
+
+clearFontAtlas :: MonadIO m => m ()
+clearFontAtlas = liftIO do
+  [C.block|
+    void {
+      GetIO().Fonts->Clear();
+    }
+  |]
