@@ -245,6 +245,13 @@ module DearImGui
   , Raw.wantCaptureMouse
   , Raw.wantCaptureKeyboard
 
+    -- * Fonts
+  , Raw.Font
+  , addFontFromFileTTF
+  , Raw.addFontDefault
+  , Raw.buildFontAtlas
+  , Raw.clearFontAtlas
+
     -- * Types
   , module DearImGui.Enums
   , module DearImGui.Structs
@@ -1664,3 +1671,22 @@ pushStyleVar style valRef = liftIO do
 popStyleVar :: (MonadIO m) => Int -> m ()
 popStyleVar n = liftIO do
   Raw.popStyleVar (fromIntegral n)
+
+
+-- | Load a font from TTF file.
+--
+-- Specify font path and atlas glyph size.
+--
+-- Use 'addFontDefault' if you want to retain built-in font too.
+--
+-- Call 'buildFontAtlas' after adding all the fonts.
+--
+-- Call backend-specific `CreateFontsTexture` before using 'newFrame'.
+addFontFromFileTTF :: MonadIO m => FilePath -> Float -> m (Maybe Raw.Font)
+addFontFromFileTTF font size = liftIO do
+  res@(Raw.Font ptr) <- withCString font \fontPtr ->
+    Raw.addFontFromFileTTF fontPtr (CFloat size)
+  pure $
+    if castPtr ptr == nullPtr
+      then Nothing
+      else Just res

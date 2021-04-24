@@ -209,6 +209,14 @@ module DearImGui.Raw
   , wantCaptureMouse
   , wantCaptureKeyboard
 
+    -- * Fonts in default font atlas
+  , Font(..)
+  , addFontDefault
+  , addFontFromFileTTF
+  , addFontFromMemoryTTF
+  , buildFontAtlas
+  , clearFontAtlas
+
     -- * Types
   , module DearImGui.Enums
   , module DearImGui.Structs
@@ -1514,3 +1522,54 @@ wantCaptureMouse = liftIO do
 wantCaptureKeyboard :: MonadIO m => m Bool
 wantCaptureKeyboard = liftIO do
   (0 /=) <$> [C.exp| bool { GetIO().WantCaptureKeyboard } |]
+
+
+-- | Wraps @ImFont*@.
+newtype Font = Font (Ptr ImFont)
+
+addFontDefault :: MonadIO m => m Font
+addFontDefault = liftIO do
+  Font <$> [C.block|
+    ImFont* {
+      return GetIO().Fonts->AddFontDefault();
+    }
+  |]
+
+addFontFromFileTTF :: MonadIO m => CString -> CFloat -> m Font
+addFontFromFileTTF filenamePtr sizePixels = liftIO do
+  Font <$> [C.block|
+    ImFont* {
+      return GetIO().Fonts->AddFontFromFileTTF(
+        $(char* filenamePtr),
+        $(float sizePixels));
+    }
+  |]
+
+-- | Transfer a buffer with TTF data to font atlas builder.
+addFontFromMemoryTTF :: MonadIO m => CStringLen -> CFloat -> m Font
+addFontFromMemoryTTF (castPtr -> fontDataPtr, fromIntegral -> fontSize) sizePixels = liftIO do
+  Font <$> [C.block|
+    ImFont* {
+      return GetIO().Fonts->AddFontFromMemoryTTF(
+        $(void* fontDataPtr),
+        $(int fontSize),
+        $(float sizePixels)
+      );
+    }
+  |]
+
+buildFontAtlas :: MonadIO m => m ()
+buildFontAtlas = liftIO do
+  [C.block|
+    void {
+      GetIO().Fonts->Build();
+    }
+  |]
+
+clearFontAtlas :: MonadIO m => m ()
+clearFontAtlas = liftIO do
+  [C.block|
+    void {
+      GetIO().Fonts->Clear();
+    }
+  |]

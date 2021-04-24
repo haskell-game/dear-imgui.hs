@@ -34,5 +34,6 @@ imguiContext = mempty
       , ( TypeName "ImVec3", [t| ImVec3 |] )
       , ( TypeName "ImVec4", [t| ImVec4 |] )
       , ( TypeName "ImGuiContext", [t| ImGuiContext |] )
+      , ( TypeName "ImFont", [t| ImFont |] )
       ]
   }
