@@ -42,6 +42,7 @@ module DearImGui.Raw
 
     -- * Windows
   , begin
+  , beginFullscreen
   , end
   , setNextWindowPos
   , setNextWindowSize
@@ -314,6 +315,26 @@ begin :: (MonadIO m) => CString -> m Bool
 begin namePtr = liftIO do
   (0 /=) <$> [C.exp| bool { Begin($(char* namePtr)) } |]
 
+beginFullscreen :: (MonadIO m) => m Bool
+beginFullscreen =
+  fmap (0 /=) $ liftIO do
+    [C.block|
+      bool {
+        SetNextWindowPos(ImVec2(0, 0));
+        SetNextWindowSize(GetIO().DisplaySize);
+        return Begin(
+          "Content",
+          nullptr,
+          ImGuiWindowFlags_NoTitleBar |
+          ImGuiWindowFlags_NoResize |
+          ImGuiWindowFlags_NoMove |
+          ImGuiWindowFlags_NoScrollbar |
+          ImGuiWindowFlags_NoScrollWithMouse |
+          ImGuiWindowFlags_NoSavedSettings |
+          ImGuiWindowFlags_NoBringToFrontOnFocus
+        );
+      }
+    |]
 
 -- | Pop window from the stack.
 --

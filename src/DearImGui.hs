@@ -43,6 +43,7 @@ module DearImGui
     -- * Windows
   , withWindow
   , withWindowOpen
+  , withFullscreen
   , begin
   , Raw.end
   , setNextWindowPos
@@ -257,6 +258,10 @@ withWindow name = bracket (begin name) (const Raw.end)
 withWindowOpen :: MonadUnliftIO m => String -> m () -> m ()
 withWindowOpen name action =
   withWindow name (`when` action)
+
+withFullscreen :: MonadUnliftIO m => m () -> m ()
+withFullscreen action =
+  bracket (Raw.beginFullscreen) (const Raw.end) (`when` action)
 
 -- | Wraps @ImGui::BeginChild()@.
 beginChild :: MonadIO m => String -> m Bool
