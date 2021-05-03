@@ -156,6 +156,8 @@ module DearImGui.Raw
 
     -- * Item/Widgets Utilities
   , isItemHovered
+  , wantCaptureMouse
+  , wantCaptureKeyboard
 
     -- * Types
   , module DearImGui.Enums
@@ -873,3 +875,11 @@ pushStyleVar style valPtr = liftIO do
 popStyleVar :: (MonadIO m) => CInt -> m ()
 popStyleVar n = liftIO do
   [C.exp| void { PopStyleVar($(int n)) } |]
+
+wantCaptureMouse :: MonadIO m => m Bool
+wantCaptureMouse = liftIO do
+  (0 /=) <$> [C.exp| bool { GetIO().WantCaptureMouse } |]
+
+wantCaptureKeyboard :: MonadIO m => m Bool
+wantCaptureKeyboard = liftIO do
+  (0 /=) <$> [C.exp| bool { GetIO().WantCaptureKeyboard } |]
