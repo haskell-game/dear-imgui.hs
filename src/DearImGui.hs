@@ -188,6 +188,8 @@ module DearImGui
 
     -- * Item/Widgets Utilities
   , Raw.isItemHovered
+  , Raw.wantCaptureMouse
+  , Raw.wantCaptureKeyboard
 
     -- * Types
   , module DearImGui.Enums
