@@ -45,6 +45,7 @@ module DearImGui.Raw
   , end
   , setNextWindowPos
   , setNextWindowSize
+  , setNextWindowFullscreen
   , setNextWindowContentSize
   , setNextWindowSizeConstraints
   , setNextWindowCollapsed
@@ -312,9 +313,12 @@ styleColorsClassic = liftIO do
 -- matching 'end' for each 'begin' call, regardless of its return value!
 --
 -- Wraps @ImGui::Begin()@.
-begin :: (MonadIO m) => CString -> m Bool
-begin namePtr = liftIO do
-  (0 /=) <$> [C.exp| bool { Begin($(char* namePtr)) } |]
+--
+-- Passing non-null @Ptr CBool@ shows a window-closing widget in the upper-right corner of the window,
+-- wich clicking will set the boolean to false when clicked.
+begin :: (MonadIO m) => CString -> Ptr CBool -> ImGuiWindowFlags -> m Bool
+begin namePtr openPtr flags = liftIO do
+  (0 /=) <$> [C.exp| bool { Begin($(char* namePtr), $(bool* openPtr), $(ImGuiWindowFlags flags)) } |]
 
 
 -- | Pop window from the stack.
@@ -720,6 +724,20 @@ setNextWindowSize :: (MonadIO m) => Ptr ImVec2 -> ImGuiCond -> m ()
 setNextWindowSize sizePtr cond = liftIO do
   [C.exp| void { SetNextWindowSize(*$(ImVec2* sizePtr), $(ImGuiCond cond)) } |]
 
+
+-- | Set next window size and position to match current display size.
+--
+-- Call before `begin`.
+--
+-- Wraps @ImGui::SetNextWindowPos()@, @ImGui::SetNextWindowSize()@
+setNextWindowFullscreen :: (MonadIO m) => m ()
+setNextWindowFullscreen = liftIO
+  [C.block|
+    void {
+      SetNextWindowPos(ImVec2(0, 0));
+      SetNextWindowSize(GetIO().DisplaySize);
+    }
+  |]
 
 -- | Set next window content size (~ scrollable client area, which enforce the range of scrollbars). Not including window decorations (title bar, menu bar, etc.) nor WindowPadding. call before `begin`
 --
