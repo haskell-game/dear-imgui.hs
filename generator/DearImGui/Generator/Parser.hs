@@ -75,7 +75,7 @@ import Data.HashMap.Strict
 import qualified Data.HashMap.Strict as HashMap
   ( fromList, insert, lookup )
 
--- dear-imgui-generator 
+-- dear-imgui-generator
 import DearImGui.Generator.Tokeniser
   ( Tok(..) )
 import DearImGui.Generator.Types
@@ -134,17 +134,19 @@ headers = do
 
   _ <- skipManyTill anySingle ( namedSection "Misc data structures" )
 
-  _ <- skipManyTill anySingle ( namedSection "Obsolete functions" )
+  _ <- skipManyTill anySingle ( namedSection "Helpers (ImGuiOnceUponAFrame, ImGuiTextFilter, ImGuiTextBuffer, ImGuiStorage, ImGuiListClipper, ImColor)" )
 
-  _ <- skipManyTill anySingle ( namedSection "Helpers" )
-
-  _ <- skipManyTill anySingle ( namedSection "Drawing API" )
+  _ <- skipManyTill anySingle ( namedSection "Drawing API (ImDrawCmd, ImDrawIdx, ImDrawVert, ImDrawChannel, ImDrawListSplitter, ImDrawListFlags, ImDrawList, ImDrawData)" )
   skipManyTill anySingle ( try . lookAhead $ many comment *> keyword "enum" )
   drawingEnums <- many ( enumeration enumNamesAndTypes )
 
-  _ <- skipManyTill anySingle ( namedSection "Font API" )
+  _ <- skipManyTill anySingle ( namedSection "Font API (ImFontConfig, ImFontGlyph, ImFontAtlasFlags, ImFontAtlas, ImFontGlyphRangesBuilder, ImFont)" )
   skipManyTill anySingle ( try . lookAhead $ many comment *> keyword "enum" )
   fontEnums <- many ( enumeration enumNamesAndTypes )
+
+  _ <- skipManyTill anySingle ( namedSection "Viewports" )
+
+  _ <- skipManyTill anySingle ( namedSection "Obsolete functions and types" )
 
   let
     enums :: [ Enumeration () ]
@@ -208,7 +210,7 @@ enumeration enumNamesAndTypes = do
     docs :: [Comment]
     docs = forwardDoc : CommentText "" : inlineDocs
   reservedSymbol '{'
-  ( patterns, EnumState { enumSize, hasExplicitCount } ) <- 
+  ( patterns, EnumState { enumSize, hasExplicitCount } ) <-
     ( `runStateT` EnumState { enumValues = mempty, currEnumTag = 0, enumSize = 0, hasExplicitCount = False } ) $
       catMaybes
           <$> many
