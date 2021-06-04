@@ -43,10 +43,14 @@ module DearImGui
     -- * Windows
   , withWindow
   , withWindowOpen
+  , withFullscreen
+  , fullscreenFlags
+
   , begin
   , Raw.end
   , setNextWindowPos
   , setNextWindowSize
+  , Raw.setNextWindowFullscreen
   , setNextWindowContentSize
   , setNextWindowSizeConstraints
   , setNextWindowCollapsed
@@ -200,6 +204,8 @@ module DearImGui
 import Control.Monad
   ( when )
 import Data.Bool
+import Data.Foldable
+  ( foldl' )
 import Foreign
 import Foreign.C
 
@@ -238,10 +244,11 @@ getVersion = liftIO do
 -- may early out and omit submitting anything to the window. Always call a
 -- matching 'end' for each 'begin' call, regardless of its return value!
 --
--- Wraps @ImGui::Begin()@.
+-- Wraps @ImGui::Begin()@ with default options.
 begin :: MonadIO m => String -> m Bool
 begin name = liftIO do
-  withCString name Raw.begin
+  withCString name \namePtr ->
+    Raw.begin namePtr nullPtr (ImGuiWindowFlags 0)
 
 -- | Append items to a window.
 --
@@ -259,6 +266,37 @@ withWindow name = bracket (begin name) (const Raw.end)
 withWindowOpen :: MonadUnliftIO m => String -> m () -> m ()
 withWindowOpen name action =
   withWindow name (`when` action)
+
+-- | Append items to a fullscreen window.
+--
+-- The action runs inside a window that is set to behave as a backdrop.
+-- It has no typical window decorations, ignores events and does not jump to front.
+--
+-- You may append multiple times to it during the same frame
+-- by calling 'withFullscreen' in multiple places.
+withFullscreen :: MonadUnliftIO m => m () -> m ()
+withFullscreen action = bracket open close (`when` action)
+  where
+    open = liftIO do
+      Raw.setNextWindowFullscreen
+      withCString "FullScreen" \namePtr ->
+        Raw.begin namePtr nullPtr fullscreenFlags
+
+    close = liftIO . const Raw.end
+
+fullscreenFlags :: ImGuiWindowFlags
+fullscreenFlags = foldl' (.|.) zeroBits
+  [ ImGuiWindowFlags_NoBackground
+  , ImGuiWindowFlags_NoBringToFrontOnFocus
+  , ImGuiWindowFlags_NoDecoration
+  , ImGuiWindowFlags_NoFocusOnAppearing
+  , ImGuiWindowFlags_NoMove
+  , ImGuiWindowFlags_NoResize
+  , ImGuiWindowFlags_NoSavedSettings
+  , ImGuiWindowFlags_NoScrollbar
+  , ImGuiWindowFlags_NoScrollWithMouse
+  , ImGuiWindowFlags_NoTitleBar
+  ]
 
 -- | Wraps @ImGui::BeginChild()@.
 beginChild :: MonadIO m => String -> m Bool
