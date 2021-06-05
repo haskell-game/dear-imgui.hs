@@ -90,6 +90,11 @@ module DearImGui
     -- * Widgets
     -- ** Text
   , text
+  , textColored
+  , textDisabled
+  , textWrapped
+  , labelText
+  , bulletText
 
     -- ** Main
   , button
@@ -318,13 +323,43 @@ withChildOpen :: MonadUnliftIO m => String -> m () -> m ()
 withChildOpen name action =
   withChild name (`when` action)
 
--- | Formatted text.
---
--- Wraps @ImGui::Text()@.
+-- | Plain text.
 text :: MonadIO m => String -> m ()
 text t = liftIO do
-  withCString t Raw.text
+  withCString t \textPtr ->
+    Raw.textUnformatted textPtr nullPtr
 
+-- | Colored text.
+textColored :: (HasGetter ref ImVec4, MonadIO m) => ref -> String -> m ()
+textColored ref t = liftIO do
+  currentValue <- get ref
+  with currentValue \refPtr ->
+    withCString t $ Raw.textColored refPtr
+
+-- | Plain text in a "disabled" color according to current style.
+textDisabled :: MonadIO m => String -> m ()
+textDisabled t = liftIO do
+  withCString t Raw.textDisabled
+
+-- | Plain text with a word-wrap capability.
+--
+-- Note that this won't work on an auto-resizing window if there's no other widgets to extend the window width,
+-- you may need to set a size using 'setNextWindowSize'.
+textWrapped :: MonadIO m => String -> m ()
+textWrapped t = liftIO do
+  withCString t Raw.textWrapped
+
+-- | Label+text combo aligned to other label+value widgets.
+labelText :: MonadIO m => String -> String -> m ()
+labelText label t = liftIO do
+  withCString label \labelPtr ->
+    withCString t \textPtr ->
+      Raw.labelText labelPtr textPtr
+
+-- | Text with a little bullet aligned to the typical tree node.
+bulletText :: MonadIO m => String -> m ()
+bulletText t = liftIO do
+  withCString t Raw.bulletText
 
 -- | A button. Returns 'True' when clicked.
 --
