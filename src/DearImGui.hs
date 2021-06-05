@@ -116,12 +116,30 @@ module DearImGui
   , dragFloat2
   , dragFloat3
   , dragFloat4
+  , dragFloatRange2
+  , dragInt
+  , dragInt2
+  , dragInt3
+  , dragInt4
+  , dragIntRange2
+  , dragScalar
+  , dragScalarN
 
     -- ** Slider
   , sliderFloat
   , sliderFloat2
   , sliderFloat3
   , sliderFloat4
+  , sliderAngle
+  , sliderInt
+  , sliderInt2
+  , sliderInt3
+  , sliderInt4
+  , sliderScalar
+  , sliderScalarN
+  , vSliderFloat
+  , vSliderInt
+  , vSliderScalar
 
     -- ** Text Input
   , inputText
@@ -516,6 +534,270 @@ dragFloat4 desc ref speed minValue maxValue = liftIO do
 
     return changed
 
+dragFloatRange2 :: (MonadIO m, HasSetter ref Float, HasGetter ref Float) => String -> ref -> ref -> Float -> Float -> Float -> String -> String -> m Bool
+dragFloatRange2 desc refMin refMax speed minValue maxValue minFmt maxFmt = liftIO do
+  curMin <- get refMin
+  curMax <- get refMax
+  with (CFloat curMin) \minPtr ->
+    with (CFloat curMax) \maxPtr -> do
+      changed <-
+        withCString desc \descPtr ->
+          withCString minFmt \minFmtPtr ->
+            withCString maxFmt \maxFmtPtr ->
+              Raw.dragFloatRange2
+                descPtr
+                minPtr maxPtr
+                (CFloat speed) (CFloat minValue) (CFloat maxValue)
+                minFmtPtr maxFmtPtr
+                ImGuiSliderFlags_AlwaysClamp
+
+      when changed do
+        CFloat nextMin <- peek minPtr
+        CFloat nextMax <- peek maxPtr
+        refMin $=! nextMin
+        refMax $=! nextMax
+
+      return changed
+
+-- | Wraps @ImGui::DragFloat()@
+dragInt :: (MonadIO m, HasSetter ref Int, HasGetter ref Int) => String -> ref -> Float -> Int -> Int -> m Bool
+dragInt label ref speed minValue maxValue = liftIO do
+  currentValue <- get ref
+  with (fromIntegral currentValue) \vPtr -> do
+    changed <-
+      withCString label \labelPtr ->
+        withCString "%d" \formatPtr ->
+          Raw.dragInt
+            labelPtr
+            vPtr
+            (CFloat speed)
+            (fromIntegral minValue)
+            (fromIntegral maxValue)
+            formatPtr
+            ImGuiSliderFlags_AlwaysClamp
+
+    when changed do
+      newValue <- peek vPtr
+      ref $=! fromIntegral newValue
+
+    return changed
+
+-- | Wraps @ImGui::DragInt2()@
+dragInt2 :: (MonadIO m, HasSetter ref (Int, Int), HasGetter ref (Int, Int)) => String -> ref -> Float -> Int -> Int -> m Bool
+dragInt2 label ref speed minValue maxValue = liftIO do
+  (x, y) <- get ref
+  withArray [ fromIntegral x, fromIntegral y ] \vPtr -> do
+    changed <-
+      withCString label \labelPtr ->
+        withCString "%d" \formatPtr ->
+          Raw.dragInt2
+            labelPtr
+            vPtr
+            (CFloat speed)
+            (fromIntegral minValue)
+            (fromIntegral maxValue)
+            formatPtr
+            ImGuiSliderFlags_AlwaysClamp
+
+    when changed do
+      [x', y'] <- peekArray 2 vPtr
+      ref $=! (fromIntegral x', fromIntegral y')
+
+    return changed
+
+-- | Wraps @ImGui::DragInt3()@
+dragInt3 :: (MonadIO m, HasSetter ref (Int, Int, Int), HasGetter ref (Int, Int, Int)) => String -> ref -> Float -> Int -> Int -> m Bool
+dragInt3 label ref speed minValue maxValue = liftIO do
+  (x, y, z) <- get ref
+  withArray [ fromIntegral x, fromIntegral y, fromIntegral z ] \vPtr -> do
+    changed <-
+      withCString label \labelPtr ->
+        withCString "%d" \formatPtr ->
+          Raw.dragInt3
+            labelPtr
+            vPtr
+            (CFloat speed)
+            (fromIntegral minValue)
+            (fromIntegral maxValue)
+            formatPtr
+            ImGuiSliderFlags_AlwaysClamp
+
+    when changed do
+      [x', y', z'] <- peekArray 3 vPtr
+      ref $=! (fromIntegral x', fromIntegral y', fromIntegral z')
+
+    return changed
+
+-- | Wraps @ImGui::DragInt4()@
+dragInt4 :: (MonadIO m, HasSetter ref (Int, Int, Int, Int), HasGetter ref (Int, Int, Int, Int)) => String -> ref -> Float -> Int -> Int -> m Bool
+dragInt4 label ref speed minValue maxValue = liftIO do
+  (x, y, z, w) <- get ref
+  withArray [ fromIntegral x, fromIntegral y, fromIntegral z, fromIntegral w ] \vPtr -> do
+    changed <-
+      withCString label \labelPtr ->
+        withCString "%d" \formatPtr ->
+          Raw.dragInt4
+            labelPtr
+            vPtr
+            (CFloat speed)
+            (fromIntegral minValue)
+            (fromIntegral maxValue)
+            formatPtr
+            ImGuiSliderFlags_AlwaysClamp
+
+    when changed do
+      [x', y', z', w'] <- peekArray 3 vPtr
+      ref $=! (fromIntegral x', fromIntegral y', fromIntegral z', fromIntegral w')
+
+    return changed
+
+dragIntRange2 :: (MonadIO m, HasSetter ref Int, HasGetter ref Int) => String -> ref -> ref -> Float -> Int -> Int -> String -> String -> m Bool
+dragIntRange2 desc refMin refMax speed minValue maxValue minFmt maxFmt = liftIO do
+  curMin <- get refMin
+  curMax <- get refMax
+  with (fromIntegral curMin) \minPtr ->
+    with (fromIntegral curMax) \maxPtr -> do
+      changed <-
+        withCString desc \descPtr ->
+          withCString minFmt \minFmtPtr ->
+            withCString maxFmt \maxFmtPtr ->
+              Raw.dragIntRange2
+                descPtr
+                minPtr
+                maxPtr
+                (CFloat speed)
+                (fromIntegral minValue)
+                (fromIntegral maxValue)
+                minFmtPtr maxFmtPtr
+                ImGuiSliderFlags_AlwaysClamp
+
+      when changed do
+        nextMin <- peek minPtr
+        nextMax <- peek maxPtr
+        refMin $=! fromIntegral nextMin
+        refMax $=! fromIntegral nextMax
+
+      return changed
+
+dragScalar
+  :: (HasSetter ref a, HasGetter ref a, Storable a, MonadIO m)
+  => String -> ImGuiDataType -> ref -> Float -> ref -> ref -> String -> ImGuiSliderFlags -> m Bool
+dragScalar label dataType ref vSpeed refMin refMax format flags = liftIO do
+  currentValue <- get ref
+  minValue <- get refMin
+  maxValue <- get refMax
+
+  with currentValue \dataPtr ->
+    with minValue \minPtr ->
+      with maxValue \maxPtr -> do
+        changed <-
+          withCString label \labelPtr ->
+            withCString format \formatPtr ->
+              Raw.dragScalar
+                labelPtr
+                dataType
+                dataPtr
+                (CFloat vSpeed)
+                minPtr
+                maxPtr
+                formatPtr
+                flags
+
+        when changed do
+          newValue <- peek dataPtr
+          ref $=! newValue
+
+        return changed
+
+dragScalarN
+  :: (HasSetter valueRef [a], HasGetter valueRef [a], HasGetter rangeRef a, Storable a, MonadIO m)
+  => String -> ImGuiDataType -> valueRef -> Float -> rangeRef -> rangeRef -> String -> ImGuiSliderFlags -> m Bool
+dragScalarN label dataType ref vSpeed refMin refMax format flags = liftIO do
+  currentValues <- get ref
+  minValue <- get refMin
+  maxValue <- get refMax
+
+  withArrayLen currentValues \components dataPtr ->
+    with minValue \minPtr ->
+      with maxValue \maxPtr -> do
+        changed <-
+          withCString label \labelPtr ->
+            withCString format \formatPtr ->
+              Raw.dragScalarN
+                labelPtr
+                dataType
+                dataPtr
+                (fromIntegral components)
+                (CFloat vSpeed)
+                minPtr
+                maxPtr
+                formatPtr
+                flags
+
+        when changed do
+          newValue <- peekArray components dataPtr
+          ref $=! newValue
+
+        return changed
+
+sliderScalar
+  :: (HasSetter ref a, HasGetter ref a, Storable a, MonadIO m)
+  => String -> ImGuiDataType -> ref -> ref -> ref -> String -> ImGuiSliderFlags -> m Bool
+sliderScalar label dataType ref refMin refMax format flags = liftIO do
+  currentValue <- get ref
+  minValue <- get refMin
+  maxValue <- get refMax
+
+  with currentValue \dataPtr ->
+    with minValue \minPtr ->
+      with maxValue \maxPtr -> do
+        changed <-
+          withCString label \labelPtr ->
+            withCString format \formatPtr ->
+              Raw.sliderScalar
+                labelPtr
+                dataType
+                dataPtr
+                minPtr
+                maxPtr
+                formatPtr
+                flags
+
+        when changed do
+          newValue <- peek dataPtr
+          ref $=! newValue
+
+        return changed
+
+sliderScalarN
+  :: (HasSetter valueRef [a], HasGetter valueRef [a], HasGetter rangeRef a, Storable a, MonadIO m)
+  => String -> ImGuiDataType -> valueRef -> rangeRef -> rangeRef -> String -> ImGuiSliderFlags -> m Bool
+sliderScalarN label dataType ref refMin refMax format flags = liftIO do
+  currentValues <- get ref
+  minValue <- get refMin
+  maxValue <- get refMax
+
+  withArrayLen currentValues \components dataPtr ->
+    with minValue \minPtr ->
+      with maxValue \maxPtr -> do
+        changed <-
+          withCString label \labelPtr ->
+            withCString format \formatPtr ->
+              Raw.sliderScalarN
+                labelPtr
+                dataType
+                dataPtr
+                (fromIntegral components)
+                minPtr
+                maxPtr
+                formatPtr
+                flags
+
+        when changed do
+          newValue <- peekArray components dataPtr
+          ref $=! newValue
+
+        return changed
 
 -- | Wraps @ImGui::SliderFloat()@
 sliderFloat :: (MonadIO m, HasSetter ref Float, HasGetter ref Float) => String -> ref -> Float -> Float -> m Bool
@@ -531,7 +813,6 @@ sliderFloat desc ref minValue maxValue = liftIO do
 
     return changed
 
-
 -- | Wraps @ImGui::SliderFloat2()@
 sliderFloat2 :: (MonadIO m, HasSetter ref (Float, Float), HasGetter ref (Float, Float)) => String -> ref -> Float -> Float -> m Bool
 sliderFloat2 desc ref minValue maxValue = liftIO do
@@ -545,7 +826,6 @@ sliderFloat2 desc ref minValue maxValue = liftIO do
       ref $=! (realToFrac x', realToFrac y')
 
     return changed
-
 
 -- | Wraps @ImGui::SliderFloat3()@
 sliderFloat3 :: (MonadIO m, HasSetter ref (Float, Float, Float), HasGetter ref (Float, Float, Float)) => String -> ref -> Float -> Float -> m Bool
@@ -561,7 +841,6 @@ sliderFloat3 desc ref minValue maxValue = liftIO do
 
     return changed
 
-
 -- | Wraps @ImGui::SliderFloat4()@
 sliderFloat4 :: (MonadIO m, HasSetter ref (Float, Float, Float, Float), HasGetter ref (Float, Float, Float, Float)) => String -> ref -> Float -> Float -> m Bool
 sliderFloat4 desc ref minValue maxValue = liftIO do
@@ -575,6 +854,201 @@ sliderFloat4 desc ref minValue maxValue = liftIO do
       ref $=! (realToFrac x', realToFrac y', realToFrac z', realToFrac u')
 
     return changed
+
+-- | Slider widget to select an angle in radians, while displaying degrees.
+sliderAngle :: (MonadIO m, HasSetter ref Float, HasGetter ref Float) => String -> ref -> Float -> Float -> m Bool
+sliderAngle desc refRads minDegs maxDegs = liftIO do
+  currentRads <- get refRads
+  with (CFloat currentRads) \currentRadsPtr -> do
+    changed <-
+      withCString desc \descPtr ->
+        withCString "%.0f deg" \formatPtr ->
+          Raw.sliderAngle descPtr currentRadsPtr (CFloat minDegs) (CFloat maxDegs) formatPtr ImGuiSliderFlags_AlwaysClamp
+
+    when changed do
+      CFloat newRads <- peek currentRadsPtr
+      refRads $=! newRads
+
+    return changed
+
+-- | Wraps @ImGui::SliderInt()@
+sliderInt
+  :: (MonadIO m, HasSetter ref Int, HasGetter ref Int)
+  => String -> ref -> Int -> Int -> m Bool
+sliderInt label ref minValue maxValue = liftIO do
+  currentValue <- get ref
+  with (fromIntegral currentValue) \vPtr -> do
+    changed <-
+      withCString label \labelPtr ->
+        withCString "%d" \formatPtr ->
+          Raw.sliderInt
+            labelPtr
+            vPtr
+            (fromIntegral minValue)
+            (fromIntegral maxValue)
+            formatPtr
+            ImGuiSliderFlags_AlwaysClamp
+
+    when changed do
+      newValue <- peek vPtr
+      ref $=! fromIntegral newValue
+
+    return changed
+
+-- | Wraps @ImGui::SliderInt2()@
+sliderInt2
+  :: (MonadIO m, HasSetter ref (Int, Int), HasGetter ref (Int, Int))
+  => String -> ref -> Int -> Int -> m Bool
+sliderInt2 label ref minValue maxValue = liftIO do
+  (x, y) <- get ref
+  withArray [ fromIntegral x, fromIntegral y ] \vPtr -> do
+    changed <-
+      withCString label \labelPtr ->
+        withCString "%d" \formatPtr ->
+          Raw.sliderInt2
+            labelPtr
+            vPtr
+            (fromIntegral minValue)
+            (fromIntegral maxValue)
+            formatPtr
+            ImGuiSliderFlags_AlwaysClamp
+
+    when changed do
+      [x', y'] <- peekArray 2 vPtr
+      ref $=! (fromIntegral x', fromIntegral y')
+
+    return changed
+
+-- | Wraps @ImGui::SliderInt3()@
+sliderInt3
+  :: (MonadIO m, HasSetter ref (Int, Int, Int), HasGetter ref (Int, Int, Int))
+  => String -> ref -> Int -> Int -> m Bool
+sliderInt3 label ref minValue maxValue = liftIO do
+  (x, y, z) <- get ref
+  withArray [ fromIntegral x, fromIntegral y, fromIntegral z ] \vPtr -> do
+    changed <-
+      withCString label \labelPtr ->
+        withCString "%d" \formatPtr ->
+          Raw.sliderInt3
+            labelPtr
+            vPtr
+            (fromIntegral minValue)
+            (fromIntegral maxValue)
+            formatPtr
+            ImGuiSliderFlags_AlwaysClamp
+
+    when changed do
+      [x', y', z'] <- peekArray 3 vPtr
+      ref $=! (fromIntegral x', fromIntegral y', fromIntegral z')
+
+    return changed
+
+-- | Wraps @ImGui::SliderInt4()@
+sliderInt4
+  :: (MonadIO m, HasSetter ref (Int, Int, Int, Int), HasGetter ref (Int, Int, Int, Int))
+  => String -> ref -> Int -> Int -> m Bool
+sliderInt4 label ref minValue maxValue = liftIO do
+  (x, y, z, w) <- get ref
+  withArray [ fromIntegral x, fromIntegral y, fromIntegral z, fromIntegral w] \vPtr -> do
+    changed <-
+      withCString label \labelPtr ->
+        withCString "%d" \formatPtr ->
+          Raw.sliderInt4
+            labelPtr
+            vPtr
+            (fromIntegral minValue)
+            (fromIntegral maxValue)
+            formatPtr
+            ImGuiSliderFlags_AlwaysClamp
+
+    when changed do
+      [x', y', z', w'] <- peekArray 4 vPtr
+      ref $=! (fromIntegral x', fromIntegral y', fromIntegral z', fromIntegral w')
+
+    return changed
+
+vSliderFloat
+  :: (HasSetter ref Float, HasGetter ref Float, MonadIO m)
+  => String -> ImVec2 -> ref -> Float -> Float -> m Bool
+vSliderFloat label size ref minValue maxValue = liftIO do
+  currentValue <- get ref
+
+  with size \sizePtr ->
+    with (CFloat currentValue) \dataPtr -> do
+      changed <-
+        withCString label \labelPtr ->
+          withCString "%.3f" \formatPtr ->
+            Raw.vSliderFloat
+              labelPtr
+              sizePtr
+              dataPtr
+              (CFloat minValue)
+              (CFloat maxValue)
+              formatPtr
+              ImGuiSliderFlags_AlwaysClamp
+
+      when changed do
+        CFloat newValue <- peek dataPtr
+        ref $=! newValue
+
+      return changed
+
+vSliderInt
+  :: (HasSetter ref Int, HasGetter ref Int, MonadIO m)
+  => String -> ImVec2 -> ref -> Int -> Int -> m Bool
+vSliderInt label size ref minValue maxValue = liftIO do
+  currentValue <- get ref
+
+  with size \sizePtr ->
+    with (fromIntegral currentValue) \dataPtr -> do
+      changed <-
+        withCString label \labelPtr ->
+          withCString "%d" \formatPtr ->
+            Raw.vSliderInt
+              labelPtr
+              sizePtr
+              dataPtr
+              (fromIntegral minValue)
+              (fromIntegral maxValue)
+              formatPtr
+              ImGuiSliderFlags_AlwaysClamp
+
+      when changed do
+        newValue <- peek dataPtr
+        ref $=! fromIntegral newValue
+
+      return changed
+
+vSliderScalar
+  :: (HasSetter ref a, HasGetter ref a, Storable a, MonadIO m)
+  => String -> ImVec2 -> ImGuiDataType -> ref -> ref -> ref -> String -> ImGuiSliderFlags -> m Bool
+vSliderScalar label size dataType ref refMin refMax format flags = liftIO do
+  currentValue <- get ref
+  minValue <- get refMin
+  maxValue <- get refMax
+
+  with size \sizePtr ->
+    with currentValue \dataPtr ->
+      with minValue \minPtr ->
+        with maxValue \maxPtr -> do
+          changed <-
+            withCString label \labelPtr ->
+              withCString format \formatPtr ->
+                Raw.vSliderScalar
+                  labelPtr
+                  sizePtr
+                  dataType
+                  dataPtr
+                  minPtr
+                  maxPtr
+                  formatPtr
+                  flags
+
+          when changed do
+            newValue <- peek dataPtr
+            ref $=! newValue
+
+          return changed
 
 
 -- | Wraps @ImGui::InputText()@.
