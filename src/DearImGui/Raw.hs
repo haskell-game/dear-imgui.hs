@@ -79,7 +79,12 @@ module DearImGui.Raw
 
     -- * Widgets
     -- ** Text
-  , text
+  , textUnformatted
+  , textColored
+  , textDisabled
+  , textWrapped
+  , labelText
+  , bulletText
 
     -- ** Main
   , button
@@ -357,14 +362,64 @@ sameLine :: (MonadIO m) => m ()
 sameLine = liftIO do
   [C.exp| void { SameLine(); } |]
 
-
--- | Formatted text.
+-- | Raw text without formatting.
 --
--- Wraps @ImGui::Text()@.
-text :: (MonadIO m) => CString -> m ()
-text textPtr = liftIO do
-  [C.exp| void { Text("%s", $(char* textPtr)) } |]
+-- Roughly equivalent to Text("%s", text) but:
+--   A) doesn't require null terminated string if 'text_end' is specified,
+--   B) it's faster, no memory copy is done, no buffer size limits, recommended for long chunks of text.
+--
+-- Wraps @ImGui::TextUnformatted()@.
+textUnformatted :: (MonadIO m) => CString -> CString -> m ()
+textUnformatted textPtr textEndPtr = liftIO do
+  [C.exp| void { TextUnformatted($(char* textPtr), $(char* textEndPtr)) } |]
 
+-- | Shortcut for @PushStyleColor(ImGuiCol_Text, col); Text(fmt, ...); PopStyleColor();@.
+--
+-- XXX: Unlike the original, does not do string formatting.
+--
+-- Wraps @ImGui::TextColored()@.
+textColored :: (MonadIO m) => Ptr ImVec4 -> CString -> m ()
+textColored colorPtr textPtr = liftIO do
+  [C.exp| void { TextColored(*$(ImVec4 *colorPtr), "%s", $(char* textPtr)) } |]
+
+-- | Shortcut for @PushStyleColor(ImGuiCol_Text, style.Colors[ImGuiCol_TextDisabled]); Text(fmt, ...); PopStyleColor();@.
+--
+-- XXX: Unlike the original, does not do string formatting.
+--
+-- Wraps @ImGui::TextWrapped()@.
+textDisabled :: (MonadIO m) => CString -> m ()
+textDisabled textPtr = liftIO do
+  [C.exp| void { TextDisabled("%s", $(char* textPtr)) } |]
+
+-- | Shortcut for @PushTextWrapPos(0.0f); Text(fmt, ...); PopTextWrapPos();@.
+--
+-- Note that this won't work on an auto-resizing window if there's no other widgets to extend the window width,
+-- you may need to set a size using 'setNextWindowSize'.
+--
+-- XXX: Unlike the original, does not do string formatting.
+--
+-- Wraps @ImGui::TextWrapped()@.
+textWrapped :: (MonadIO m) => CString -> m ()
+textWrapped textPtr = liftIO do
+  [C.exp| void { TextWrapped("%s", $(char* textPtr)) } |]
+
+-- | Label+text combo aligned to other label+value widgets.
+--
+-- XXX: Unlike the original, does not do string formatting.
+--
+-- Wraps @ImGui::LabelText()@.
+labelText :: (MonadIO m) => CString -> CString -> m ()
+labelText labelPtr textPtr = liftIO do
+  [C.exp| void { LabelText($(char* labelPtr), "%s", $(char* textPtr)) } |]
+
+-- | Text with a little bullet aligned to the typical tree node.
+--
+-- XXX: Unlike the original, does not do string formatting.
+--
+-- Wraps @ImGui::BulletText()@.
+bulletText :: (MonadIO m) => CString -> m ()
+bulletText textPtr = liftIO do
+  [C.exp| void { BulletText("%s", $(char* textPtr)) } |]
 
 -- | A button. Returns 'True' when clicked.
 --
