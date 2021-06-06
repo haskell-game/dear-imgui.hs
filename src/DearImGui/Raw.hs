@@ -104,12 +104,30 @@ module DearImGui.Raw
   , dragFloat2
   , dragFloat3
   , dragFloat4
+  , dragFloatRange2
+  , dragInt
+  , dragInt2
+  , dragInt3
+  , dragInt4
+  , dragIntRange2
+  , dragScalar
+  , dragScalarN
 
     -- ** Slider
   , sliderFloat
   , sliderFloat2
   , sliderFloat3
   , sliderFloat4
+  , sliderAngle
+  , sliderInt
+  , sliderInt2
+  , sliderInt3
+  , sliderInt4
+  , sliderScalar
+  , sliderScalarN
+  , vSliderFloat
+  , vSliderInt
+  , vSliderScalar
 
     -- ** Text Input
   , inputText
@@ -514,6 +532,142 @@ dragFloat4 descPtr floatPtr speed minValue maxValue = liftIO do
   (0 /=) <$> [C.exp| bool { DragFloat4( $(char* descPtr), $(float* floatPtr), $(float speed), $(float minValue), $(float maxValue)) } |]
 
 
+-- | Wraps @ImGui::DragFloatRange2()@
+dragFloatRange2 :: (MonadIO m) => CString -> Ptr CFloat -> Ptr CFloat -> CFloat -> CFloat -> CFloat -> CString -> CString -> ImGuiSliderFlags -> m Bool
+dragFloatRange2 labelPtr vCurrentMin vCurrentMax vSpeed vMin vMax formatMin formatMax flags = liftIO do
+  (0 /=) <$> [C.exp| bool {
+    DragFloatRange2(
+      $(char* labelPtr),
+      $(float* vCurrentMin),
+      $(float* vCurrentMax),
+      $(float vSpeed),
+      $(float vMin),
+      $(float vMax),
+      $(char* formatMin),
+      $(char* formatMax),
+      $(ImGuiSliderFlags flags)
+    )
+  } |]
+
+
+-- | Wraps @ImGui::DragInt()@
+dragInt :: (MonadIO m) => CString -> Ptr CInt -> CFloat -> CInt -> CInt -> CString -> ImGuiSliderFlags -> m Bool
+dragInt labelPtr vPtr vSpeed vMin vMax formatPtr flags = liftIO do
+  (0 /=) <$> [C.exp| bool {
+    DragInt(
+      $(char* labelPtr),
+      $(int* vPtr),
+      $(float vSpeed),
+      $(int vMin),
+      $(int vMax),
+      $(char* formatPtr),
+      $(ImGuiSliderFlags flags)
+    )
+  } |]
+
+-- | Wraps @ImGui::DragInt2()@
+dragInt2 :: (MonadIO m) => CString -> Ptr CInt -> CFloat -> CInt -> CInt -> CString -> ImGuiSliderFlags -> m Bool
+dragInt2 labelPtr vPtr vSpeed vMin vMax formatPtr flags = liftIO do
+  (0 /=) <$> [C.exp| bool {
+    DragInt2(
+      $(char* labelPtr),
+      $(int vPtr[2]),
+      $(float vSpeed),
+      $(int vMin),
+      $(int vMax),
+      $(char* formatPtr),
+      $(ImGuiSliderFlags flags)
+    )
+  } |]
+
+-- | Wraps @ImGui::DragInt3()@
+dragInt3 :: (MonadIO m) => CString -> Ptr CInt -> CFloat -> CInt -> CInt -> CString -> ImGuiSliderFlags -> m Bool
+dragInt3 labelPtr vPtr vSpeed vMin vMax formatPtr flags = liftIO do
+  (0 /=) <$> [C.exp| bool {
+    DragInt3(
+      $(char* labelPtr),
+      $(int vPtr[3]),
+      $(float vSpeed),
+      $(int vMin),
+      $(int vMax),
+      $(char* formatPtr),
+      $(ImGuiSliderFlags flags)
+    )
+  } |]
+
+-- | Wraps @ImGui::DragInt4()@
+dragInt4 :: (MonadIO m) => CString -> Ptr CInt -> CFloat -> CInt -> CInt -> CString -> ImGuiSliderFlags -> m Bool
+dragInt4 labelPtr vPtr vSpeed vMin vMax formatPtr flags = liftIO do
+  (0 /=) <$> [C.exp| bool {
+    DragInt4(
+      $(char* labelPtr),
+      $(int vPtr[4]),
+      $(float vSpeed),
+      $(int vMin),
+      $(int vMax),
+      $(char* formatPtr),
+      $(ImGuiSliderFlags flags)
+    )
+  } |]
+
+-- | Wraps @ImGui::DragFloatRange2()@
+dragIntRange2 :: (MonadIO m) => CString -> Ptr CInt -> Ptr CInt -> CFloat -> CInt -> CInt -> CString -> CString -> ImGuiSliderFlags -> m Bool
+dragIntRange2 labelPtr vCurrentMin vCurrentMax vSpeed vMin vMax formatMin formatMax flags = liftIO do
+  (0 /=) <$> [C.exp| bool {
+    DragIntRange2(
+      $(char* labelPtr),
+      $(int* vCurrentMin),
+      $(int* vCurrentMax),
+      $(float vSpeed),
+      $(int vMin),
+      $(int vMax),
+      $(char* formatMin),
+      $(char* formatMax),
+      $(ImGuiSliderFlags flags)
+    )
+  } |]
+
+-- | Wraps @ImGui::DragScalar()@
+dragScalar :: (MonadIO m) => CString -> ImGuiDataType -> Ptr a -> CFloat -> Ptr a -> Ptr a -> CString -> ImGuiSliderFlags -> m Bool
+dragScalar labelPtr dataType dataPtr vSpeed minPtr maxPtr formatPtr flags = liftIO do
+  (0 /=) <$> [C.exp| bool {
+    DragScalar(
+      $(char* labelPtr),
+      $(ImGuiDataType dataType),
+      $(void* dataPtr_),
+      $(float vSpeed),
+      $(void* minPtr_),
+      $(void* maxPtr_),
+      $(char* formatPtr),
+      $(ImGuiSliderFlags flags)
+    )
+  } |]
+  where
+    dataPtr_ = castPtr dataPtr
+    minPtr_ = castPtr minPtr
+    maxPtr_ = castPtr maxPtr
+
+-- | Wraps @ImGui::DragScalarN()@
+dragScalarN :: (MonadIO m) => CString -> ImGuiDataType -> Ptr a -> CInt -> CFloat -> Ptr a -> Ptr a -> CString -> ImGuiSliderFlags -> m Bool
+dragScalarN labelPtr dataType dataPtr components vSpeed minPtr maxPtr formatPtr flags = liftIO do
+  (0 /=) <$> [C.exp| bool {
+    DragScalarN(
+      $(char* labelPtr),
+      $(ImGuiDataType dataType),
+      $(void* dataPtr_),
+      $(int components),
+      $(float vSpeed),
+      $(void* minPtr_),
+      $(void* maxPtr_),
+      $(char* formatPtr),
+      $(ImGuiSliderFlags flags)
+    )
+  } |]
+  where
+    dataPtr_ = castPtr dataPtr
+    minPtr_ = castPtr minPtr
+    maxPtr_ = castPtr maxPtr
+
 -- | Wraps @ImGui::SliderFloat()@
 sliderFloat :: (MonadIO m) => CString -> Ptr CFloat -> CFloat -> CFloat -> m Bool
 sliderFloat descPtr floatPtr minValue maxValue = liftIO do
@@ -537,6 +691,164 @@ sliderFloat4 :: (MonadIO m) => CString -> Ptr CFloat -> CFloat -> CFloat -> m Bo
 sliderFloat4 descPtr floatPtr minValue maxValue = liftIO do
   (0 /=) <$> [C.exp| bool { SliderFloat4( $(char* descPtr), $(float* floatPtr), $(float minValue), $(float maxValue)) } |]
 
+-- | Wraps @ImGui::SliderAngle()@
+sliderAngle :: (MonadIO m) => CString -> Ptr CFloat -> CFloat -> CFloat -> CString -> ImGuiSliderFlags -> m Bool
+sliderAngle descPtr valueRadPtr degreesMin degreesMax format flags = liftIO do
+  (0 /=) <$> [C.exp| bool {
+    SliderAngle(
+      $(char* descPtr),
+      $(float* valueRadPtr),
+      $(float degreesMin),
+      $(float degreesMax),
+      $(char* format),
+      $(ImGuiSliderFlags flags)
+    )
+  } |]
+
+-- | Wraps @ImGui::SliderInt()@
+sliderInt :: (MonadIO m) => CString -> Ptr CInt -> CInt -> CInt -> CString -> ImGuiSliderFlags -> m Bool
+sliderInt labelPtr vPtr vMin vMax formatPtr flags = liftIO do
+  (0 /=) <$> [C.exp| bool {
+    SliderInt(
+      $(char* labelPtr),
+      $(int* vPtr),
+      $(int vMin),
+      $(int vMax),
+      $(char* formatPtr),
+      $(ImGuiSliderFlags flags)
+    )
+  } |]
+
+-- | Wraps @ImGui::SliderInt2()@
+sliderInt2 :: (MonadIO m) => CString -> Ptr CInt -> CInt -> CInt -> CString -> ImGuiSliderFlags -> m Bool
+sliderInt2 labelPtr vPtr vMin vMax formatPtr flags = liftIO do
+  (0 /=) <$> [C.exp| bool {
+    SliderInt2(
+      $(char* labelPtr),
+      $(int vPtr[2]),
+      $(int vMin),
+      $(int vMax),
+      $(char* formatPtr),
+      $(ImGuiSliderFlags flags)
+    )
+  } |]
+
+-- | Wraps @ImGui::SliderInt3()@
+sliderInt3 :: (MonadIO m) => CString -> Ptr CInt -> CInt -> CInt -> CString -> ImGuiSliderFlags -> m Bool
+sliderInt3 labelPtr vPtr vMin vMax formatPtr flags = liftIO do
+  (0 /=) <$> [C.exp| bool {
+    SliderInt3(
+      $(char* labelPtr),
+      $(int vPtr[3]),
+      $(int vMin),
+      $(int vMax),
+      $(char* formatPtr),
+      $(ImGuiSliderFlags flags)
+    )
+  } |]
+
+-- | Wraps @ImGui::SliderInt4()@
+sliderInt4 :: (MonadIO m) => CString -> Ptr CInt -> CInt -> CInt -> CString -> ImGuiSliderFlags -> m Bool
+sliderInt4 labelPtr vPtr vMin vMax formatPtr flags = liftIO do
+  (0 /=) <$> [C.exp| bool {
+    SliderInt4(
+      $(char* labelPtr),
+      $(int vPtr[4]),
+      $(int vMin),
+      $(int vMax),
+      $(char* formatPtr),
+      $(ImGuiSliderFlags flags)
+    )
+  } |]
+
+-- | Wraps @ImGui::SliderScalar()@
+sliderScalar :: (MonadIO m) => CString -> ImGuiDataType -> Ptr a -> Ptr a -> Ptr a -> CString -> ImGuiSliderFlags -> m Bool
+sliderScalar labelPtr dataType dataPtr minPtr maxPtr formatPtr flags = liftIO do
+  (0 /=) <$> [C.exp| bool {
+    SliderScalar(
+      $(char* labelPtr),
+      $(ImGuiDataType dataType),
+      $(void* dataPtr_),
+      $(void* minPtr_),
+      $(void* maxPtr_),
+      $(char* formatPtr),
+      $(ImGuiSliderFlags flags)
+    )
+  } |]
+  where
+    dataPtr_ = castPtr dataPtr
+    minPtr_ = castPtr minPtr
+    maxPtr_ = castPtr maxPtr
+
+-- | Wraps @ImGui::SliderScalarN()@
+sliderScalarN :: (MonadIO m) => CString -> ImGuiDataType -> Ptr a -> CInt -> Ptr a -> Ptr a -> CString -> ImGuiSliderFlags -> m Bool
+sliderScalarN labelPtr dataType dataPtr components minPtr maxPtr formatPtr flags = liftIO do
+  (0 /=) <$> [C.exp| bool {
+    SliderScalarN(
+      $(char* labelPtr),
+      $(ImGuiDataType dataType),
+      $(void* dataPtr_),
+      $(int components),
+      $(void* minPtr_),
+      $(void* maxPtr_),
+      $(char* formatPtr),
+      $(ImGuiSliderFlags flags)
+    )
+  } |]
+  where
+    dataPtr_ = castPtr dataPtr
+    minPtr_ = castPtr minPtr
+    maxPtr_ = castPtr maxPtr
+
+-- | Wraps @ImGui::VSliderFloat()@
+vSliderFloat :: (MonadIO m) => CString -> Ptr ImVec2 -> Ptr CFloat -> CFloat -> CFloat -> CString -> ImGuiSliderFlags -> m Bool
+vSliderFloat labelPtr sizePtr vPtr vMin vMax formatPtr flags = liftIO do
+  (0 /=) <$> [C.exp| bool {
+    VSliderFloat(
+      $(char* labelPtr),
+      *$(ImVec2* sizePtr),
+      $(float* vPtr),
+      $(float vMin),
+      $(float vMax),
+      $(char* formatPtr),
+      $(ImGuiSliderFlags flags)
+    )
+  } |]
+
+-- | Wraps @ImGui::VSliderFloat()@
+vSliderInt :: (MonadIO m) => CString -> Ptr ImVec2 -> Ptr CInt -> CInt -> CInt -> CString -> ImGuiSliderFlags -> m Bool
+vSliderInt labelPtr sizePtr vPtr vMin vMax formatPtr flags = liftIO do
+  (0 /=) <$> [C.exp| bool {
+    VSliderInt(
+      $(char* labelPtr),
+      *$(ImVec2* sizePtr),
+      $(int* vPtr),
+      $(int vMin),
+      $(int vMax),
+      $(char* formatPtr),
+      $(ImGuiSliderFlags flags)
+    )
+  } |]
+
+-- | Wraps @ImGui::VSliderScalar()@
+vSliderScalar :: (MonadIO m) => CString -> Ptr ImVec2 -> ImGuiDataType -> Ptr a -> Ptr a -> Ptr a -> CString -> ImGuiSliderFlags -> m Bool
+vSliderScalar labelPtr sizePtr dataType dataPtr minPtr maxPtr formatPtr flags = liftIO do
+  (0 /=) <$> [C.exp| bool {
+    VSliderScalar(
+      $(char* labelPtr),
+      *$(ImVec2* sizePtr),
+      $(ImGuiDataType dataType),
+      $(void* dataPtr_),
+      $(void* minPtr_),
+      $(void* maxPtr_),
+      $(char* formatPtr),
+      $(ImGuiSliderFlags flags)
+    )
+  } |]
+  where
+    dataPtr_ = castPtr dataPtr
+    minPtr_ = castPtr minPtr
+    maxPtr_ = castPtr maxPtr
 
 -- | Wraps @ImGui::InputText()@.
 inputText :: (MonadIO m) => CString -> CString -> CInt -> m Bool
