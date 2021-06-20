@@ -91,8 +91,11 @@ withVulkan initInfo renderPass action =
     vulkanShutdown
     ( \ ( _, initResult ) -> action initResult )
 
--- | Wraps @ImGui_ImplVulkan_Init@
-vulkanInit :: MonadUnliftIO m => InitInfo -> Vulkan.RenderPass -> m (FunPtr (Vulkan.Result -> IO ()), Bool)
+-- | Wraps @ImGui_ImplVulkan_Init@.
+-- 
+-- Use 'vulkanShutdown' to clean up on shutdown.
+-- Prefer using 'withVulkan' when possible, as it automatically handles cleanup.
+vulkanInit :: MonadIO m => InitInfo -> Vulkan.RenderPass -> m (FunPtr (Vulkan.Result -> IO ()), Bool)
 vulkanInit ( InitInfo {..} ) renderPass = do
   let
     instancePtr :: Ptr Vulkan.Instance_T
@@ -133,6 +136,9 @@ vulkanInit ( InitInfo {..} ) renderPass = do
         }|]
     pure ( checkResultFunPtr, initResult /= 0 )
 
+-- | Wraps @ImGui_ImplVulkan_Shutdown@.
+--
+-- Counterpart to 'vulkanInit', for clean-up.
 vulkanShutdown :: MonadIO m => (FunPtr a, b) -> m ()
 vulkanShutdown ( checkResultFunPtr, _ ) = liftIO do
   [C.exp| void { ImGui_ImplVulkan_Shutdown(); } |]
