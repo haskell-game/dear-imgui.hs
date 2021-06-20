@@ -11,7 +11,7 @@ flag opengl2
   default:
     False
   manual:
-    False
+    True
 
 flag opengl3
   description:
@@ -19,7 +19,7 @@ flag opengl3
   default:
     True
   manual:
-    False
+    True
 
 flag vulkan
   description:
@@ -35,7 +35,7 @@ flag sdl
   default:
     True
   manual:
-    False
+    True
 
 flag glfw
   description:
