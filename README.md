@@ -25,7 +25,7 @@ OpenGL:
 
 ```
 package dear-imgui
-  flags: +sdl +opengl
+  flags: +sdl +opengl3
 ```
 
 With this done, the following module is the "Hello, World!" of ImGui:
