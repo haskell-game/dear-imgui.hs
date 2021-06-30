@@ -1,9 +1,26 @@
 cabal-version: 3.0
+
 name: dear-imgui
 version: 1.0.0
+author: Oliver Charles
+maintainer: ollie@ocharles.org.uk, aenor.realm@gmail.com
+license: BSD-3-Clause
+
+category: Graphics
+synopsis: Haskell bindings for Dear ImGui.
+description:
+  The package supports multiple rendering backends.
+  Set package flags according to your needs.
+
 build-type: Simple
-data-files:
+extra-source-files:
+  README.md,
+  ChangeLog.md,
   imgui/imgui.h
+
+source-repository head
+  type: git
+  location: https://github.com/haskell-game/dear-imgui.hs
 
 flag opengl2
   description:
