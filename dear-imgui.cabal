@@ -1,7 +1,7 @@
 cabal-version: 3.0
 
 name: dear-imgui
-version: 1.0.0
+version: 1.0.1
 author: Oliver Charles
 maintainer: ollie@ocharles.org.uk, aenor.realm@gmail.com
 license: BSD-3-Clause
@@ -15,8 +15,14 @@ description:
 build-type: Simple
 extra-source-files:
   README.md,
-  ChangeLog.md,
-  imgui/imgui.h
+  ChangeLog.md
+
+extra-source-files:
+  imgui/*.h,
+  imgui/backends/*.h,
+  imgui/backends/*.mm,
+  imgui/imconfig.h,
+  imgui/LICENSE.txt
 
 source-repository head
   type: git
