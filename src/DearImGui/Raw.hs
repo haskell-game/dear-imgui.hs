@@ -90,10 +90,10 @@ module DearImGui.Raw
   , button
   , smallButton
   , arrowButton
+  , image
   , checkbox
   , progressBar
   , bullet
-  , image
 
     -- ** Combo Box
   , beginCombo
@@ -463,15 +463,24 @@ arrowButton :: (MonadIO m) => CString -> ImGuiDir -> m Bool
 arrowButton strIdPtr dir = liftIO do
   (0 /=) <$> [C.exp| bool { ArrowButton($(char* strIdPtr), $(ImGuiDir dir)) } |]
 
+
 -- | Image Area to draw a texture
 --
 -- Wraps @ImGui::Image()
--- See https://github.com/ocornut/imgui/wiki/Image-Loading-and-Displaying-Examples#About-texture-coordinates for an example
 -- For OpenGL: The Ptr points to the texture memory (eg. 0x0x0000000000000001), so it is the number from glBindTexture.
 -- Convert it directly with: intPtrToPtr . fromIntegral
-image :: (MonadIO m) => Ptr ()-> CFloat -> CFloat -> m()
-image texturePtr width height= liftIO do
-  [C.exp| void { Image($(void* texturePtr), ImVec2($(float width),$(float height)))} |]
+image :: (MonadIO m) => Ptr ()->  Ptr ImVec2 -> Ptr ImVec2 -> Ptr ImVec2 -> Ptr ImVec4 -> Ptr ImVec4 -> m()
+image userTextureIDPtr sizePtr uv0Ptr uv1Ptr tintColPtr borderColPtr = liftIO do
+  [C.exp| void { 
+    Image(
+      $(void* userTextureIDPtr), 
+      *$(ImVec2* sizePtr),
+      *$(ImVec2* uv0Ptr),
+      *$(ImVec2* uv1Ptr),
+      *$(ImVec4* tintColPtr),
+      *$(ImVec4* borderColPtr)
+    )
+  } |]
 
 
 -- | Wraps @ImGui::Checkbox()@.
