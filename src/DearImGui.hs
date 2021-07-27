@@ -100,6 +100,7 @@ module DearImGui
   , button
   , smallButton
   , arrowButton
+  , Raw.image
   , checkbox
   , progressBar
   , Raw.bullet
