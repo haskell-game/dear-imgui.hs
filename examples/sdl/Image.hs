@@ -108,7 +108,7 @@ mainLoop w c = do
 
   -- Build the GUI
   bracket_ (begin "GL") end do
-      image (intPtrToPtr $ fromIntegral c) (ImVec2 500 500)
+  Raw.image (intPtrToPtr $ fromIntegral c) (ImVec2 500 500)(ImVec2 0 0)(ImVec2 1 1)(ImVec4 1 1 1 1)(ImVec4 0 0 0 0)
 
   -- Render
   render

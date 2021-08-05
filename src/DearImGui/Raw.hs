@@ -467,8 +467,14 @@ arrowButton strIdPtr dir = liftIO do
 -- | Image Area to draw a texture
 --
 -- Wraps @ImGui::Image()
--- For OpenGL: The Ptr points to the texture memory (eg. 0x0x0000000000000001), so it is the number from glBindTexture.
--- Convert it directly with: intPtrToPtr . fromIntegral
+--
+-- For OpenGL: The userTextureIDPtr points to the texture memory (eg. 0x0x0000000000000001), it is the number from glBindTexture.
+-- Eg:
+-- glBindTexture GL_TEXTURE_2D $ textureID texture
+-- -- fill textureID
+-- image (intPtrToPtr $ fromIntegral textureID) (ImVec2 500 500)(ImVec2 0 0)(ImVec2 1 1)(ImVec4 1 1 1 1)(ImVec4 0 0 0 0)
+--
+-- See https://github.com/ocornut/imgui/wiki/Image-Loading-and-Displaying-Examples#About-texture-coordinates and under examples/sdl/Image.hs
 image :: (MonadIO m) => Ptr ()->  Ptr ImVec2 -> Ptr ImVec2 -> Ptr ImVec2 -> Ptr ImVec4 -> Ptr ImVec4 -> m()
 image userTextureIDPtr sizePtr uv0Ptr uv1Ptr tintColPtr borderColPtr = liftIO do
   [C.exp| void { 

@@ -100,7 +100,7 @@ module DearImGui
   , button
   , smallButton
   , arrowButton
-  , image
+  , Raw.image
   , checkbox
   , progressBar
   , Raw.bullet
@@ -403,20 +403,6 @@ arrowButton :: MonadIO m => String -> ImGuiDir -> m Bool
 arrowButton strId dir = liftIO do
   withCString strId \strIdPtr ->
     Raw.arrowButton strIdPtr dir
-
-
--- | Image Area to draw a texture
---
--- Calls Raw.image with Default arguments.
--- See https://github.com/ocornut/imgui/wiki/Image-Loading-and-Displaying-Examples#About-texture-coordinates for an example
-image :: MonadIO m => Ptr() -> ImVec2 -> m()
-image userTextureIDPtr size = liftIO do
-  with size \sizePtr -> 
-    with (ImVec2 0 0) \uv0Ptr -> 
-      with (ImVec2 1 1) \uv1Ptr -> 
-        with (ImVec4 1 1 1 1) \tintColPtr -> 
-          with (ImVec4 0 0 0 0) \borderColPtr -> do
-    Raw.image userTextureIDPtr sizePtr uv0Ptr uv1Ptr tintColPtr borderColPtr
 
 
 -- | Wraps @ImGui::Checkbox()@.
