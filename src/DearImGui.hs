@@ -1,6 +1,7 @@
 {-# LANGUAGE BlockArguments #-}
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedStrings #-}
@@ -86,6 +87,10 @@ module DearImGui
 
   , setCursorPos
   , Raw.alignTextToFramePadding
+
+    -- * ID stack
+  , withID
+  , ToID(..)
 
     -- * Widgets
     -- ** Text
@@ -1460,6 +1465,44 @@ setCursorPos posRef = liftIO do
   pos <- get posRef
   with pos Raw.setCursorPos
 
+-- | Add an element to a ID stack
+--
+-- Read the FAQ (http://dearimgui.org/faq) for more details
+-- about how ID are handled in dear imgui.
+--
+-- Those questions are answered and impacted by understanding of the ID stack system:
+-- * "Q: Why is my widget not reacting when I click on it?"
+-- * "Q: How can I have widgets with an empty label?"
+-- * "Q: How can I have multiple widgets with the same label?"
+--
+-- Wraps @ImGui::PushId@ and @ImGui::PopId@
+withID :: (MonadUnliftIO m, ToID id) => id -> m a -> m a
+withID i = bracket_ (liftIO $ pushID i) Raw.popID
+
+-- | A supplementary class to match overloaded functions in C++ the library.
+class ToID a where
+  pushID :: MonadIO m => a -> m ()
+
+instance ToID CInt where
+  pushID = Raw.pushIDInt
+
+instance ToID Int where
+  pushID = Raw.pushIDInt . fromIntegral
+
+instance ToID Integer where
+  pushID = Raw.pushIDInt . fromInteger
+
+instance {-# OVERLAPPABLE #-} ToID (Ptr a) where
+  pushID = Raw.pushIDPtr
+
+instance {-# OVERLAPPING #-} ToID (Ptr CChar) where
+  pushID = Raw.pushIDStr
+
+instance ToID (Ptr CChar, Int) where
+  pushID = Raw.pushIDStrLen
+
+instance ToID String where
+  pushID s = liftIO $ withCStringLen s pushID
 
 -- | Modify a style color by pushing to the shared stack. always use this if you modify the style after `newFrame`
 --
