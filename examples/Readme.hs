@@ -24,28 +24,28 @@ main = do
 
   runManaged do
     -- Create a window using SDL. As we're using OpenGL, we need to enable OpenGL too.
-    w <- do
+    window <- do
       let title = "Hello, Dear ImGui!"
       let config = defaultWindow { windowGraphicsContext = OpenGLContext defaultOpenGL }
       managed $ bracket (createWindow title config) destroyWindow
 
     -- Create an OpenGL context
-    glContext <- managed $ bracket (glCreateContext w) glDeleteContext
+    glContext <- managed $ bracket (glCreateContext window) glDeleteContext
 
     -- Create an ImGui context
     _ <- managed $ bracket createContext destroyContext
 
     -- Initialize ImGui's SDL2 backend
-    _ <- managed_ $ bracket_ (sdl2InitForOpenGL w glContext) sdl2Shutdown
+    _ <- managed_ $ bracket_ (sdl2InitForOpenGL window glContext) sdl2Shutdown
 
     -- Initialize ImGui's OpenGL backend
     _ <- managed_ $ bracket_ openGL2Init openGL2Shutdown
 
-    liftIO $ mainLoop w
+    liftIO $ mainLoop window
 
 
 mainLoop :: Window -> IO ()
-mainLoop w = do
+mainLoop window = do
   -- Process the event loop
   untilNothingM pollEventWithImGui
 
@@ -73,9 +73,9 @@ mainLoop w = do
   render
   openGL2RenderDrawData =<< getDrawData
 
-  glSwapWindow w
+  glSwapWindow window
 
-  mainLoop w
+  mainLoop window
 
   where
     untilNothingM m = m >>= maybe (return ()) (\_ -> untilNothingM m)
