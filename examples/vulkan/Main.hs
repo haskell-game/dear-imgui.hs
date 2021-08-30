@@ -370,7 +370,7 @@ app = do
             freeOldResources
             let
               freeOldResources :: m ()
-              freeOldResources = pure ()    
+              freeOldResources = pure ()
             unless quit $ mainLoop ( AppState {..} )
 
     let
