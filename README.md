@@ -81,7 +81,7 @@ mainLoop w = do
 
   -- Tell ImGui we're starting a new frame
   openGL2NewFrame
-  sdl2NewFrame w
+  sdl2NewFrame
   newFrame
 
   -- Build the GUI
