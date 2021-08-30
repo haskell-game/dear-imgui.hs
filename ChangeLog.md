@@ -1,5 +1,9 @@
 # Changelog for dear-imgui
 
+## [1.1.0]
+
+- `imgui` updated to 1.84.2.
+
 ## [1.0.2]
 
 - Added `withID` and `ToID(..)` to make composable components possible.

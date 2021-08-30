@@ -57,7 +57,7 @@ loop w checked color slider r pos size' selected tab1Ref tab2Ref = do
   quit <- pollEvents
 
   openGL3NewFrame
-  sdl2NewFrame w
+  sdl2NewFrame
   newFrame
 
   -- showDemoWindow
