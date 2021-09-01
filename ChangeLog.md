@@ -3,6 +3,7 @@
 ## [1.1.0]
 
 - `imgui` updated to 1.84.2.
+- Added GLFW backend callbacks.
 
 ## [1.0.2]
 

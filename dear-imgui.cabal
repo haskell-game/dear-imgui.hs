@@ -181,7 +181,8 @@ library
     exposed-modules:
       DearImGui.GLFW
     build-depends:
-      GLFW-b
+      GLFW-b,
+      bindings-GLFW
     cxx-sources:
       imgui/backends/imgui_impl_glfw.cpp
 
