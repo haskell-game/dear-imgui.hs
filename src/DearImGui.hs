@@ -745,6 +745,43 @@ dragScalarN label dataType ref vSpeed refMin refMax format flags = liftIO do
 
         return changed
 
+-- | Clips a large list of items
+--
+-- The requirements on a are that they are all of the same height. Not sure, how this could be expressed.
+withListClipper :: MonadUnliftIO m => Vector a -> (a -> m ()) -> m ()
+withListClipper list action = bracket beginListClipper endListClipper step
+  where
+    step clipper = liftIO do
+      when (Raw.stepListClipper clipper) do
+        let startIndex = Raw.displayStartListClipper clipper
+        let length = startIndex - Raw.displayEndListClipper clipper
+        mapM_ action (slice startIndex length list) 
+        step
+
+      --  while (clipper.Step())
+      --      {
+      --          for (int line_no = clipper.DisplayStart; line_no < clipper.DisplayEnd; line_no++)
+      --          {
+      --              const char* line_start = buf + LineOffsets[line_no];
+      --              const char* line_end = (line_no + 1 < LineOffsets.Size) ? (buf + LineOffsets[line_no + 1] - 1) : buf_end;
+      --              ImGui::TextUnformatted(line_start, line_end);
+      --          }
+      --      }
+
+
+Raw.beginListClipper :: MonadUnliftIO m => m ImGuiListClipper
+-- ImGuiListClipper clipper;
+-- clipper.Begin(SizeOfTheList);
+
+
+Raw.endListClipper :: MonadUnliftIO m => ImGuiListClipper -> m ()
+-- clipper.End();
+
+Raw.displayStartListClipper :: MonadUnliftIO m => ImGuiListClipper -> m Int
+Raw.displayEndListClipper :: MonadUnliftIO m => ImGuiListClipper -> m Int
+Raw.stepListClipper :: MonadUnliftIO m => ImGuiListClipper -> m Bool
+
+
 sliderScalar
   :: (HasSetter ref a, HasGetter ref a, Storable a, MonadIO m)
   => String -> ImGuiDataType -> ref -> ref -> ref -> String -> ImGuiSliderFlags -> m Bool
