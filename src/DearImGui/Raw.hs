@@ -218,6 +218,52 @@ C.context (Cpp.cppCtx <> C.bsCtx <> imguiContext)
 C.include "imgui.h"
 Cpp.using "namespace ImGui"
 
+-- | Wraps @ImGuiListClipper
+newtype ImGuiListClipper = ImCuiListClipper (Ptr ())
+
+
+-- | Wraps @ImGuiListClipper::Constructor()
+createImGuiListClipper :: (MonadIO m) => m ImGuiListClipper
+createImGuiListClipper = liftIO do
+  ImGuiListClipper <$> [Cpp.block| ImGuiListClipper* { 
+        return new ImGuiListClipper;
+      } |]
+
+
+-- | Wraps @ImGuiListClipper::Destructor()
+destroyImGuiListClipper :: (MonadIO m) => ImGuiListClipper -> m ()
+destroyImGuiListClipper clipper = liftIO do
+  ImGuiListClipper <$> [Cpp.block| void { 
+        delete $(void clipper); 
+      } |]
+
+
+-- | Wraps @ImGuiListClipper::Begin()
+beginImGuiListClipper :: MonadIO m => Int -> m ImGuiListClipper
+beginImGuiListClipper size = liftIO $ do
+  ImGuiListClipper <$> [Cpp.block| ImGuiListClipper* { 
+        ImGuiListClipper* clipper = new ImGuiListClipper;
+        clipper->Begin($(int size));
+        return clipper;
+      } |]
+
+-- | Wraps @ImGuiListClipper::End()
+endImGuiListClipper :: MonadIO m => ImGuiListClipper -> m ()
+endImGuiListClipper 
+
+
+-- | Wraps @ImGuiListClipper::Begin()
+Raw.displayStartListClipper :: MonadUnliftIO m => ImGuiListClipper -> m Int
+
+
+-- | Wraps @ImGuiListClipper::End()
+Raw.displayEndListClipper :: MonadUnliftIO m => ImGuiListClipper -> m Int
+
+
+-- | Wraps @ImGuiListClipper::Step()
+stepImGuiListClipper :: MonadIO m => ImGuiListClipper -> m Bool
+
+
 
 -- | Wraps @ImGuiContext*@.
 newtype Context = Context (Ptr ())

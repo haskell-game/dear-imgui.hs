@@ -751,12 +751,13 @@ dragScalarN label dataType ref vSpeed refMin refMax format flags = liftIO do
 withListClipper :: MonadUnliftIO m => Vector a -> (a -> m ()) -> m ()
 withListClipper list action = bracket beginListClipper endListClipper step
   where
+    step :: a -> m ()
     step clipper = liftIO do
       when (Raw.stepListClipper clipper) do
         let startIndex = Raw.displayStartListClipper clipper
         let length = startIndex - Raw.displayEndListClipper clipper
         mapM_ action (slice startIndex length list) 
-        step
+        step clipper
 
       --  while (clipper.Step())
       --      {
