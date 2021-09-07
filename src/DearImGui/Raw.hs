@@ -219,50 +219,49 @@ C.include "imgui.h"
 Cpp.using "namespace ImGui"
 
 -- | Wraps @ImGuiListClipper
-newtype ImGuiListClipper = ImCuiListClipper (Ptr ())
-
-
--- | Wraps @ImGuiListClipper::Constructor()
-createImGuiListClipper :: (MonadIO m) => m ImGuiListClipper
-createImGuiListClipper = liftIO do
-  ImGuiListClipper <$> [Cpp.block| ImGuiListClipper* { 
-        return new ImGuiListClipper;
-      } |]
-
-
--- | Wraps @ImGuiListClipper::Destructor()
-destroyImGuiListClipper :: (MonadIO m) => ImGuiListClipper -> m ()
-destroyImGuiListClipper clipper = liftIO do
-  ImGuiListClipper <$> [Cpp.block| void { 
-        delete $(void clipper); 
-      } |]
+newtype ImGuiListClipper = ImGuiListClipper (Ptr ())
 
 
 -- | Wraps @ImGuiListClipper::Begin()
+-- 
+-- The pointer has to be deleted manually by destroiyImGuiListClipper
 beginImGuiListClipper :: MonadIO m => Int -> m ImGuiListClipper
-beginImGuiListClipper size = liftIO $ do
-  ImGuiListClipper <$> [Cpp.block| ImGuiListClipper* { 
+beginImGuiListClipper size 
+  | size < 0 = error "Size of the Clipper can't be negative"
+  | otherwise = liftIO $ do
+    let length = toEnum size :: CInt
+    ImGuiListClipper <$> [Cpp.block| void* { 
         ImGuiListClipper* clipper = new ImGuiListClipper;
-        clipper->Begin($(int size));
-        return clipper;
+        clipper->Begin( $(int length) );
+        return reinterpret_cast<void*>(clipper);
       } |]
 
 -- | Wraps @ImGuiListClipper::End()
-endImGuiListClipper :: MonadIO m => ImGuiListClipper -> m ()
-endImGuiListClipper 
+endImGuiListClipper :: MonadIO m => ImGuiListClipper -> m Int
+endImGuiListClipper (ImGuiListClipper clipper) = liftIO do
+  fromEnum <$> [Cpp.block| void { delete (ImGuiListClipper*)$(void * clipper); } |]
 
 
 -- | Wraps @ImGuiListClipper::Begin()
-Raw.displayStartListClipper :: MonadUnliftIO m => ImGuiListClipper -> m Int
+displayStartListClipper :: MonadIO m => ImGuiListClipper -> m Int
+displayStartListClipper (ImGuiListClipper clipper)= liftIO do
+  fromEnum <$> [Cpp.exp| int { 
+    reinterpret_cast<ImGuiListClipper*>($(void* clipper))->DisplayStart
+     } |] 
 
 
--- | Wraps @ImGuiListClipper::End()
-Raw.displayEndListClipper :: MonadUnliftIO m => ImGuiListClipper -> m Int
+-- | Wraps @ImGuiListClipper::DisplayStart
+displayEndListClipper :: MonadIO m => ImGuiListClipper -> m Int
+displayEndListClipper (ImGuiListClipper clipper)= liftIO do
+  fromEnum <$> [Cpp.exp| int { 
+    reinterpret_cast<ImGuiListClipper*>($(void* clipper))->DisplayEnd
+  } |]
 
 
--- | Wraps @ImGuiListClipper::Step()
+-- | Wraps @ImGuiListClipper::DisplayEnd
 stepImGuiListClipper :: MonadIO m => ImGuiListClipper -> m Bool
-
+stepImGuiListClipper (ImGuiListClipper clipper)= liftIO do
+  (==) (CBool 1) <$> [Cpp.exp| bool { reinterpret_cast<ImGuiListClipper*>($(void* clipper))->Step()} |]
 
 
 -- | Wraps @ImGuiContext*@.

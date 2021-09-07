@@ -7,7 +7,6 @@ module DearImGui.Structs where
 import Foreign
   ( Storable(..), castPtr, plusPtr )
 
-data ImGuiListClipper
 --------------------------------------------------------------------------------
 data ImVec2 = ImVec2 { x, y :: {-# unpack #-} !Float }
 
