@@ -236,26 +236,23 @@ beginImGuiListClipper size
         return reinterpret_cast<void*>(clipper);
       } |]
 
+
 -- | Wraps @ImGuiListClipper::End()
 endImGuiListClipper :: MonadIO m => ImGuiListClipper -> m Int
 endImGuiListClipper (ImGuiListClipper clipper) = liftIO do
-  fromEnum <$> [Cpp.block| void { delete (ImGuiListClipper*)$(void * clipper); } |]
+  fromEnum <$> [Cpp.exp| void { delete (ImGuiListClipper*)$(void * clipper) } |]
 
 
 -- | Wraps @ImGuiListClipper::Begin()
 displayStartListClipper :: MonadIO m => ImGuiListClipper -> m Int
 displayStartListClipper (ImGuiListClipper clipper)= liftIO do
-  fromEnum <$> [Cpp.exp| int { 
-    reinterpret_cast<ImGuiListClipper*>($(void* clipper))->DisplayStart
-     } |] 
+  fromEnum <$> [Cpp.exp| int { reinterpret_cast<ImGuiListClipper*>($(void* clipper))->DisplayStart } |] 
 
 
 -- | Wraps @ImGuiListClipper::DisplayStart
 displayEndListClipper :: MonadIO m => ImGuiListClipper -> m Int
 displayEndListClipper (ImGuiListClipper clipper)= liftIO do
-  fromEnum <$> [Cpp.exp| int { 
-    reinterpret_cast<ImGuiListClipper*>($(void* clipper))->DisplayEnd
-  } |]
+  fromEnum <$> [Cpp.exp| int { reinterpret_cast<ImGuiListClipper*>($(void* clipper))->DisplayEnd } |]
 
 
 -- | Wraps @ImGuiListClipper::DisplayEnd
