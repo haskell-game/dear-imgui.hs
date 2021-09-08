@@ -40,7 +40,6 @@ import qualified Language.C.Inline.Cpp as Cpp
 
 -- sdl2
 import SDL
-import SDL.Internal.Types
 import SDL.Raw.Enum as Raw
 import qualified SDL.Raw.Event as Raw
 
@@ -57,9 +56,9 @@ Cpp.using "namespace ImGui"
 
 
 -- | Wraps @ImGui_ImplSDL2_NewFrame@.
-sdl2NewFrame :: MonadIO m => Window -> m ()
-sdl2NewFrame (Window windowPtr) = liftIO do
-  [C.exp| void { ImGui_ImplSDL2_NewFrame((SDL_Window*)($(void* windowPtr))); } |]
+sdl2NewFrame :: MonadIO m => m ()
+sdl2NewFrame = liftIO do
+  [C.exp| void { ImGui_ImplSDL2_NewFrame(); } |]
 
 
 -- | Wraps @ImGui_ImplSDL2_Shutdown@.

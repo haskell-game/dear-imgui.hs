@@ -1,7 +1,7 @@
 cabal-version: 3.0
 
 name: dear-imgui
-version: 1.0.1
+version: 1.1.0
 author: Oliver Charles
 maintainer: ollie@ocharles.org.uk, aenor.realm@gmail.com
 license: BSD-3-Clause
@@ -181,7 +181,8 @@ library
     exposed-modules:
       DearImGui.GLFW
     build-depends:
-      GLFW-b
+      GLFW-b,
+      bindings-GLFW
     cxx-sources:
       imgui/backends/imgui_impl_glfw.cpp
 

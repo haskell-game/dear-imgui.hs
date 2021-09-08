@@ -1,6 +1,7 @@
 {-# LANGUAGE BlockArguments #-}
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedStrings #-}
@@ -63,8 +64,11 @@ module DearImGui
   , Raw.endChild
 
     -- * Parameter stacks
+  , withStyleColor
   , pushStyleColor
   , Raw.popStyleColor
+
+  , withStyleVar
   , pushStyleVar
   , popStyleVar
 
@@ -74,9 +78,13 @@ module DearImGui
   , Raw.newLine
   , Raw.spacing
   , dummy
+
+  , withIndent
   , indent
   , unindent
+
   , setNextItemWidth
+  , withItemWidth
   , pushItemWidth
   , Raw.popItemWidth
 
@@ -86,6 +94,10 @@ module DearImGui
 
   , setCursorPos
   , Raw.alignTextToFramePadding
+
+    -- * ID stack
+  , withID
+  , ToID(..)
 
     -- * Widgets
     -- ** Text
@@ -1415,6 +1427,9 @@ dummy sizeRef = liftIO do
   size' <- get sizeRef
   with size' Raw.dummy
 
+withIndent :: MonadUnliftIO m => Float -> m a -> m a
+withIndent width =
+  bracket_ (indent width) (unindent width)
 
 -- | Move content position toward the right, by indent_w, or style.IndentSpacing if indent_w <= 0
 --
@@ -1440,6 +1455,10 @@ setNextItemWidth itemWidth = liftIO do
   Raw.setNextItemWidth (CFloat itemWidth)
 
 
+withItemWidth :: MonadUnliftIO m => Float -> m a -> m a
+withItemWidth width =
+  bracket_ (pushItemWidth width) Raw.popItemWidth
+
 -- Wraps @ImGui::PushItemWidth()@
 pushItemWidth :: (MonadIO m) => Float -> m ()
 pushItemWidth itemWidth = liftIO do
@@ -1460,8 +1479,52 @@ setCursorPos posRef = liftIO do
   pos <- get posRef
   with pos Raw.setCursorPos
 
+-- | Add an element to a ID stack
+--
+-- Read the FAQ (http://dearimgui.org/faq) for more details
+-- about how ID are handled in dear imgui.
+--
+-- Those questions are answered and impacted by understanding of the ID stack system:
+-- * "Q: Why is my widget not reacting when I click on it?"
+-- * "Q: How can I have widgets with an empty label?"
+-- * "Q: How can I have multiple widgets with the same label?"
+--
+-- Wraps @ImGui::PushId@ and @ImGui::PopId@
+withID :: (MonadUnliftIO m, ToID id) => id -> m a -> m a
+withID i = bracket_ (liftIO $ pushID i) Raw.popID
 
--- | Modify a style color by pushing to the shared stack. always use this if you modify the style after `newFrame`
+-- | A supplementary class to match overloaded functions in C++ the library.
+class ToID a where
+  pushID :: MonadIO m => a -> m ()
+
+instance ToID CInt where
+  pushID = Raw.pushIDInt
+
+instance ToID Int where
+  pushID = Raw.pushIDInt . fromIntegral
+
+instance ToID Integer where
+  pushID = Raw.pushIDInt . fromInteger
+
+instance {-# OVERLAPPABLE #-} ToID (Ptr a) where
+  pushID = Raw.pushIDPtr
+
+instance {-# OVERLAPPING #-} ToID (Ptr CChar) where
+  pushID = Raw.pushIDStr
+
+instance ToID (Ptr CChar, Int) where
+  pushID = Raw.pushIDStrLen
+
+instance ToID String where
+  pushID s = liftIO $ withCStringLen s pushID
+
+withStyleColor :: (MonadUnliftIO m, HasGetter ref ImVec4) => ImGuiCol -> ref -> m a -> m a
+withStyleColor color ref =
+  bracket_ (pushStyleColor color ref) (Raw.popStyleColor 1)
+
+-- | Modify a style color by pushing to the shared stack.
+--
+-- Always use this if you modify the style after `newFrame`.
 --
 -- Wraps @ImGui::PushStyleColor()@
 pushStyleColor :: (MonadIO m, HasGetter ref ImVec4) => ImGuiCol -> ref -> m ()
@@ -1470,8 +1533,13 @@ pushStyleColor col colorRef = liftIO do
   with color \colorPtr ->
     Raw.pushStyleColor col colorPtr
 
+withStyleVar :: (MonadUnliftIO m, HasGetter ref ImVec2) => ImGuiStyleVar -> ref -> m a -> m a
+withStyleVar style ref =
+  bracket_ (pushStyleVar style ref) (Raw.popStyleVar 1)
 
--- | Modify a style variable by pushing to the shared stack. always use this if you modify the style after `newFrame`
+-- | Modify a style variable by pushing to the shared stack.
+--
+-- Always use this if you modify the style after `newFrame`.
 --
 -- Wraps @ImGui::PushStyleVar()@
 pushStyleVar :: (MonadIO m, HasGetter ref ImVec2) => ImGuiStyleVar -> ref -> m ()
@@ -1479,7 +1547,6 @@ pushStyleVar style valRef = liftIO do
   val <- get valRef
   with val \valPtr ->
     Raw.pushStyleVar style valPtr
-
 
 -- | Remove style variable modifications from the shared stack
 --

@@ -342,7 +342,7 @@ app = do
               else
                 handleJust vulkanException ( pure . reloadQuit ) do
                   ImGui.Vulkan.vulkanNewFrame
-                  ImGui.SDL.sdl2NewFrame window
+                  ImGui.SDL.sdl2NewFrame
                   ImGui.newFrame
                   ImGui.showDemoWindow
                   ImGui.render
@@ -370,7 +370,7 @@ app = do
             freeOldResources
             let
               freeOldResources :: m ()
-              freeOldResources = pure ()    
+              freeOldResources = pure ()
             unless quit $ mainLoop ( AppState {..} )
 
     let
