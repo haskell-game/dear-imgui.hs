@@ -112,7 +112,7 @@ library
       dear-imgui-generator
     , containers
     , managed
-    , inline-c
+    , inline-c >= 0.9
     , inline-c-cpp
     , StateVar
     , unliftio
