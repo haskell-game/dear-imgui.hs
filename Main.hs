@@ -38,7 +38,7 @@ main = do
       tab2 <- newIORef True
       loop w checked color slider r pos size' selected tab1 tab2
 
-      openGL3Shutdown
+ --     openGL3Shutdown
 
 
 loop

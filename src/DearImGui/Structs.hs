@@ -8,7 +8,7 @@ import Foreign
   ( Storable(..), castPtr, plusPtr )
 
 --------------------------------------------------------------------------------
-data ImVec2 = ImVec2 { x, y :: {-# unpack #-} !Float }
+data ImVec2 = ImVec2 { x, y :: {-# unpack #-} !Float } deriving (Show)
 
 
 instance Storable ImVec2 where

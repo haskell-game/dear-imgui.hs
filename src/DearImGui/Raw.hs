@@ -1128,8 +1128,10 @@ isItemHovered = liftIO do
 -- | Set next window position. Call before `begin` Use pivot=(0.5,0.5) to center on given point, etc.
 --
 -- Wraps @ImGui::SetNextWindowPos()@
-setNextWindowPos :: (MonadIO m) => Ptr ImVec2 -> ImGuiCond -> Ptr ImVec2 -> m ()
-setNextWindowPos posPtr cond pivotPtr = liftIO do
+setNextWindowPos :: (MonadIO m) => Ptr ImVec2 -> ImGuiCond -> Maybe (Ptr ImVec2) -> m ()
+setNextWindowPos posPtr cond Nothing = liftIO do
+  [C.exp| void { SetNextWindowPos(*$(ImVec2* posPtr), $(ImGuiCond cond)) } |]
+setNextWindowPos posPtr cond (Just pivotPtr) = liftIO do
   [C.exp| void { SetNextWindowPos(*$(ImVec2* posPtr), $(ImGuiCond cond), *$(ImVec2* pivotPtr)) } |]
 
 

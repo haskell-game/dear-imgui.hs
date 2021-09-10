@@ -1388,9 +1388,9 @@ setNextWindowPos posRef cond pivotMaybe = liftIO do
       Just pivotRef -> do
         pivot <- get pivotRef
         with pivot $ \pivotPtr ->
-          Raw.setNextWindowPos posPtr cond pivotPtr
-      Nothing ->
-        Raw.setNextWindowPos posPtr cond nullPtr
+          Raw.setNextWindowPos posPtr cond (Just pivotPtr)
+      Nothing -> do
+        Raw.setNextWindowPos posPtr cond Nothing
 
 -- | Set next window size. Call before `begin`
 --
