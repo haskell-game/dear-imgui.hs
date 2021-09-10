@@ -283,7 +283,7 @@ getVersion = liftIO do
 begin :: MonadIO m => String -> m Bool
 begin name = liftIO do
   withCString name \namePtr ->
-    Raw.begin namePtr nullPtr (ImGuiWindowFlags 0)
+    Raw.begin namePtr Nothing Nothing
 
 -- | Append items to a window.
 --
@@ -315,7 +315,7 @@ withFullscreen action = bracket open close (`when` action)
     open = liftIO do
       Raw.setNextWindowFullscreen
       withCString "FullScreen" \namePtr ->
-        Raw.begin namePtr nullPtr fullscreenFlags
+        Raw.begin namePtr (Just nullPtr) (Just fullscreenFlags)
 
     close = liftIO . const Raw.end
 
@@ -357,7 +357,7 @@ withChildOpen name action =
 text :: MonadIO m => String -> m ()
 text t = liftIO do
   withCString t \textPtr ->
-    Raw.textUnformatted textPtr nullPtr
+    Raw.textUnformatted textPtr Nothing
 
 -- | Colored text.
 textColored :: (HasGetter ref ImVec4, MonadIO m) => ref -> String -> m ()
@@ -1369,9 +1369,9 @@ setNextWindowPos posRef cond pivotMaybe = liftIO do
       Just pivotRef -> do
         pivot <- get pivotRef
         with pivot $ \pivotPtr ->
-          Raw.setNextWindowPos posPtr cond pivotPtr
+          Raw.setNextWindowPos posPtr cond (Just pivotPtr)
       Nothing ->
-        Raw.setNextWindowPos posPtr cond nullPtr
+        Raw.setNextWindowPos posPtr cond Nothing
 
 -- | Set next window size. Call before `begin`
 --

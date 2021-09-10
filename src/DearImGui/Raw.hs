@@ -346,10 +346,14 @@ styleColorsClassic = liftIO do
 --
 -- Passing non-null @Ptr CBool@ shows a window-closing widget in the upper-right corner of the window,
 -- wich clicking will set the boolean to false when clicked.
-begin :: (MonadIO m) => CString -> Ptr CBool -> ImGuiWindowFlags -> m Bool
-begin namePtr openPtr flags = liftIO do
+begin :: (MonadIO m) => CString -> Maybe (Ptr CBool) -> Maybe (ImGuiWindowFlags) -> m Bool
+begin namePtr (Just openPtr) (Just flags) = liftIO do
   (0 /=) <$> [C.exp| bool { Begin($(char* namePtr), $(bool* openPtr), $(ImGuiWindowFlags flags)) } |]
-
+begin namePtr (Just openPtr) Nothing = liftIO do
+  (0 /=) <$> [C.exp| bool { Begin($(char* namePtr), $(bool* openPtr)) } |]
+begin namePtr Nothing Nothing = liftIO do
+  (0 /=) <$> [C.exp| bool { Begin($(char* namePtr)) } |]
+begin _ Nothing _ = error "C++ default argument restriction."
 
 -- | Pop window from the stack.
 --
@@ -394,9 +398,11 @@ sameLine = liftIO do
 --   B) it's faster, no memory copy is done, no buffer size limits, recommended for long chunks of text.
 --
 -- Wraps @ImGui::TextUnformatted()@.
-textUnformatted :: (MonadIO m) => CString -> CString -> m ()
-textUnformatted textPtr textEndPtr = liftIO do
+textUnformatted :: (MonadIO m) => CString -> Maybe CString -> m ()
+textUnformatted textPtr (Just textEndPtr) = liftIO do
   [C.exp| void { TextUnformatted($(char* textPtr), $(char* textEndPtr)) } |]
+textUnformatted textPtr Nothing = liftIO do
+  [C.exp| void { TextUnformatted($(char* textPtr)) } |]
 
 -- | Shortcut for @PushStyleColor(ImGuiCol_Text, col); Text(fmt, ...); PopStyleColor();@.
 --
@@ -1086,9 +1092,11 @@ isItemHovered = liftIO do
 -- | Set next window position. Call before `begin` Use pivot=(0.5,0.5) to center on given point, etc.
 --
 -- Wraps @ImGui::SetNextWindowPos()@
-setNextWindowPos :: (MonadIO m) => Ptr ImVec2 -> ImGuiCond -> Ptr ImVec2 -> m ()
-setNextWindowPos posPtr cond pivotPtr = liftIO do
+setNextWindowPos :: (MonadIO m) => Ptr ImVec2 -> ImGuiCond -> Maybe (Ptr ImVec2) -> m ()
+setNextWindowPos posPtr cond (Just pivotPtr) = liftIO do
   [C.exp| void { SetNextWindowPos(*$(ImVec2* posPtr), $(ImGuiCond cond), *$(ImVec2* pivotPtr)) } |]
+setNextWindowPos posPtr cond Nothing = liftIO do
+  [C.exp| void { SetNextWindowPos(*$(ImVec2* posPtr), $(ImGuiCond cond)) } |]
 
 
 -- | Set next window size. Call before `begin`
