@@ -15,6 +15,9 @@ import Control.Exception
 import Graphics.GL
 import SDL
 
+-- ListClipper
+import qualified Data.Vector as V
+
 main :: IO ()
 main = do
   initializeAll
@@ -131,6 +134,13 @@ loop window checked color slider r pos size' selected tab1Ref tab2Ref = do
 
   combo "Simple" selected [ "1", "2", "3" ]
 
+  endChild
+
+  beginChild "ListClipper"
+  let cList = V.generate 50 (\a -> a)
+  withListClipper cList (\a -> text $ show a)
+
+    
   endChild
 
   plotHistogram "A histogram" [ 10, 10, 20, 30, 90 ]

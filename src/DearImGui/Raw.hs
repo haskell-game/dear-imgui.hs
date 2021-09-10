@@ -178,6 +178,13 @@ module DearImGui.Raw
   , openPopup
   , closeCurrentPopup
 
+    -- * Miscellaneous Utilities
+  , beginListClipper
+  , endListClipper
+  , stepListClipper
+  , displayStartListClipper
+  , displayEndListClipper
+
     -- * ID stack/scopes
   , pushIDInt
   , pushIDPtr
@@ -225,8 +232,8 @@ newtype ImGuiListClipper = ImGuiListClipper (Ptr ())
 -- | Wraps @ImGuiListClipper::Begin()
 -- 
 -- The pointer has to be deleted manually by destroiyImGuiListClipper
-beginImGuiListClipper :: MonadIO m => Int -> m ImGuiListClipper
-beginImGuiListClipper size 
+beginListClipper :: MonadIO m => Int -> m ImGuiListClipper
+beginListClipper size 
   | size < 0 = error "Size of the Clipper can't be negative"
   | otherwise = liftIO $ do
     let length = toEnum size :: CInt
@@ -238,8 +245,8 @@ beginImGuiListClipper size
 
 
 -- | Wraps @ImGuiListClipper::End()
-endImGuiListClipper :: MonadIO m => ImGuiListClipper -> m Int
-endImGuiListClipper (ImGuiListClipper clipper) = liftIO do
+endListClipper :: MonadIO m => ImGuiListClipper -> m Int
+endListClipper (ImGuiListClipper clipper) = liftIO do
   fromEnum <$> [Cpp.exp| void { delete (ImGuiListClipper*)$(void * clipper) } |]
 
 
@@ -256,8 +263,8 @@ displayEndListClipper (ImGuiListClipper clipper)= liftIO do
 
 
 -- | Wraps @ImGuiListClipper::DisplayEnd
-stepImGuiListClipper :: MonadIO m => ImGuiListClipper -> m Bool
-stepImGuiListClipper (ImGuiListClipper clipper)= liftIO do
+stepListClipper :: MonadIO m => ImGuiListClipper -> m Bool
+stepListClipper (ImGuiListClipper clipper)= liftIO do
   (==) (CBool 1) <$> [Cpp.exp| bool { reinterpret_cast<ImGuiListClipper*>($(void* clipper))->Step()} |]
 
 

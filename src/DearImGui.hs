@@ -217,6 +217,9 @@ module DearImGui
   , openPopup
   , Raw.closeCurrentPopup
 
+    -- * Miscellaneous Utilities
+  , withListClipper
+
     -- * Item/Widgets Utilities
   , Raw.isItemHovered
   , Raw.wantCaptureMouse
@@ -257,6 +260,9 @@ import UnliftIO (MonadUnliftIO)
 import UnliftIO.Exception (bracket, bracket_)
 
 import qualified DearImGui.Raw as Raw
+
+-- ListClipper
+import qualified Data.Vector as V
 
 
 -- | Get the compiled version string e.g. "1.80 WIP" (essentially the value for
@@ -745,20 +751,21 @@ dragScalarN label dataType ref vSpeed refMin refMax format flags = liftIO do
 
         return changed
 
-  {-
+  
 -- | Clips a large list of items
 --
 -- The requirements on a are that they are all of the same height. Not sure, how this could be expressed.
-withListClipper :: MonadUnliftIO m => Vector a -> (a -> m ()) -> m ()
-withListClipper list action = bracket beginListClipper endListClipper step
+withListClipper :: MonadUnliftIO m => V.Vector a -> (a -> m ()) -> m ()
+withListClipper list action = bracket (Raw.beginListClipper $ V.length list) Raw.endListClipper step_
   where
-    step :: a -> m ()
-    step clipper = liftIO do
-      when (Raw.stepListClipper clipper) do
-        let startIndex = Raw.displayStartListClipper clipper
-        let length = startIndex - Raw.displayEndListClipper clipper
-        mapM_ action (slice startIndex length list) 
-        step clipper
+    step_ :: c -> m ()
+    step_ clipper = do
+      doStep <- Raw.stepListClipper clipper
+      when doStep $ do
+        startIndex <- Raw.displayStartListClipper clipper
+        l <- (-) startIndex <$> Raw.displayEndListClipper clipper
+        mapM_ action (V.slice startIndex l list) 
+        step_ clipper
 
       --  while (clipper.Step())
       --      {
@@ -769,7 +776,6 @@ withListClipper list action = bracket beginListClipper endListClipper step
       --              ImGui::TextUnformatted(line_start, line_end);
       --          }
       --      }
-      -}
 
 sliderScalar
   :: (HasSetter ref a, HasGetter ref a, Storable a, MonadIO m)
