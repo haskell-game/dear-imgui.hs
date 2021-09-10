@@ -2,12 +2,13 @@
 {-# language LambdaCase #-}
 {-# language OverloadedStrings #-}
 
-module Image ( Image ) where
+module Main ( main ) where
 
 import Control.Exception
 import Control.Monad.IO.Class
 import Control.Monad.Managed
 import DearImGui
+import qualified DearImGui.Raw as Raw
 import DearImGui.OpenGL3
 import DearImGui.SDL
 import DearImGui.SDL.OpenGL
@@ -93,7 +94,7 @@ gui = do
       putStrLn $  "Error-code: " ++ show err
      
     liftIO $ do
-      mainLoop w 1
+      mainLoop w 1 -- 1 is actually the Ptr address
 
 
 mainLoop :: SDL.Window ->  GLuint -> IO ()
@@ -107,8 +108,14 @@ mainLoop w c = do
   newFrame
 
   -- Build the GUI
-  bracket_ (begin "GL") end do
-  Raw.image (intPtrToPtr $ fromIntegral c) (ImVec2 500 500)(ImVec2 0 0)(ImVec2 1 1)(ImVec4 1 1 1 1)(ImVec4 0 0 0 0)
+  bracket_ (begin "GL") end $ do
+--    image (intPtrToPtr $ fromIntegral c) (ImVec2 500 500)(ImVec2 0 0)(ImVec2 1 1)(ImVec4 1 1 1 1)(ImVec4 0 0 0 0)
+    Foreign.with (ImVec2 500 500) \sizePtr ->
+      Foreign.with (ImVec2 0 0) \uv0Ptr -> 
+        Foreign.with (ImVec2 1 1) \uv1Ptr -> 
+          Foreign.with (ImVec4 1 1 1 1) \tintColPtr -> 
+            Foreign.with (ImVec4 0 0 0 0) \borderColPtr -> do
+              Raw.image (intPtrToPtr $ fromIntegral c) sizePtr uv0Ptr uv1Ptr tintColPtr borderColPtr
 
   -- Render
   render
@@ -123,3 +130,4 @@ mainLoop w c = do
   where
     untilNothingM m = m >>= maybe (return ()) (\_ -> untilNothingM m)
 
+main = do gui
