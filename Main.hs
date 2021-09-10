@@ -41,23 +41,23 @@ main = do
       openGL3Shutdown
 
 
-loop 
-  :: Window 
-  -> IORef Bool 
-  -> IORef ImVec3 
-  -> IORef (Float, Float, Float) 
-  -> IORef Int 
-  -> IORef ImVec2 
+loop
+  :: Window
+  -> IORef Bool
+  -> IORef ImVec3
+  -> IORef (Float, Float, Float)
+  -> IORef Int
   -> IORef ImVec2
-  -> IORef Int 
+  -> IORef ImVec2
+  -> IORef Int
   -> IORef Bool
   -> IORef Bool
   -> IO ()
-loop w checked color slider r pos size' selected tab1Ref tab2Ref = do
-  quit <- pollEvents
+loop window checked color slider r pos size' selected tab1Ref tab2Ref = do
+  shouldQuit <- checkEvents
 
   openGL3NewFrame
-  sdl2NewFrame w
+  sdl2NewFrame
   newFrame
 
   -- showDemoWindow
@@ -68,7 +68,7 @@ loop w checked color slider r pos size' selected tab1Ref tab2Ref = do
   setNextWindowPos pos ImGuiCond_Once Nothing
   setNextWindowSize size' ImGuiCond_Once
   -- Works, but will make the window contents illegible without doing something more involved.
-  -- setNextWindowContentSize size' 
+  -- setNextWindowContentSize size'
   -- setNextWindowSizeConstraints size' size'
   setNextWindowCollapsed False ImGuiCond_Once
 
@@ -164,13 +164,15 @@ loop w checked color slider r pos size' selected tab1Ref tab2Ref = do
   glClear GL_COLOR_BUFFER_BIT
   openGL3RenderDrawData =<< getDrawData
 
-  glSwapWindow w
+  glSwapWindow window
 
-  if quit then return () else loop w checked color slider r pos size' selected tab1Ref tab2Ref
+  if shouldQuit
+    then return ()
+    else loop window checked color slider r pos size' selected tab1Ref tab2Ref
 
   where
 
-    pollEvents = do
+    checkEvents = do
       ev <- pollEventWithImGui
 
       case ev of
@@ -180,9 +182,9 @@ loop w checked color slider r pos size' selected tab1Ref tab2Ref = do
                 QuitEvent -> True
                 _         -> False
 
-          (isQuit ||) <$> pollEvents
+          (isQuit ||) <$> checkEvents
 
 
 whenTrue :: IO () -> Bool -> IO ()
 whenTrue io True  = io
-whenTrue io False = return ()
+whenTrue _io False = return ()
