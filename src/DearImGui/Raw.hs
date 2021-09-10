@@ -179,6 +179,13 @@ module DearImGui.Raw
   , openPopup
   , closeCurrentPopup
 
+    -- * ID stack/scopes
+  , pushIDInt
+  , pushIDPtr
+  , pushIDStr
+  , pushIDStrLen
+  , popID
+
     -- * Item/Widgets Utilities
   , isItemHovered
   , wantCaptureMouse
@@ -1286,6 +1293,44 @@ pushStyleVar style valPtr = liftIO do
 popStyleVar :: (MonadIO m) => CInt -> m ()
 popStyleVar n = liftIO do
   [C.exp| void { PopStyleVar($(int n)) } |]
+
+
+-- | Push integer into the ID stack (will hash int).
+--
+-- Wraps @ImGui::PushId@
+pushIDInt :: (MonadIO m) => CInt -> m ()
+pushIDInt intId = liftIO do
+  [C.exp| void { PushID($(int intId)) } |]
+
+-- | Push pointer into the ID stack (will hash pointer).
+--
+-- Wraps @ImGui::PushId@
+pushIDPtr :: (MonadIO m) => Ptr a -> m ()
+pushIDPtr ptr = liftIO do
+  [C.exp| void { PushID($(void * ptr_)) } |]
+  where
+    ptr_ = castPtr ptr
+
+-- | Push string into the ID stack (will hash string).
+--
+-- Wraps @ImGui::PushId@
+pushIDStr :: (MonadIO m) => CString -> m ()
+pushIDStr strId = liftIO do
+  [C.exp| void { PushID($(char * strId)) } |]
+
+-- | Push string into the ID stack (will hash string).
+--
+-- Wraps @ImGui::PushId@
+pushIDStrLen :: (MonadIO m) => CStringLen -> m ()
+pushIDStrLen (strBegin, strLen) = liftIO do
+  [C.exp| void { PushID($(char * strBegin), $(char * strEnd)) } |]
+  where
+    strEnd = plusPtr strBegin strLen
+
+popID :: (MonadIO m) => m ()
+popID = liftIO do
+  [C.exp| void { PopID() } |]
+
 
 wantCaptureMouse :: MonadIO m => m Bool
 wantCaptureMouse = liftIO do

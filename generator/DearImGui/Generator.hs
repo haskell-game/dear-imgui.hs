@@ -12,8 +12,6 @@ module DearImGui.Generator
 -- base
 import Control.Arrow
   ( second )
-import Data.Coerce
-  ( coerce )
 import Data.Bits
   ( Bits )
 import Data.Foldable
@@ -54,7 +52,6 @@ import qualified Language.Haskell.TH.Syntax as TH
 
 -- text
 import qualified Data.Text as Text
-  ( isInfixOf, null, unpack, unlines )
 import qualified Data.Text.IO as Text
   ( readFile )
 
@@ -157,11 +154,11 @@ declareEnumeration finiteEnumName countName ( Enumeration {..} ) = do
                         <$> TH.appT ( TH.conT countName ) ( TH.conT tyName )
                         <*> TH.litT ( TH.numTyLit enumSize )
                           )
-          ]  
+          ]
       pure ( finiteEnumInst : )
     else pure id
 
-  synonyms <- for patterns \ ( patternName, patternValue, CommentText patDoc ) -> do
+  synonyms <- for patterns \ ( patternName, patternValue, CommentText _patDoc ) -> do
     let
       patNameStr :: String
       patNameStr = Text.unpack patternName
@@ -169,7 +166,7 @@ declareEnumeration finiteEnumName countName ( Enumeration {..} ) = do
     patSynSig <- TH.patSynSigD patName ( TH.conT tyName )
     pat       <-
 #if MIN_VERSION_template_haskell(2,18,0)
-      ( if   Text.null patDoc
+      ( if   Text.null _patDoc
         then TH.patSynD
         else
           \ nm args dir pat ->
