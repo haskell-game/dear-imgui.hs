@@ -220,7 +220,7 @@ library dear-imgui-generator
     , megaparsec
         >= 9.0 && < 9.1
     , parser-combinators
-        >= 1.2.0 && < 1.3
+        >= 1.2.0 && < 1.4
     , scientific
         >= 0.3.6.2 && < 0.3.8
     , text
