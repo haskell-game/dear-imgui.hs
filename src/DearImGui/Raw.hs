@@ -99,6 +99,7 @@ module DearImGui.Raw
     -- ** Main
   , button
   , smallButton
+  , invisibleButton
   , arrowButton
   , checkbox
   , progressBar
@@ -477,6 +478,24 @@ smallButton :: (MonadIO m) => CString -> m Bool
 smallButton labelPtr = liftIO do
   (0 /=) <$> [C.exp| bool { SmallButton($(char* labelPtr)) } |]
 
+
+-- | Flexible button behavior without the visuals.
+--
+-- Frequently useful to build custom behaviors using the public api
+-- (along with IsItemActive, IsItemHovered, etc).
+--
+-- Wraps @ImGui::InvisibleButton()@.
+invisibleButton :: (MonadIO m) => CString -> Ptr ImVec2 -> ImGuiButtonFlags -> m Bool
+invisibleButton labelPtr size flags = liftIO do
+  (0 /=) <$> [C.exp|
+    bool {
+      InvisibleButton(
+        $(char* labelPtr),
+        *$(ImVec2* size),
+        $(ImGuiButtonFlags flags)
+      )
+    }
+  |]
 
 -- | Square button with an arrow shape.
 --
