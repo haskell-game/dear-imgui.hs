@@ -49,6 +49,15 @@ module DearImGui
 
   , begin
   , Raw.end
+
+    -- ** Utilities
+
+  , Raw.getWindowPos
+  , Raw.getWindowSize
+  , Raw.getWindowWidth
+  , Raw.getWindowHeight
+
+    -- ** Manipulation
   , setNextWindowPos
   , setNextWindowSize
   , Raw.setNextWindowFullscreen
@@ -57,7 +66,7 @@ module DearImGui
   , setNextWindowCollapsed
   , setNextWindowBgAlpha
 
-    -- * Child Windows
+    -- ** Child Windows
   , withChild
   , withChildOpen
   , beginChild
