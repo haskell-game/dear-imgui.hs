@@ -120,6 +120,7 @@ module DearImGui
     -- ** Main
   , button
   , smallButton
+  , invisibleButton
   , arrowButton
   , checkbox
   , progressBar
@@ -414,6 +415,19 @@ button label = liftIO do
 smallButton :: MonadIO m => String -> m Bool
 smallButton label = liftIO do
   withCString label Raw.smallButton
+
+
+-- | Flexible button behavior without the visuals.
+--
+-- Frequently useful to build custom behaviors using the public api
+-- (along with IsItemActive, IsItemHovered, etc).
+--
+-- Wraps @ImGui::InvisibleButton()@.
+invisibleButton :: MonadIO m => String -> ImVec2 -> ImGuiButtonFlags -> m Bool
+invisibleButton label size flags = liftIO do
+  withCString label \labelPtr ->
+    with size \sizePtr ->
+      Raw.invisibleButton labelPtr sizePtr flags
 
 
 -- | Square button with an arrow shape.
