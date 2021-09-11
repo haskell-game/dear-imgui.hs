@@ -43,6 +43,16 @@ module DearImGui.Raw
     -- * Windows
   , begin
   , end
+
+    -- ** Utilities
+
+  , getWindowPos
+  , getWindowSize
+  , getWindowWidth
+  , getWindowHeight
+
+    -- ** Manipulation
+
   , setNextWindowPos
   , setNextWindowSize
   , setNextWindowFullscreen
@@ -51,7 +61,7 @@ module DearImGui.Raw
   , setNextWindowCollapsed
   , setNextWindowBgAlpha
 
-    -- * Child Windows
+    -- ** Child Windows
   , beginChild
   , endChild
 
@@ -1088,6 +1098,31 @@ isItemHovered :: (MonadIO m) => m Bool
 isItemHovered = liftIO do
   (0 /=) <$> [C.exp| bool { IsItemHovered() } |]
 
+getWindowPos :: (MonadIO m) => m ImVec2
+getWindowPos = liftIO do
+  C.withPtr_ \ptr ->
+    [C.block|
+      void {
+        *$(ImVec2 * ptr) = GetWindowPos();
+      }
+    |]
+
+getWindowSize :: (MonadIO m) => m ImVec2
+getWindowSize = liftIO do
+  C.withPtr_ \ptr ->
+    [C.block|
+      void {
+        *$(ImVec2 * ptr) = GetWindowSize();
+      }
+    |]
+
+getWindowWidth :: (MonadIO m) => m CFloat
+getWindowWidth = liftIO do
+  [C.exp| float { GetWindowWidth() } |]
+
+getWindowHeight :: (MonadIO m) => m CFloat
+getWindowHeight = liftIO do
+  [C.exp| float { GetWindowHeight() } |]
 
 -- | Set next window position. Call before `begin` Use pivot=(0.5,0.5) to center on given point, etc.
 --
