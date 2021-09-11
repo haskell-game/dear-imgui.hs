@@ -165,6 +165,8 @@ module DearImGui
 
     -- ** Text Input
   , inputText
+  , inputTextMultiline
+  , inputTextWithHint
 
     -- * Color Editor/Picker
   , colorPicker3
@@ -253,6 +255,9 @@ import Data.Foldable
   ( foldl' )
 import Foreign
 import Foreign.C
+import qualified GHC.Foreign as Foreign
+import System.IO
+  ( utf8 )
 
 -- dear-imgui
 import DearImGui.Enums
@@ -1088,18 +1093,69 @@ vSliderScalar label size dataType ref refMin refMax format flags = liftIO do
 
 -- | Wraps @ImGui::InputText()@.
 inputText :: (MonadIO m, HasSetter ref String, HasGetter ref String) => String -> ref -> Int -> m Bool
-inputText desc ref refSize = liftIO do
+inputText label ref bufSize =
+  withInputString ref bufSize \bufPtrLen ->
+      Foreign.withCString utf8 label \labelPtr ->
+        Raw.inputText
+          labelPtr
+          bufPtrLen
+          ImGuiInputTextFlags_None
+
+
+-- | Wraps @ImGui::InputTextMultiline()@.
+inputTextMultiline :: (MonadIO m, HasSetter ref String, HasGetter ref String) => String -> ref -> Int -> ImVec2 -> m Bool
+inputTextMultiline label ref bufSize size =
+  withInputString ref bufSize \bufPtrLen ->
+    Foreign.withCString utf8 label \labelPtr ->
+      with size \sizePtr ->
+        Raw.inputTextMultiline
+          labelPtr
+          bufPtrLen
+          sizePtr
+          ImGuiInputTextFlags_None
+
+
+-- | Wraps @ImGui::InputTextWithHint()@.
+inputTextWithHint :: (MonadIO m, HasSetter ref String, HasGetter ref String) => String -> String -> ref -> Int -> m Bool
+inputTextWithHint label hint ref bufSize =
+  withInputString ref bufSize \bufPtrLen ->
+    Foreign.withCString utf8 label \labelPtr ->
+      Foreign.withCString utf8 hint \hintPtr ->
+        Raw.inputTextWithHint
+          labelPtr
+          hintPtr
+          bufPtrLen
+          ImGuiInputTextFlags_None
+
+
+-- | Internal helper to prepare appropriately sized and encoded input buffer.
+withInputString
+  :: (MonadIO m, HasSetter ref String, HasGetter ref String)
+  => ref
+  -> Int
+  -> (CStringLen -> IO Bool)
+  -> m Bool
+withInputString ref bufSize action = liftIO do
   input <- get ref
-  withCString input \ refPtr -> do
-    withCString desc \ descPtr -> do
-      let refSize' :: CInt
-          refSize' = fromIntegral refSize
-      changed <- Raw.inputText descPtr refPtr refSize'
+  Foreign.withCStringLen utf8 input \(refPtr, refSize) ->
+    -- XXX: Allocate and zero buffer to receive imgui updates.
+    bracket (mkBuf refSize) free \bufPtr -> do
+      -- XXX: Copy the original input.
+      copyBytes bufPtr refPtr refSize
+
+      changed <- action (bufPtr, bufSize)
 
       when changed do
-        peekCString refPtr >>= ($=!) ref
+        -- XXX: Assuming Imgui wouldn't write over the bump stop so peekCString would finish.
+        newValue <- Foreign.peekCString utf8 bufPtr
+        ref $=! newValue
 
       return changed
+  where
+    mkBuf refSize =
+      callocBytes $
+        max refSize bufSize +
+        5 -- XXX: max size of UTF8 code point + NUL terminator
 
 
 -- | Wraps @ImGui::ColorPicker3()@.

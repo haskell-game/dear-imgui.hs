@@ -7,6 +7,7 @@
 {-# LANGUAGE PatternSynonyms #-}
 {-# LANGUAGE QuasiQuotes #-}
 {-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE ViewPatterns #-}
 
 {-|
 Module: DearImGui
@@ -142,6 +143,8 @@ module DearImGui.Raw
 
     -- ** Text Input
   , inputText
+  , inputTextMultiline
+  , inputTextWithHint
 
     -- * Color Editor/Picker
   , colorPicker3
@@ -892,10 +895,50 @@ vSliderScalar labelPtr sizePtr dataType dataPtr minPtr maxPtr formatPtr flags = 
     minPtr_ = castPtr minPtr
     maxPtr_ = castPtr maxPtr
 
+
 -- | Wraps @ImGui::InputText()@.
-inputText :: (MonadIO m) => CString -> CString -> CInt -> m Bool
-inputText descPtr refPtr refSize = liftIO do
-  (0 /= ) <$> [C.exp| bool { InputText( $(char* descPtr), $(char* refPtr), $(int refSize) ) } |]
+inputText :: (MonadIO m) => CString -> CStringLen -> ImGuiInputTextFlags -> m Bool
+inputText labelPtr (bufPtr, fromIntegral -> bufSize) flags = liftIO do
+  (0 /= ) <$> [C.exp|
+    bool {
+      InputText(
+        $(char* labelPtr),
+        $(char* bufPtr),
+        $(int bufSize),
+        $(ImGuiInputTextFlags flags)
+      )
+    }
+  |]
+
+-- | Wraps @ImGui::InputTextMultiline()@.
+inputTextMultiline :: (MonadIO m) => CString -> CStringLen -> Ptr ImVec2 -> ImGuiInputTextFlags -> m Bool
+inputTextMultiline labelPtr (bufPtr, fromIntegral -> bufSize) sizePtr flags = liftIO do
+  (0 /= ) <$> [C.exp|
+    bool {
+      InputTextMultiline(
+        $(char* labelPtr),
+        $(char* bufPtr),
+        $(size_t bufSize),
+        *$(ImVec2* sizePtr),
+        $(ImGuiInputTextFlags flags)
+      )
+    }
+  |]
+
+-- | Wraps @ImGui::InputTextWithHint()@.
+inputTextWithHint :: (MonadIO m) => CString -> CString -> CStringLen -> ImGuiInputTextFlags -> m Bool
+inputTextWithHint labelPtr hintPtr (bufPtr, fromIntegral -> bufSize) flags = liftIO do
+  (0 /= ) <$> [C.exp|
+    bool {
+      InputTextWithHint(
+        $(char* labelPtr),
+        $(char* hintPtr),
+        $(char* bufPtr),
+        $(int bufSize),
+        $(ImGuiInputTextFlags flags)
+      )
+    }
+  |]
 
 
 -- | Wraps @ImGui::ColorPicker3()@.
