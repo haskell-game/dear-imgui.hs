@@ -125,9 +125,9 @@ declareEnumeration finiteEnumName countName ( Enumeration {..} ) = do
     classes :: [ TH.Q TH.Type ]
     classes
       | isFlagEnum
-      = map TH.conT [ ''Eq, ''Ord, ''Storable, ''Bits ]
+      = map TH.conT [ ''Eq, ''Ord, ''Show, ''Storable, ''Bits ]
       | otherwise
-      = map TH.conT [ ''Eq, ''Ord, ''Storable ]
+      = map TH.conT [ ''Eq, ''Ord, ''Show, ''Storable ]
     derivClause :: TH.Q TH.DerivClause
     derivClause = TH.derivClause ( Just TH.NewtypeStrategy ) classes
 
