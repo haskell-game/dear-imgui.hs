@@ -64,6 +64,7 @@ module DearImGui.Raw
 
     -- ** Child Windows
   , beginChild
+  , beginChildContext
   , endChild
 
     -- * Parameter stacks
@@ -377,11 +378,47 @@ end = liftIO do
   [C.exp| void { End(); } |]
 
 
--- | Wraps @ImGui::BeginChild()@.
-beginChild :: (MonadIO m) => CString -> m Bool
-beginChild namePtr = liftIO do
-  (0 /=) <$> [C.exp| bool { BeginChild($(char* namePtr)) } |]
+-- | Begin a self-contained independent scrolling/clipping regions within a host window.
+--
+-- Child windows can embed their own child.
+--
+-- For each independent axis of @size@:
+--   * ==0.0f: use remaining host window size
+--   * >0.0f: fixed size
+--   * <0.0f: use remaining window size minus abs(size)
+--
+-- Each axis can use a different mode, e.g. @ImVec2 0 400@.
+--
+-- @BeginChild()@ returns `False` to indicate the window is collapsed or fully clipped, so you may early out and omit submitting anything to the window.
+--
+-- Always call a matching `endChild` for each `beginChild` call, regardless of its return value.
+--
+-- Wraps @ImGui::BeginChild()@.
+beginChild :: (MonadIO m) => CString -> Ptr ImVec2 -> CBool -> ImGuiWindowFlags -> m Bool
+beginChild namePtr sizePtr border flags = liftIO do
+  (0 /=) <$> [C.exp|
+    bool {
+      BeginChild(
+        $(char* namePtr),
+        *$(ImVec2* sizePtr),
+        $(bool border),
+        $(ImGuiWindowFlags flags)
+      )
+    }
+  |]
 
+-- | Switch context to another child window by its ID
+--
+-- Wraps @ImGui::BeginChild()@.
+beginChildContext :: (MonadIO m) => CString -> m Bool
+beginChildContext namePtr = liftIO do
+  (0 /=) <$> [C.exp|
+    bool {
+      BeginChild(
+        $(char* namePtr)
+      )
+    }
+  |]
 
 -- | Wraps @ImGui::EndChild()@.
 endChild :: (MonadIO m) => m ()

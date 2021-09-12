@@ -69,6 +69,7 @@ module DearImGui
     -- ** Child Windows
   , withChild
   , withChildOpen
+  , withChildContext
   , beginChild
   , Raw.endChild
 
@@ -348,25 +349,52 @@ fullscreenFlags = foldl' (.|.) zeroBits
   , ImGuiWindowFlags_NoTitleBar
   ]
 
--- | Wraps @ImGui::BeginChild()@.
-beginChild :: MonadIO m => String -> m Bool
-beginChild name = liftIO do
-  withCString name Raw.beginChild
 
--- | Child windows used for self-contained independent scrolling/clipping regions
--- within a host window. Child windows can embed their own child.
+-- | Begin a self-contained independent scrolling/clipping regions within a host window.
+--
+-- Child windows can embed their own child.
+--
+-- For each independent axis of @size@:
+--   * ==0.0f: use remaining host window size
+--   * >0.0f: fixed size
+--   * <0.0f: use remaining window size minus abs(size)
+--
+-- Each axis can use a different mode, e.g. @ImVec2 0 400@.
+--
+-- @BeginChild()@ returns `False` to indicate the window is collapsed or fully clipped, so you may early out and omit submitting anything to the window.
+--
+-- Always call a matching `endChild` for each `beginChild` call, regardless of its return value.
+--
+-- Wraps @ImGui::BeginChild()@.
+beginChild :: MonadIO m => String -> ImVec2 -> Bool -> ImGuiWindowFlags -> m Bool
+beginChild name size border flags = liftIO do
+  withCString name \namePtr ->
+    with size \sizePtr ->
+      Raw.beginChild namePtr sizePtr (bool 0 1 border) flags
+
+-- | Action wrapper for child windows.
 --
 -- Action will get 'False' if the child region is collapsed or fully clipped.
-withChild :: MonadUnliftIO m => String -> (Bool -> m a) -> m a
-withChild name = bracket (beginChild name) (const Raw.endChild)
+withChild :: MonadUnliftIO m => String -> ImVec2 -> Bool -> ImGuiWindowFlags -> (Bool -> m a) -> m a
+withChild name size border flags = bracket (beginChild name size border flags) (const Raw.endChild)
 
--- | Child windows used for self-contained independent scrolling/clipping regions
--- within a host window. Child windows can embed their own child.
+-- | Action-skipping wrapper for child windows.
 --
 -- Action will be skipped if the child region is collapsed or fully clipped.
-withChildOpen :: MonadUnliftIO m => String -> m () -> m ()
-withChildOpen name action =
-  withChild name (`when` action)
+withChildOpen :: MonadUnliftIO m => String -> ImVec2 -> Bool -> ImGuiWindowFlags -> m () -> m ()
+withChildOpen name size border flags action =
+  withChild name size border flags (`when` action)
+
+-- | Action wrapper to run in a context of another child window addressed by its name.
+--
+-- Action will get 'False' if the child region is collapsed or fully clipped.
+withChildContext :: MonadUnliftIO m => String -> (Bool -> m a) -> m a
+withChildContext name action =
+  bracket
+    (liftIO $ withCString name Raw.beginChildContext)
+    (const Raw.endChild)
+    action
+
 
 -- | Plain text.
 text :: MonadIO m => String -> m ()
