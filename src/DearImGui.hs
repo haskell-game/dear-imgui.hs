@@ -20,6 +20,8 @@ module DearImGui
     Raw.Context(..)
   , Raw.createContext
   , Raw.destroyContext
+  , Raw.getCurrentContext
+  , Raw.setCurrentContext
 
     -- * Main
   , Raw.newFrame
@@ -49,6 +51,15 @@ module DearImGui
 
   , begin
   , Raw.end
+
+    -- ** Utilities
+
+  , Raw.getWindowPos
+  , Raw.getWindowSize
+  , Raw.getWindowWidth
+  , Raw.getWindowHeight
+
+    -- ** Manipulation
   , setNextWindowPos
   , setNextWindowSize
   , Raw.setNextWindowFullscreen
@@ -57,9 +68,10 @@ module DearImGui
   , setNextWindowCollapsed
   , setNextWindowBgAlpha
 
-    -- * Child Windows
+    -- ** Child Windows
   , withChild
   , withChildOpen
+  , withChildContext
   , beginChild
   , Raw.endChild
 
@@ -111,6 +123,7 @@ module DearImGui
     -- ** Main
   , button
   , smallButton
+  , invisibleButton
   , arrowButton
   , Raw.image
   , checkbox
@@ -156,6 +169,8 @@ module DearImGui
 
     -- ** Text Input
   , inputText
+  , inputTextMultiline
+  , inputTextWithHint
 
     -- * Color Editor/Picker
   , colorPicker3
@@ -244,6 +259,9 @@ import Data.Foldable
   ( foldl' )
 import Foreign
 import Foreign.C
+import qualified GHC.Foreign as Foreign
+import System.IO
+  ( utf8 )
 
 -- dear-imgui
 import DearImGui.Enums
@@ -284,7 +302,7 @@ getVersion = liftIO do
 begin :: MonadIO m => String -> m Bool
 begin name = liftIO do
   withCString name \namePtr ->
-    Raw.begin namePtr nullPtr (ImGuiWindowFlags 0)
+    Raw.begin namePtr Nothing Nothing
 
 -- | Append items to a window.
 --
@@ -316,7 +334,7 @@ withFullscreen action = bracket open close (`when` action)
     open = liftIO do
       Raw.setNextWindowFullscreen
       withCString "FullScreen" \namePtr ->
-        Raw.begin namePtr nullPtr fullscreenFlags
+        Raw.begin namePtr (Just nullPtr) (Just fullscreenFlags)
 
     close = liftIO . const Raw.end
 
@@ -334,31 +352,58 @@ fullscreenFlags = foldl' (.|.) zeroBits
   , ImGuiWindowFlags_NoTitleBar
   ]
 
--- | Wraps @ImGui::BeginChild()@.
-beginChild :: MonadIO m => String -> m Bool
-beginChild name = liftIO do
-  withCString name Raw.beginChild
 
--- | Child windows used for self-contained independent scrolling/clipping regions
--- within a host window. Child windows can embed their own child.
+-- | Begin a self-contained independent scrolling/clipping regions within a host window.
+--
+-- Child windows can embed their own child.
+--
+-- For each independent axis of @size@:
+--   * ==0.0f: use remaining host window size
+--   * >0.0f: fixed size
+--   * <0.0f: use remaining window size minus abs(size)
+--
+-- Each axis can use a different mode, e.g. @ImVec2 0 400@.
+--
+-- @BeginChild()@ returns `False` to indicate the window is collapsed or fully clipped, so you may early out and omit submitting anything to the window.
+--
+-- Always call a matching `endChild` for each `beginChild` call, regardless of its return value.
+--
+-- Wraps @ImGui::BeginChild()@.
+beginChild :: MonadIO m => String -> ImVec2 -> Bool -> ImGuiWindowFlags -> m Bool
+beginChild name size border flags = liftIO do
+  withCString name \namePtr ->
+    with size \sizePtr ->
+      Raw.beginChild namePtr sizePtr (bool 0 1 border) flags
+
+-- | Action wrapper for child windows.
 --
 -- Action will get 'False' if the child region is collapsed or fully clipped.
-withChild :: MonadUnliftIO m => String -> (Bool -> m a) -> m a
-withChild name = bracket (beginChild name) (const Raw.endChild)
+withChild :: MonadUnliftIO m => String -> ImVec2 -> Bool -> ImGuiWindowFlags -> (Bool -> m a) -> m a
+withChild name size border flags = bracket (beginChild name size border flags) (const Raw.endChild)
 
--- | Child windows used for self-contained independent scrolling/clipping regions
--- within a host window. Child windows can embed their own child.
+-- | Action-skipping wrapper for child windows.
 --
 -- Action will be skipped if the child region is collapsed or fully clipped.
-withChildOpen :: MonadUnliftIO m => String -> m () -> m ()
-withChildOpen name action =
-  withChild name (`when` action)
+withChildOpen :: MonadUnliftIO m => String -> ImVec2 -> Bool -> ImGuiWindowFlags -> m () -> m ()
+withChildOpen name size border flags action =
+  withChild name size border flags (`when` action)
+
+-- | Action wrapper to run in a context of another child window addressed by its name.
+--
+-- Action will get 'False' if the child region is collapsed or fully clipped.
+withChildContext :: MonadUnliftIO m => String -> (Bool -> m a) -> m a
+withChildContext name action =
+  bracket
+    (liftIO $ withCString name Raw.beginChildContext)
+    (const Raw.endChild)
+    action
+
 
 -- | Plain text.
 text :: MonadIO m => String -> m ()
 text t = liftIO do
   withCString t \textPtr ->
-    Raw.textUnformatted textPtr nullPtr
+    Raw.textUnformatted textPtr Nothing
 
 -- | Colored text.
 textColored :: (HasGetter ref ImVec4, MonadIO m) => ref -> String -> m ()
@@ -406,6 +451,19 @@ button label = liftIO do
 smallButton :: MonadIO m => String -> m Bool
 smallButton label = liftIO do
   withCString label Raw.smallButton
+
+
+-- | Flexible button behavior without the visuals.
+--
+-- Frequently useful to build custom behaviors using the public api
+-- (along with IsItemActive, IsItemHovered, etc).
+--
+-- Wraps @ImGui::InvisibleButton()@.
+invisibleButton :: MonadIO m => String -> ImVec2 -> ImGuiButtonFlags -> m Bool
+invisibleButton label size flags = liftIO do
+  withCString label \labelPtr ->
+    with size \sizePtr ->
+      Raw.invisibleButton labelPtr sizePtr flags
 
 
 -- | Square button with an arrow shape.
@@ -1066,18 +1124,69 @@ vSliderScalar label size dataType ref refMin refMax format flags = liftIO do
 
 -- | Wraps @ImGui::InputText()@.
 inputText :: (MonadIO m, HasSetter ref String, HasGetter ref String) => String -> ref -> Int -> m Bool
-inputText desc ref refSize = liftIO do
+inputText label ref bufSize =
+  withInputString ref bufSize \bufPtrLen ->
+      Foreign.withCString utf8 label \labelPtr ->
+        Raw.inputText
+          labelPtr
+          bufPtrLen
+          ImGuiInputTextFlags_None
+
+
+-- | Wraps @ImGui::InputTextMultiline()@.
+inputTextMultiline :: (MonadIO m, HasSetter ref String, HasGetter ref String) => String -> ref -> Int -> ImVec2 -> m Bool
+inputTextMultiline label ref bufSize size =
+  withInputString ref bufSize \bufPtrLen ->
+    Foreign.withCString utf8 label \labelPtr ->
+      with size \sizePtr ->
+        Raw.inputTextMultiline
+          labelPtr
+          bufPtrLen
+          sizePtr
+          ImGuiInputTextFlags_None
+
+
+-- | Wraps @ImGui::InputTextWithHint()@.
+inputTextWithHint :: (MonadIO m, HasSetter ref String, HasGetter ref String) => String -> String -> ref -> Int -> m Bool
+inputTextWithHint label hint ref bufSize =
+  withInputString ref bufSize \bufPtrLen ->
+    Foreign.withCString utf8 label \labelPtr ->
+      Foreign.withCString utf8 hint \hintPtr ->
+        Raw.inputTextWithHint
+          labelPtr
+          hintPtr
+          bufPtrLen
+          ImGuiInputTextFlags_None
+
+
+-- | Internal helper to prepare appropriately sized and encoded input buffer.
+withInputString
+  :: (MonadIO m, HasSetter ref String, HasGetter ref String)
+  => ref
+  -> Int
+  -> (CStringLen -> IO Bool)
+  -> m Bool
+withInputString ref bufSize action = liftIO do
   input <- get ref
-  withCString input \ refPtr -> do
-    withCString desc \ descPtr -> do
-      let refSize' :: CInt
-          refSize' = fromIntegral refSize
-      changed <- Raw.inputText descPtr refPtr refSize'
+  Foreign.withCStringLen utf8 input \(refPtr, refSize) ->
+    -- XXX: Allocate and zero buffer to receive imgui updates.
+    bracket (mkBuf refSize) free \bufPtr -> do
+      -- XXX: Copy the original input.
+      copyBytes bufPtr refPtr refSize
+
+      changed <- action (bufPtr, bufSize)
 
       when changed do
-        peekCString refPtr >>= ($=!) ref
+        -- XXX: Assuming Imgui wouldn't write over the bump stop so peekCString would finish.
+        newValue <- Foreign.peekCString utf8 bufPtr
+        ref $=! newValue
 
       return changed
+  where
+    mkBuf refSize =
+      callocBytes $
+        max refSize bufSize +
+        5 -- XXX: max size of UTF8 code point + NUL terminator
 
 
 -- | Wraps @ImGui::ColorPicker3()@.
@@ -1370,9 +1479,9 @@ setNextWindowPos posRef cond pivotMaybe = liftIO do
       Just pivotRef -> do
         pivot <- get pivotRef
         with pivot $ \pivotPtr ->
-          Raw.setNextWindowPos posPtr cond pivotPtr
+          Raw.setNextWindowPos posPtr cond (Just pivotPtr)
       Nothing ->
-        Raw.setNextWindowPos posPtr cond nullPtr
+        Raw.setNextWindowPos posPtr cond Nothing
 
 -- | Set next window size. Call before `begin`
 --

@@ -7,6 +7,7 @@
 {-# LANGUAGE PatternSynonyms #-}
 {-# LANGUAGE QuasiQuotes #-}
 {-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE ViewPatterns #-}
 
 {-|
 Module: DearImGui
@@ -19,6 +20,8 @@ module DearImGui.Raw
     Context(..)
   , createContext
   , destroyContext
+  , getCurrentContext
+  , setCurrentContext
 
     -- * Main
   , newFrame
@@ -43,6 +46,16 @@ module DearImGui.Raw
     -- * Windows
   , begin
   , end
+
+    -- ** Utilities
+
+  , getWindowPos
+  , getWindowSize
+  , getWindowWidth
+  , getWindowHeight
+
+    -- ** Manipulation
+
   , setNextWindowPos
   , setNextWindowSize
   , setNextWindowFullscreen
@@ -51,8 +64,9 @@ module DearImGui.Raw
   , setNextWindowCollapsed
   , setNextWindowBgAlpha
 
-    -- * Child Windows
+    -- ** Child Windows
   , beginChild
+  , beginChildContext
   , endChild
 
     -- * Parameter stacks
@@ -89,6 +103,7 @@ module DearImGui.Raw
     -- ** Main
   , button
   , smallButton
+  , invisibleButton
   , arrowButton
   , image
   , checkbox
@@ -132,6 +147,8 @@ module DearImGui.Raw
 
     -- ** Text Input
   , inputText
+  , inputTextMultiline
+  , inputTextWithHint
 
     -- * Color Editor/Picker
   , colorPicker3
@@ -221,19 +238,30 @@ Cpp.using "namespace ImGui"
 
 
 -- | Wraps @ImGuiContext*@.
-newtype Context = Context (Ptr ())
+newtype Context = Context (Ptr ImGuiContext)
 
 
 -- | Wraps @ImGui::CreateContext()@.
 createContext :: (MonadIO m) => m Context
 createContext = liftIO do
-  Context <$> [C.exp| void* { CreateContext() } |]
+  Context <$> [C.exp| ImGuiContext* { CreateContext() } |]
 
 
 -- | Wraps @ImGui::DestroyContext()@.
 destroyContext :: (MonadIO m) => Context -> m ()
 destroyContext (Context contextPtr) = liftIO do
-  [C.exp| void { DestroyContext((ImGuiContext*)$(void* contextPtr)); } |]
+  [C.exp| void { DestroyContext($(ImGuiContext* contextPtr)); } |]
+
+-- | Wraps @ImGui::GetCurrentContext()@.
+getCurrentContext :: MonadIO m => m Context
+getCurrentContext = liftIO do
+  Context <$> [C.exp| ImGuiContext* { GetCurrentContext() } |]
+
+
+-- | Wraps @ImGui::SetCurrentContext()@.
+setCurrentContext :: MonadIO m => Context -> m ()
+setCurrentContext (Context contextPtr) = liftIO do
+  [C.exp| void { SetCurrentContext($(ImGuiContext* contextPtr)) } |]
 
 
 -- | Start a new Dear ImGui frame, you can submit any command from this point
@@ -347,10 +375,14 @@ styleColorsClassic = liftIO do
 --
 -- Passing non-null @Ptr CBool@ shows a window-closing widget in the upper-right corner of the window,
 -- wich clicking will set the boolean to false when clicked.
-begin :: (MonadIO m) => CString -> Ptr CBool -> ImGuiWindowFlags -> m Bool
-begin namePtr openPtr flags = liftIO do
+begin :: (MonadIO m) => CString -> Maybe (Ptr CBool) -> Maybe (ImGuiWindowFlags) -> m Bool
+begin namePtr (Just openPtr) (Just flags) = liftIO do
   (0 /=) <$> [C.exp| bool { Begin($(char* namePtr), $(bool* openPtr), $(ImGuiWindowFlags flags)) } |]
-
+begin namePtr (Just openPtr) Nothing = liftIO do
+  (0 /=) <$> [C.exp| bool { Begin($(char* namePtr), $(bool* openPtr)) } |]
+begin namePtr Nothing Nothing = liftIO do
+  (0 /=) <$> [C.exp| bool { Begin($(char* namePtr)) } |]
+begin _ Nothing _ = error "C++ default argument restriction."
 
 -- | Pop window from the stack.
 --
@@ -360,11 +392,47 @@ end = liftIO do
   [C.exp| void { End(); } |]
 
 
--- | Wraps @ImGui::BeginChild()@.
-beginChild :: (MonadIO m) => CString -> m Bool
-beginChild namePtr = liftIO do
-  (0 /=) <$> [C.exp| bool { BeginChild($(char* namePtr)) } |]
+-- | Begin a self-contained independent scrolling/clipping regions within a host window.
+--
+-- Child windows can embed their own child.
+--
+-- For each independent axis of @size@:
+--   * ==0.0f: use remaining host window size
+--   * >0.0f: fixed size
+--   * <0.0f: use remaining window size minus abs(size)
+--
+-- Each axis can use a different mode, e.g. @ImVec2 0 400@.
+--
+-- @BeginChild()@ returns `False` to indicate the window is collapsed or fully clipped, so you may early out and omit submitting anything to the window.
+--
+-- Always call a matching `endChild` for each `beginChild` call, regardless of its return value.
+--
+-- Wraps @ImGui::BeginChild()@.
+beginChild :: (MonadIO m) => CString -> Ptr ImVec2 -> CBool -> ImGuiWindowFlags -> m Bool
+beginChild namePtr sizePtr border flags = liftIO do
+  (0 /=) <$> [C.exp|
+    bool {
+      BeginChild(
+        $(char* namePtr),
+        *$(ImVec2* sizePtr),
+        $(bool border),
+        $(ImGuiWindowFlags flags)
+      )
+    }
+  |]
 
+-- | Switch context to another child window by its ID
+--
+-- Wraps @ImGui::BeginChild()@.
+beginChildContext :: (MonadIO m) => CString -> m Bool
+beginChildContext namePtr = liftIO do
+  (0 /=) <$> [C.exp|
+    bool {
+      BeginChild(
+        $(char* namePtr)
+      )
+    }
+  |]
 
 -- | Wraps @ImGui::EndChild()@.
 endChild :: (MonadIO m) => m ()
@@ -395,9 +463,11 @@ sameLine = liftIO do
 --   B) it's faster, no memory copy is done, no buffer size limits, recommended for long chunks of text.
 --
 -- Wraps @ImGui::TextUnformatted()@.
-textUnformatted :: (MonadIO m) => CString -> CString -> m ()
-textUnformatted textPtr textEndPtr = liftIO do
+textUnformatted :: (MonadIO m) => CString -> Maybe CString -> m ()
+textUnformatted textPtr (Just textEndPtr) = liftIO do
   [C.exp| void { TextUnformatted($(char* textPtr), $(char* textEndPtr)) } |]
+textUnformatted textPtr Nothing = liftIO do
+  [C.exp| void { TextUnformatted($(char* textPtr)) } |]
 
 -- | Shortcut for @PushStyleColor(ImGuiCol_Text, col); Text(fmt, ...); PopStyleColor();@.
 --
@@ -462,6 +532,24 @@ smallButton :: (MonadIO m) => CString -> m Bool
 smallButton labelPtr = liftIO do
   (0 /=) <$> [C.exp| bool { SmallButton($(char* labelPtr)) } |]
 
+
+-- | Flexible button behavior without the visuals.
+--
+-- Frequently useful to build custom behaviors using the public api
+-- (along with IsItemActive, IsItemHovered, etc).
+--
+-- Wraps @ImGui::InvisibleButton()@.
+invisibleButton :: (MonadIO m) => CString -> Ptr ImVec2 -> ImGuiButtonFlags -> m Bool
+invisibleButton labelPtr size flags = liftIO do
+  (0 /=) <$> [C.exp|
+    bool {
+      InvisibleButton(
+        $(char* labelPtr),
+        *$(ImVec2* size),
+        $(ImGuiButtonFlags flags)
+      )
+    }
+  |]
 
 -- | Square button with an arrow shape.
 --
@@ -883,10 +971,50 @@ vSliderScalar labelPtr sizePtr dataType dataPtr minPtr maxPtr formatPtr flags = 
     minPtr_ = castPtr minPtr
     maxPtr_ = castPtr maxPtr
 
+
 -- | Wraps @ImGui::InputText()@.
-inputText :: (MonadIO m) => CString -> CString -> CInt -> m Bool
-inputText descPtr refPtr refSize = liftIO do
-  (0 /= ) <$> [C.exp| bool { InputText( $(char* descPtr), $(char* refPtr), $(int refSize) ) } |]
+inputText :: (MonadIO m) => CString -> CStringLen -> ImGuiInputTextFlags -> m Bool
+inputText labelPtr (bufPtr, fromIntegral -> bufSize) flags = liftIO do
+  (0 /= ) <$> [C.exp|
+    bool {
+      InputText(
+        $(char* labelPtr),
+        $(char* bufPtr),
+        $(int bufSize),
+        $(ImGuiInputTextFlags flags)
+      )
+    }
+  |]
+
+-- | Wraps @ImGui::InputTextMultiline()@.
+inputTextMultiline :: (MonadIO m) => CString -> CStringLen -> Ptr ImVec2 -> ImGuiInputTextFlags -> m Bool
+inputTextMultiline labelPtr (bufPtr, fromIntegral -> bufSize) sizePtr flags = liftIO do
+  (0 /= ) <$> [C.exp|
+    bool {
+      InputTextMultiline(
+        $(char* labelPtr),
+        $(char* bufPtr),
+        $(size_t bufSize),
+        *$(ImVec2* sizePtr),
+        $(ImGuiInputTextFlags flags)
+      )
+    }
+  |]
+
+-- | Wraps @ImGui::InputTextWithHint()@.
+inputTextWithHint :: (MonadIO m) => CString -> CString -> CStringLen -> ImGuiInputTextFlags -> m Bool
+inputTextWithHint labelPtr hintPtr (bufPtr, fromIntegral -> bufSize) flags = liftIO do
+  (0 /= ) <$> [C.exp|
+    bool {
+      InputTextWithHint(
+        $(char* labelPtr),
+        $(char* hintPtr),
+        $(char* bufPtr),
+        $(int bufSize),
+        $(ImGuiInputTextFlags flags)
+      )
+    }
+  |]
 
 
 -- | Wraps @ImGui::ColorPicker3()@.
@@ -1108,13 +1236,40 @@ isItemHovered :: (MonadIO m) => m Bool
 isItemHovered = liftIO do
   (0 /=) <$> [C.exp| bool { IsItemHovered() } |]
 
+getWindowPos :: (MonadIO m) => m ImVec2
+getWindowPos = liftIO do
+  C.withPtr_ \ptr ->
+    [C.block|
+      void {
+        *$(ImVec2 * ptr) = GetWindowPos();
+      }
+    |]
+
+getWindowSize :: (MonadIO m) => m ImVec2
+getWindowSize = liftIO do
+  C.withPtr_ \ptr ->
+    [C.block|
+      void {
+        *$(ImVec2 * ptr) = GetWindowSize();
+      }
+    |]
+
+getWindowWidth :: (MonadIO m) => m CFloat
+getWindowWidth = liftIO do
+  [C.exp| float { GetWindowWidth() } |]
+
+getWindowHeight :: (MonadIO m) => m CFloat
+getWindowHeight = liftIO do
+  [C.exp| float { GetWindowHeight() } |]
 
 -- | Set next window position. Call before `begin` Use pivot=(0.5,0.5) to center on given point, etc.
 --
 -- Wraps @ImGui::SetNextWindowPos()@
-setNextWindowPos :: (MonadIO m) => Ptr ImVec2 -> ImGuiCond -> Ptr ImVec2 -> m ()
-setNextWindowPos posPtr cond pivotPtr = liftIO do
+setNextWindowPos :: (MonadIO m) => Ptr ImVec2 -> ImGuiCond -> Maybe (Ptr ImVec2) -> m ()
+setNextWindowPos posPtr cond (Just pivotPtr) = liftIO do
   [C.exp| void { SetNextWindowPos(*$(ImVec2* posPtr), $(ImGuiCond cond), *$(ImVec2* pivotPtr)) } |]
+setNextWindowPos posPtr cond Nothing = liftIO do
+  [C.exp| void { SetNextWindowPos(*$(ImVec2* posPtr), $(ImGuiCond cond)) } |]
 
 
 -- | Set next window size. Call before `begin`
