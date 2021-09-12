@@ -83,6 +83,20 @@ type Handler    = LogMessage -> ResourceT IO ()
 deriving via ( ReaderT Handler (ResourceT IO) )
   instance MonadResource ( LoggingT LogMessage (ResourceT IO) )
 
+gui :: MonadIO m => m ImGui.DrawData
+gui = do
+  -- Prepare frame
+  ImGui.Vulkan.vulkanNewFrame
+  ImGui.SDL.sdl2NewFrame
+  ImGui.newFrame
+
+  -- Run your windows
+  ImGui.showDemoWindow
+
+  -- Process ImGui state into draw commands
+  ImGui.render
+  ImGui.getDrawData
+
 main :: IO ()
 main = runResourceT . ( `runLoggingT` logHandler ) $ app @( LoggingT LogMessage ( ResourceT IO ) )
 
@@ -119,6 +133,12 @@ app = do
   void $ ResourceT.allocate
     ImGui.createContext
     ImGui.destroyContext
+
+  logDebug "Adding fonts"
+  ImGui.clearFontAtlas
+  _default <- ImGui.addFontDefault
+  _custom <- ImGui.addFontFromFileTTF "imgui/misc/fonts/ProggyTiny.ttf" 10
+  ImGui.buildFontAtlas
 
   let
     preferredFormat :: Vulkan.SurfaceFormatKHR
@@ -341,12 +361,6 @@ app = do
                 pure ( True, False )
               else
                 handleJust vulkanException ( pure . reloadQuit ) do
-                  ImGui.Vulkan.vulkanNewFrame
-                  ImGui.SDL.sdl2NewFrame
-                  ImGui.newFrame
-                  ImGui.showDemoWindow
-                  ImGui.render
-                  drawData <- ImGui.getDrawData
                   let
                     commandBuffer :: Vulkan.CommandBuffer
                     commandBuffer = commandBuffers Boxed.Vector.! fromIntegral nextImageIndex
@@ -355,7 +369,10 @@ app = do
                   Vulkan.resetCommandBuffer commandBuffer Vulkan.zero
                   beginCommandBuffer commandBuffer
                   cmdBeginRenderPass commandBuffer imGuiRenderPass framebuffer clearValues swapchainExtent
+
+                  drawData <- gui
                   ImGui.Vulkan.vulkanRenderDrawData drawData commandBuffer Nothing
+
                   cmdEndRenderPass commandBuffer
                   endCommandBuffer commandBuffer
                   submitCommandBuffer

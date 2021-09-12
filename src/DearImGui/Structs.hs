@@ -74,3 +74,6 @@ instance Storable ImVec4 where
 
 -- | DearImGui context handle.
 data ImGuiContext
+
+-- | Individual font handle.
+data ImFont
