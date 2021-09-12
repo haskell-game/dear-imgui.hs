@@ -20,6 +20,8 @@ module DearImGui
     Raw.Context(..)
   , Raw.createContext
   , Raw.destroyContext
+  , Raw.getCurrentContext
+  , Raw.setCurrentContext
 
     -- * Main
   , Raw.newFrame

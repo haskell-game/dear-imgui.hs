@@ -20,6 +20,8 @@ module DearImGui.Raw
     Context(..)
   , createContext
   , destroyContext
+  , getCurrentContext
+  , setCurrentContext
 
     -- * Main
   , newFrame
@@ -235,19 +237,30 @@ Cpp.using "namespace ImGui"
 
 
 -- | Wraps @ImGuiContext*@.
-newtype Context = Context (Ptr ())
+newtype Context = Context (Ptr ImGuiContext)
 
 
 -- | Wraps @ImGui::CreateContext()@.
 createContext :: (MonadIO m) => m Context
 createContext = liftIO do
-  Context <$> [C.exp| void* { CreateContext() } |]
+  Context <$> [C.exp| ImGuiContext* { CreateContext() } |]
 
 
 -- | Wraps @ImGui::DestroyContext()@.
 destroyContext :: (MonadIO m) => Context -> m ()
 destroyContext (Context contextPtr) = liftIO do
-  [C.exp| void { DestroyContext((ImGuiContext*)$(void* contextPtr)); } |]
+  [C.exp| void { DestroyContext($(ImGuiContext* contextPtr)); } |]
+
+-- | Wraps @ImGui::GetCurrentContext()@.
+getCurrentContext :: MonadIO m => m Context
+getCurrentContext = liftIO do
+  Context <$> [C.exp| ImGuiContext* { GetCurrentContext() } |]
+
+
+-- | Wraps @ImGui::SetCurrentContext()@.
+setCurrentContext :: MonadIO m => Context -> m ()
+setCurrentContext (Context contextPtr) = liftIO do
+  [C.exp| void { SetCurrentContext($(ImGuiContext* contextPtr)) } |]
 
 
 -- | Start a new Dear ImGui frame, you can submit any command from this point
