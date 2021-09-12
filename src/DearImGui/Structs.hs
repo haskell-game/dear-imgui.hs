@@ -69,3 +69,8 @@ instance Storable ImVec4 where
     z <- peek (castPtr ptr `plusPtr` (sizeOf x * 2))
     w <- peek (castPtr ptr `plusPtr` (sizeOf x * 3))
     return ImVec4{ x, y, z, w }
+
+--------------------------------------------------------------------------------
+
+-- | DearImGui context handle.
+data ImGuiContext
