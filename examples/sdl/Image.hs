@@ -2,11 +2,16 @@
 {-# language LambdaCase #-}
 {-# language OverloadedStrings #-}
 
+{- | Drawing an DearImGui image using OpenGL textures.
+
+https://github.com/ocornut/imgui/wiki/Image-Loading-and-Displaying-Examples
+-}
+
 module Main ( main ) where
 
 import Control.Exception
-import Control.Monad.IO.Class
-import Control.Monad.Managed
+import Control.Monad.IO.Class (MonadIO(..))
+import Control.Monad.Managed (managed, managed_, runManaged)
 import DearImGui
 import qualified DearImGui.Raw as Raw
 import DearImGui.OpenGL3
@@ -17,117 +22,143 @@ import qualified SDL as SDL
 
 --  For the texture creation
 import Foreign
-import Foreign.Ptr
-import qualified Numeric.LinearAlgebra as M
-import Foreign.Marshal.Alloc
-import Data.IORef
 import qualified Data.Vector.Storable as VS
 
-data Texture = Texture {textureID :: GLuint, textureWidth :: GLsizei, textureHeight :: GLsizei}
+data Texture = Texture
+  { textureID     :: GLuint
+  , textureWidth  :: GLsizei
+  , textureHeight :: GLsizei
+  }
 
--- |Creates a texture in memory
---
--- Reserves space on the texture-memory for width*height
+textureSize :: Texture -> ImVec2
+textureSize texture =
+  ImVec2
+    (fromIntegral $ textureWidth texture)
+    (fromIntegral $ textureHeight texture)
+
+-- | Create a texture pointer in GL memory.
 create2DTexture :: Int -> Int -> IO Texture
-create2DTexture width height = do
-  alloca $ \ptr -> do
+create2DTexture width height =
+  alloca \ptr -> do
     glGenTextures 1 ptr
     tID <- peek ptr
-    return Texture {textureID = tID, textureWidth = fromIntegral width, textureHeight = fromIntegral height}
-    
+    return Texture
+      { textureID     = tID
+      , textureWidth  = fromIntegral width
+      , textureHeight = fromIntegral height
+      }
 
---createDummyTexture :: IORef Texture -> M.Matrix (Float) -> IO ()
---createDummyTexture texture matrix = do
-createDummyTexture :: Texture -> IO ()
-createDummyTexture texture = do
-  let width = textureWidth texture
-  let height = textureWidth texture
+bindTexture :: Texture -> Ptr GLubyte -> IO ()
+bindTexture texture dataPtr = do
   glEnable GL_TEXTURE_2D
-  glBindTexture GL_TEXTURE_2D $ textureID texture
+  glBindTexture GL_TEXTURE_2D (textureID texture)
+
   glTexParameteri GL_TEXTURE_2D GL_TEXTURE_MIN_FILTER GL_LINEAR
   glTexParameteri GL_TEXTURE_2D GL_TEXTURE_MAG_FILTER GL_LINEAR
   glTexParameteri GL_TEXTURE_2D GL_TEXTURE_WRAP_S GL_REPEAT
   glTexParameteri GL_TEXTURE_2D GL_TEXTURE_WRAP_T GL_REPEAT
-  let dat = VS.generate (3*(fromIntegral width)*(fromIntegral height)) (\i -> fromIntegral $ 17 + (50 * (i `mod` 3)):: GLubyte) :: VS.Vector GLubyte -- some blueish
-  VS.unsafeWith dat $ \dataPtr -> do
-    glTexImage2D GL_TEXTURE_2D 0 GL_RGB width height 0 GL_RGB GL_UNSIGNED_BYTE (castPtr dataPtr)
-    return()
-  glBindTexture GL_TEXTURE_2D 0
-  return ()
+
+  glTexImage2D
+    GL_TEXTURE_2D
+    0
+    GL_RGB
+    (textureWidth texture)
+    (textureHeight texture)
+    0
+    GL_RGB
+    GL_UNSIGNED_BYTE
+    (castPtr dataPtr)
+
+fill :: Integral size => size -> size -> VS.Vector GLubyte
+fill width height =
+  VS.generate
+    (3 * fromIntegral width * fromIntegral height)
+    (\i ->
+        case i `mod` 3 of
+          0 -> 0x00
+          1 -> 0x7F
+          2 -> 0xFF
+          _ -> error "assert: 3-byte pitch"
+    )
 
 
-gui :: IO ()
-gui = do
-
-
+main :: IO ()
+main = do
   -- Initialize SDL
   SDL.initializeAll
 
-
-
   runManaged do
     -- Create a window using SDL. As we're using OpenGL, we need to enable OpenGL too.
-    w <- do
+    window <- do
       let title = "Hello, Dear ImGui!"
       let config = SDL.defaultWindow { SDL.windowGraphicsContext = SDL.OpenGLContext SDL.defaultOpenGL, SDL.windowResizable = True }
       managed $ bracket (SDL.createWindow title config) SDL.destroyWindow
 
     -- Create an OpenGL context
-    glContext <- managed $ bracket (SDL.glCreateContext w) SDL.glDeleteContext
+    glContext <- managed $ bracket (SDL.glCreateContext window) SDL.glDeleteContext
 
     -- Create an ImGui context
-    _ <- managed $ bracket createContext destroyContext
+    _dearContext <- managed $ bracket createContext destroyContext
 
     -- Initialize ImGui's SDL2 backend
-    _ <- managed_ $ bracket_ (sdl2InitForOpenGL w glContext) sdl2Shutdown
+    managed_ $ bracket_ (sdl2InitForOpenGL window glContext) sdl2Shutdown
 
     -- Initialize ImGui's OpenGL backend
-    _ <- managed_ $ bracket_ openGL3Init (do 
+    managed_ $ bracket_ openGL3Init do
       putStrLn "ImguiOpenGL shut down"
-      openGL3Shutdown)
+      openGL3Shutdown
 
-
-    liftIO $ do 
-      txt <- create2DTexture 500 500 
-      createDummyTexture txt
+    liftIO do
+      let width = 320
+          height = 240
+      texture <- create2DTexture width height
+      VS.unsafeWith (fill width height) $
+        bindTexture texture
       err <- glGetError
-      putStrLn $  "Error-code: " ++ show err
-     
-    liftIO $ do
-      mainLoop w 1 -- 1 is actually the Ptr address
+      putStrLn $ "Error-code: " ++ show err
 
+      mainLoop window texture
 
-mainLoop :: SDL.Window ->  GLuint -> IO ()
-mainLoop w c = do
-  -- Process the event loop
-  untilNothingM pollEventWithImGui
-
+mainLoop :: SDL.Window -> Texture -> IO ()
+mainLoop window texture = unlessQuit do
   -- Tell ImGui we're starting a new frame
   openGL3NewFrame
   sdl2NewFrame
   newFrame
 
   -- Build the GUI
-  bracket_ (begin "GL") end $ do
---    image (intPtrToPtr $ fromIntegral c) (ImVec2 500 500)(ImVec2 0 0)(ImVec2 1 1)(ImVec4 1 1 1 1)(ImVec4 0 0 0 0)
-    Foreign.with (ImVec2 500 500) \sizePtr ->
-      Foreign.with (ImVec2 0 0) \uv0Ptr -> 
-        Foreign.with (ImVec2 1 1) \uv1Ptr -> 
-          Foreign.with (ImVec4 1 1 1 1) \tintColPtr -> 
-            Foreign.with (ImVec4 0 0 0 0) \borderColPtr -> do
-              Raw.image (intPtrToPtr $ fromIntegral c) sizePtr uv0Ptr uv1Ptr tintColPtr borderColPtr
+  withWindowOpen "Image example" $ runManaged do
+    -- Drawing images require some backend-specific code.
+    -- Meanwhile, we have to deal with raw binding.
+    let openGLtextureID = intPtrToPtr $ fromIntegral $ textureID texture
+    sizePtr <- managed $ Foreign.with (textureSize texture)
+    uv0Ptr <- managed $ Foreign.with (ImVec2 0 0)
+    uv1Ptr <- managed $ Foreign.with (ImVec2 1 1)
+    tintColPtr <- managed $ Foreign.with (ImVec4 1 1 1 1)
+    borderColPtr <- managed $ Foreign.with (ImVec4 0 1 0 0)
+    Raw.image openGLtextureID sizePtr uv0Ptr uv1Ptr tintColPtr borderColPtr
 
   -- Render
-  render
   glClear GL_COLOR_BUFFER_BIT
 
-  openGL3RenderDrawData =<< getDrawData
+  DearImGui.render
+  DearImGui.getDrawData >>= openGL3RenderDrawData
 
-  SDL.glSwapWindow w
+  SDL.glSwapWindow window
 
-  mainLoop w c
+  mainLoop window texture
 
   where
-    untilNothingM m = m >>= maybe (return ()) (\_ -> untilNothingM m)
+    unlessQuit action = do
+      shouldQuit <- checkEvents
+      if shouldQuit then pure () else action
 
-main = do gui
+    checkEvents = do
+      pollEventWithImGui >>= \case
+        Nothing ->
+          return False
+        Just event ->
+          (isQuit event ||) <$> checkEvents
+
+    isQuit event =
+      SDL.eventPayload event == SDL.QuitEvent
