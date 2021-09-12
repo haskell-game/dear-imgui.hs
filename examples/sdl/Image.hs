@@ -29,6 +29,7 @@ data Texture = Texture
   , textureWidth  :: GLsizei
   , textureHeight :: GLsizei
   }
+  deriving (Show)
 
 textureSize :: Texture -> ImVec2
 textureSize texture =
@@ -69,17 +70,20 @@ bindTexture texture dataPtr = do
     GL_UNSIGNED_BYTE
     (castPtr dataPtr)
 
-fill :: Integral size => size -> size -> VS.Vector GLubyte
-fill width height =
+fill :: Texture -> (GLubyte, GLubyte, GLubyte) -> VS.Vector GLubyte
+fill texture (r, g, b) =
   VS.generate
-    (3 * fromIntegral width * fromIntegral height)
+    (3 * width * height)
     (\i ->
         case i `mod` 3 of
-          0 -> 0x00
-          1 -> 0x7F
-          2 -> 0xFF
+          0 -> r
+          1 -> g
+          2 -> b
           _ -> error "assert: 3-byte pitch"
     )
+  where
+    width  = fromIntegral (textureWidth texture)
+    height = fromIntegral (textureHeight texture)
 
 
 main :: IO ()
@@ -109,34 +113,47 @@ main = do
       openGL3Shutdown
 
     liftIO do
-      let width = 320
-          height = 240
-      texture <- create2DTexture width height
-      VS.unsafeWith (fill width height) $
-        bindTexture texture
+      blueish <- create2DTexture 320 240
+      VS.unsafeWith (fill blueish (0x00, 0x7F, 0xFF)) $
+        bindTexture blueish
+
+      pinkish <- create2DTexture 240 320
+      VS.unsafeWith (fill pinkish (0xFF, 0x00, 0x7F)) $
+        bindTexture pinkish
+
       err <- glGetError
       putStrLn $ "Error-code: " ++ show err
 
-      mainLoop window texture
+      print (blueish, pinkish)
+      mainLoop window (blueish, pinkish) False
 
-mainLoop :: SDL.Window -> Texture -> IO ()
-mainLoop window texture = unlessQuit do
+mainLoop :: SDL.Window -> (Texture, Texture) -> Bool -> IO ()
+mainLoop window textures flag = unlessQuit do
   -- Tell ImGui we're starting a new frame
   openGL3NewFrame
   sdl2NewFrame
   newFrame
 
   -- Build the GUI
-  withWindowOpen "Image example" $ runManaged do
-    -- Drawing images require some backend-specific code.
-    -- Meanwhile, we have to deal with raw binding.
-    let openGLtextureID = intPtrToPtr $ fromIntegral $ textureID texture
-    sizePtr <- managed $ Foreign.with (textureSize texture)
-    uv0Ptr <- managed $ Foreign.with (ImVec2 0 0)
-    uv1Ptr <- managed $ Foreign.with (ImVec2 1 1)
-    tintColPtr <- managed $ Foreign.with (ImVec4 1 1 1 1)
-    borderColPtr <- managed $ Foreign.with (ImVec4 0 1 0 0)
-    Raw.image openGLtextureID sizePtr uv0Ptr uv1Ptr tintColPtr borderColPtr
+  clicked <- withWindow "Image example" \open ->
+    if open then do
+      text "That's an image, click it"
+      newLine
+
+      let texture = if flag then fst textures else snd textures
+
+      -- Drawing images require some backend-specific code.
+      -- Meanwhile, we have to deal with raw binding.
+      let openGLtextureID = intPtrToPtr $ fromIntegral $ textureID texture
+
+      Foreign.with (textureSize texture) \sizePtr ->
+        Foreign.with (ImVec2 0 0) \uv0Ptr ->
+          Foreign.with (ImVec2 1 1) \uv1Ptr ->
+            Foreign.with (ImVec4 1 1 1 1) \tintColPtr ->
+              Foreign.with (ImVec4 1 1 1 1) \bgColPtr ->
+                Raw.imageButton openGLtextureID sizePtr uv0Ptr uv1Ptr (-1) bgColPtr tintColPtr
+    else
+      pure False
 
   -- Render
   glClear GL_COLOR_BUFFER_BIT
@@ -146,7 +163,7 @@ mainLoop window texture = unlessQuit do
 
   SDL.glSwapWindow window
 
-  mainLoop window texture
+  mainLoop window textures (flag /= clicked)
 
   where
     unlessQuit action = do
