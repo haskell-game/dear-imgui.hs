@@ -1,5 +1,17 @@
 # Changelog for dear-imgui
 
+## [1.2.0]
+
+- Fixed `nullPtr` in place of default arguments.
+- Added functions for getting window position and size.
+- Added `invisibleButton`.
+- Added `inputTextMultiline` and `inputTextWithHint`.
+- Changed `beginChild` and related `withChild*` to use full arguments.
+- Added `withChildContext` to run actions inside other child window.
+- Added `getCurrentContext`, `setCurrentContext`.
+- Added `image` and `imageButton`.
+- Added font atlas utilities.
+
 ## [1.1.0]
 
 - `imgui` updated to 1.84.2.
@@ -23,3 +35,4 @@ Initial Hackage release based on 1.83.
 [1.0.1]: https://github.com/haskell-game/dear-imgui.hs/tree/v1.0.1
 [1.0.2]: https://github.com/haskell-game/dear-imgui.hs/tree/v1.0.2
 [1.1.0]: https://github.com/haskell-game/dear-imgui.hs/tree/v1.1.0
+[1.2.0]: https://github.com/haskell-game/dear-imgui.hs/tree/v1.2.0
