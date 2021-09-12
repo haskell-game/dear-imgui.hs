@@ -49,6 +49,7 @@ module DearImGui.Raw
 
     -- ** Utilities
 
+  , getWindowDrawList
   , getWindowPos
   , getWindowSize
   , getWindowWidth
@@ -89,6 +90,7 @@ module DearImGui.Raw
   , beginGroup
   , endGroup
   , setCursorPos
+  , getCursorScreenPos
   , alignTextToFramePadding
 
     -- * Widgets
@@ -217,6 +219,13 @@ module DearImGui.Raw
   , buildFontAtlas
   , clearFontAtlas
 
+    -- * Utilities
+
+    -- ** Miscellaneous
+  , getBackgroundDrawList
+  , getForegroundDrawList
+  , imCol32
+
     -- * Types
   , module DearImGui.Enums
   , module DearImGui.Structs
@@ -228,12 +237,15 @@ import Control.Monad.IO.Class
   ( MonadIO, liftIO )
 import Foreign
 import Foreign.C
+import System.IO.Unsafe
+  ( unsafePerformIO )
 
 -- dear-imgui
 import DearImGui.Context
   ( imguiContext )
 import DearImGui.Enums
 import DearImGui.Structs
+import DearImGui.Raw.DrawList (DrawList(..))
 
 -- inline-c
 import qualified Language.C.Inline as C
@@ -1264,6 +1276,19 @@ isItemHovered :: (MonadIO m) => m Bool
 isItemHovered = liftIO do
   (0 /=) <$> [C.exp| bool { IsItemHovered() } |]
 
+
+-- | Get draw list associated to the current window.
+getWindowDrawList :: (MonadIO m) => m DrawList
+getWindowDrawList = liftIO do
+  DrawList <$> [C.exp|
+    ImDrawList* {
+      GetWindowDrawList()
+    }
+  |]
+
+-- | Get current window position in screen space.
+--
+-- Useful if you want to do your own drawing via the "DrawList" API.
 getWindowPos :: (MonadIO m) => m ImVec2
 getWindowPos = liftIO do
   C.withPtr_ \ptr ->
@@ -1445,6 +1470,21 @@ setCursorPos :: (MonadIO m) => Ptr ImVec2 -> m ()
 setCursorPos posPtr = liftIO do
   [C.exp| void { SetCursorPos(*$(ImVec2* posPtr)) } |]
 
+-- | Cursor position in absolute coordinates.
+--
+-- Useful to work with 'DrawList' API.
+--
+-- Generally top-left == @GetMainViewport()->Pos == (0,0)@ in single viewport mode,
+-- and bottom-right == @GetMainViewport()->Pos+Size == io.DisplaySize@ in single-viewport mode.
+getCursorScreenPos :: (MonadIO m) => m ImVec2
+getCursorScreenPos = liftIO do
+  C.withPtr_ \ptr ->
+    [C.block|
+      void {
+        *$(ImVec2 * ptr) = GetCursorScreenPos();
+      }
+    |]
+
 
 -- | Modify a style color by pushing to the shared stack. always use this if you modify the style after `newFrame`
 --
@@ -1571,5 +1611,44 @@ clearFontAtlas = liftIO do
   [C.block|
     void {
       GetIO().Fonts->Clear();
+    }
+  |]
+
+
+-- | This draw list will be the first rendering one.
+--
+-- Useful to quickly draw shapes/text behind dear imgui contents.
+getBackgroundDrawList :: (MonadIO m) => m DrawList
+getBackgroundDrawList = liftIO do
+  DrawList <$> [C.exp|
+    ImDrawList* {
+      GetBackgroundDrawList()
+    }
+  |]
+
+--  | This draw list will be the last rendered one.
+--
+-- Useful to quickly draw shapes/text over dear imgui contents.
+getForegroundDrawList :: (MonadIO m) => m DrawList
+getForegroundDrawList = liftIO do
+  DrawList <$> [C.exp|
+    ImDrawList* {
+      GetForegroundDrawList()
+    }
+  |]
+
+-- | Generate 32-bit encoded colors using DearImgui macros.
+--
+-- Follows @IMGUI_USE_BGRA_PACKED_COLOR@ define to put bytes in appropriate positions.
+imCol32 :: CUChar -> CUChar -> CUChar -> CUChar -> ImU32
+imCol32 r g b a = unsafePerformIO
+  [C.exp|
+    ImU32 {
+      IM_COL32(
+        $(unsigned char r),
+        $(unsigned char g),
+        $(unsigned char b),
+        $(unsigned char a)
+      )
     }
   |]

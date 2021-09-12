@@ -54,6 +54,7 @@ module DearImGui
 
     -- ** Utilities
 
+  , Raw.getWindowDrawList
   , Raw.getWindowPos
   , Raw.getWindowSize
   , Raw.getWindowWidth
@@ -251,6 +252,13 @@ module DearImGui
   , Raw.addFontDefault
   , Raw.buildFontAtlas
   , Raw.clearFontAtlas
+
+    -- * Utilities
+
+    -- ** Miscellaneous
+  , Raw.getBackgroundDrawList
+  , Raw.getForegroundDrawList
+  , Raw.imCol32
 
     -- * Types
   , module DearImGui.Enums
