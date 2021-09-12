@@ -260,6 +260,14 @@ executable readme
   if (!flag(examples) || !flag(sdl) || !flag(opengl2))
     buildable: False
 
+executable image
+  import: common
+  main-is: Image.hs
+  hs-source-dirs: examples/sdl
+  build-depends: sdl2, gl, dear-imgui, managed, vector, hmatrix
+  if (!flag(examples) || !flag(sdl) || !flag(opengl2))
+    buildable: False
+
 executable vulkan
   import: common
   main-is: Main.hs

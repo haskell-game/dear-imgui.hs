@@ -125,6 +125,7 @@ module DearImGui
   , smallButton
   , invisibleButton
   , arrowButton
+  , Raw.image
   , checkbox
   , progressBar
   , Raw.bullet
