@@ -172,11 +172,11 @@ module DearImGui
   , inputTextMultiline
   , inputTextWithHint
 
-    -- * Color Editor/Picker
+    -- ** Color Editor/Picker
   , colorPicker3
   , colorButton
 
-    -- * Trees
+    -- ** Trees
   , treeNode
   , treePush
   , Raw.treePop
@@ -187,7 +187,7 @@ module DearImGui
     -- ** List Boxes
   , listBox
 
-    -- * Data Plotting
+    -- ** Data Plotting
   , plotHistogram
 
     -- ** Menus
@@ -221,7 +221,7 @@ module DearImGui
   , tabItemButton
   , setTabItemClosed
 
-    -- * Tooltips
+    -- ** Tooltips
   , withTooltip
   , Raw.beginTooltip
   , Raw.endTooltip
