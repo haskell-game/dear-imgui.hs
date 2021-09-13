@@ -237,8 +237,7 @@ executable test
   import: common
   main-is: Main.hs
   default-language: Haskell2010
-  ghc-options: -Wall -g -rtsopts -dcore-lint -debug -O0 -optc -g
-  cc-options: -g -O0
+  ghc-options: -Wall 
   if (!flag(examples) || !flag(sdl) || !flag(opengl2))
     buildable: False
   else
