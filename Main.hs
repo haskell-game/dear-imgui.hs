@@ -41,8 +41,6 @@ main = do
       tab2 <- newIORef True
       loop w checked color slider r pos size' selected tab1 tab2
 
- --     openGL3Shutdown
-
 
 loop
   :: Window
@@ -125,7 +123,7 @@ loop window checked color slider r pos size' selected tab1Ref tab2Ref = do
 
   progressBar 0.314 (Just "Pi")
 
-  beginChild "Child"
+  beginChild "Child" (ImVec2 0 0) True ImGuiWindowFlags_None
 
   beginCombo "Label" "Preview" >>= whenTrue do
     selectable "Testing 1"

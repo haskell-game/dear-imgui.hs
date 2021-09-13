@@ -8,7 +8,8 @@ import Foreign
   ( Storable(..), castPtr, plusPtr )
 
 --------------------------------------------------------------------------------
-data ImVec2 = ImVec2 { x, y :: {-# unpack #-} !Float } deriving (Show)
+data ImVec2 = ImVec2 { x, y :: {-# unpack #-} !Float }
+  deriving (Show)
 
 
 instance Storable ImVec2 where
@@ -27,6 +28,7 @@ instance Storable ImVec2 where
 
 
 data ImVec3 = ImVec3 { x, y, z :: {-# unpack #-} !Float }
+  deriving (Show)
 
 
 instance Storable ImVec3 where
@@ -47,6 +49,7 @@ instance Storable ImVec3 where
 
 
 data ImVec4 = ImVec4 { x, y, z, w :: {-# unpack #-} !Float }
+  deriving (Show)
 
 
 instance Storable ImVec4 where
@@ -66,3 +69,11 @@ instance Storable ImVec4 where
     z <- peek (castPtr ptr `plusPtr` (sizeOf x * 2))
     w <- peek (castPtr ptr `plusPtr` (sizeOf x * 3))
     return ImVec4{ x, y, z, w }
+
+--------------------------------------------------------------------------------
+
+-- | DearImGui context handle.
+data ImGuiContext
+
+-- | Individual font handle.
+data ImFont

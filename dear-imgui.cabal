@@ -1,7 +1,7 @@
 cabal-version: 3.0
 
 name: dear-imgui
-version: 1.1.0
+version: 1.2.0
 author: Oliver Charles
 maintainer: ollie@ocharles.org.uk, aenor.realm@gmail.com
 license: BSD-3-Clause
@@ -182,7 +182,8 @@ library
     exposed-modules:
       DearImGui.GLFW
     build-depends:
-      GLFW-b
+      GLFW-b,
+      bindings-GLFW
     cxx-sources:
       imgui/backends/imgui_impl_glfw.cpp
 
@@ -220,7 +221,7 @@ library dear-imgui-generator
     , megaparsec
         >= 9.0 && < 9.1
     , parser-combinators
-        >= 1.2.0 && < 1.3
+        >= 1.2.0 && < 1.4
     , scientific
         >= 0.3.6.2 && < 0.3.8
     , text
@@ -258,6 +259,14 @@ executable readme
   main-is: Readme.hs
   hs-source-dirs: examples
   build-depends: sdl2, gl, dear-imgui, managed
+  if (!flag(examples) || !flag(sdl) || !flag(opengl2))
+    buildable: False
+
+executable image
+  import: common
+  main-is: Image.hs
+  hs-source-dirs: examples/sdl
+  build-depends: sdl2, gl, dear-imgui, managed, vector
   if (!flag(examples) || !flag(sdl) || !flag(opengl2))
     buildable: False
 
