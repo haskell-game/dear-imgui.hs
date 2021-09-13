@@ -134,11 +134,9 @@ loop window checked color slider r pos size' selected tab1Ref tab2Ref = do
 
   endChild
 
-  beginChild "ListClipper"
+  beginChild "ListClipper" (ImVec2 0 200) True ImGuiWindowFlags_None
   let cList = V.generate 50 (\a -> a)
   withListClipper cList (\a -> text $ show a)
-
-    
   endChild
 
   plotHistogram "A histogram" [ 10, 10, 20, 30, 90 ]

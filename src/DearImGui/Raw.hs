@@ -198,6 +198,7 @@ module DearImGui.Raw
   , closeCurrentPopup
 
     -- * Miscellaneous Utilities
+  , ImGuiListClipper
   , beginListClipper
   , endListClipper
   , stepListClipper
