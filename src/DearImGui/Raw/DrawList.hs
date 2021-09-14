@@ -118,7 +118,7 @@ new :: MonadIO m => m DrawList
 new = liftIO do
   DrawList <$> [C.block|
     ImDrawList* {
-      return new ImDrawList(GetDrawListSharedData());
+      return IM_NEW(ImDrawList(GetDrawListSharedData()));
     }
   |]
 
@@ -126,7 +126,7 @@ destroy :: MonadIO m => DrawList -> m ()
 destroy (DrawList drawList) = liftIO do
   [C.block|
     void {
-      delete $(ImDrawList* drawList);
+      IM_DELETE($(ImDrawList* drawList));
     }
   |]
 

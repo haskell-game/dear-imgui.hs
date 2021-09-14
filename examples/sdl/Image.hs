@@ -14,6 +14,7 @@ import Control.Monad.IO.Class (MonadIO(..))
 import Control.Monad.Managed (managed, managed_, runManaged)
 import DearImGui
 import qualified DearImGui.Raw as Raw
+import qualified DearImGui.Raw.DrawList as DrawList
 import DearImGui.OpenGL3
 import DearImGui.SDL
 import DearImGui.SDL.OpenGL
@@ -134,18 +135,18 @@ mainLoop window textures flag = unlessQuit do
   sdl2NewFrame
   newFrame
 
+  let texture = if flag then fst textures else snd textures
+  -- Drawing images require some backend-specific code.
+  -- Meanwhile, we have to deal with raw bindings.
+  let openGLtextureID = intPtrToPtr $ fromIntegral $ textureID texture
+
   -- Build the GUI
   clicked <- withWindow "Image example" \open ->
     if open then do
       text "That's an image, click it"
       newLine
 
-      let texture = if flag then fst textures else snd textures
-
-      -- Drawing images require some backend-specific code.
-      -- Meanwhile, we have to deal with raw binding.
-      let openGLtextureID = intPtrToPtr $ fromIntegral $ textureID texture
-
+      -- Using imageButton
       Foreign.with (textureSize texture) \sizePtr ->
         Foreign.with (ImVec2 0 0) \uv0Ptr ->
           Foreign.with (ImVec2 1 1) \uv1Ptr ->
@@ -154,6 +155,19 @@ mainLoop window textures flag = unlessQuit do
                 Raw.imageButton openGLtextureID sizePtr uv0Ptr uv1Ptr (-1) bgColPtr tintColPtr
     else
       pure False
+
+  -- Using DrawList
+  bg <- getBackgroundDrawList
+  Foreign.with (ImVec2 100 100) \pMin ->
+    Foreign.with (ImVec2 200 200) \pMax ->
+      Foreign.with (ImVec2 0.25 0.25) \uvMin ->
+        Foreign.with (ImVec2 0.75 0.75) \uvMax ->
+          DrawList.addImageRounded
+            bg
+            openGLtextureID
+            pMin pMax uvMin uvMax
+            (Raw.imCol32 0 255 0 0xFF) -- Extract green channel
+            32 ImDrawFlags_RoundCornersBottom
 
   -- Render
   glClear GL_COLOR_BUFFER_BIT
