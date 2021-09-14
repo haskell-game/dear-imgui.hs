@@ -1,5 +1,3 @@
-{-# OPTIONS_GHC -Wwarn #-}
-
 {-# LANGUAGE BlockArguments #-}
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE FlexibleContexts #-}
@@ -11,10 +9,26 @@
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE ViewPatterns #-}
 
-{-|
-Module: DearImGui
+{-| Draw command list
 
-Main ImGui module, exporting the functions to create a GUI.
+This is the low-level list of polygons that ImGui functions are filling.
+
+At the end of the frame, all command lists are passed to your @ImGuiIO::RenderDrawListFn@ function for rendering.
+
+Each dear imgui window contains its own ImDrawList.
+
+You can use 'getWindowDrawList' to access the current window draw list and draw custom primitives.
+
+You can interleave normal ImGui calls and adding primitives to the current draw list.
+
+In single viewport mode, top-left is == @GetMainViewport()->Pos@ (generally @0,0@),
+bottom-right is == @GetMainViewport()->Pos+Size@ (generally io.DisplaySize).
+
+You are totally free to apply whatever transformation matrix to want to the data
+(depending on the use of the transformation you may want to apply it to ClipRect as well!).
+
+__Important__: Primitives are always added to the list and not culled (culling is done at higher-level by ImGui functions),
+if you use this API a lot consider coarse culling your drawn objects.
 -}
 
 module DearImGui.Raw.DrawList
@@ -24,6 +38,7 @@ module DearImGui.Raw.DrawList
 
     -- * Primitives
 
+    -- $primitives
   , addLine
 
   , addRect
@@ -52,12 +67,15 @@ module DearImGui.Raw.DrawList
   , addBezierQuadratic
 
     -- ** Image primitives
+
+    -- $image
   , addImage
   , addImageQuad
   , addImageRounded
 
     -- * Stateful path API
 
+    -- $stateful
   , pathClear
   , pathLineTo
   , pathLineToMergeDuplicate
@@ -112,6 +130,8 @@ C.context (Cpp.cppCtx <> C.bsCtx <> imguiContext)
 C.include "imgui.h"
 Cpp.using "namespace ImGui"
 
+-- | A single draw command list.
+-- Generally one per window, conceptually you may see this as a dynamic "mesh" builder.
 newtype DrawList = DrawList (Ptr ImDrawList)
 
 new :: MonadIO m => m DrawList
@@ -197,6 +217,14 @@ popTextureID (DrawList drawList) = liftIO do
     }
   |]
 
+
+{- $primitives
+- For rectangular primitives, @p_min@ and @p_max@ represent the upper-left and lower-right corners.
+- For circle primitives, use @num_segments == 0@ to automatically calculate tessellation (preferred).
+  In older versions (until Dear ImGui 1.77) the 'addCircle' functions defaulted to num_segments == 12.
+  In future versions we will use textures to provide cheaper and higher-quality circles.
+  Use 'addNgon' and 'addNgonFilled' functions if you need to guaranteed a specific number of sides.
+-}
 
 addLine :: MonadIO m => DrawList -> Ptr ImVec2 -> Ptr ImVec2 -> ImU32 -> CFloat -> m ()
 addLine (DrawList drawList) p1 p2 col thickness = liftIO do
@@ -475,6 +503,13 @@ addBezierQuadratic (DrawList drawList) p1 p2 p3 col thickness numSegments = lift
   |]
 
 
+{- $image
+* Read FAQ to understand what @ImTextureID@ is.
+* @p_min@ and @p_max@ represent the upper-left and lower-right corners of the rectangle.
+* @uv_min@ and @uv_max@ represent the normalized texture coordinates to use for those corners.
+  Using @(0,0)->(1,1)@ texture coordinates will generally display the entire texture.
+-}
+
 addImage
   :: MonadIO m
   => DrawList
@@ -549,6 +584,9 @@ addImageRounded (DrawList drawList) userTextureIDPtr p_min p_max uv_min uv_max c
     }
   |]
 
+{- $stateful
+Add points then finish with 'pathFillConvex' or 'pathStroke'.
+-}
 
 pathClear :: MonadIO m => DrawList -> m ()
 pathClear (DrawList drawList) = liftIO do
@@ -578,7 +616,7 @@ pathLineToMergeDuplicate (DrawList drawList) pos = liftIO do
     }
   |]
 
--- Note: Anti-aliased filling requires points to be in clockwise order.
+-- | Note: Anti-aliased filling requires points to be in clockwise order.
 pathFillConvex :: MonadIO m => DrawList -> ImU32 -> m ()
 pathFillConvex (DrawList drawList) col = liftIO do
   [C.block|
