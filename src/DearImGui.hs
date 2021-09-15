@@ -293,6 +293,7 @@ import UnliftIO (MonadUnliftIO)
 import UnliftIO.Exception (bracket, bracket_)
 
 import qualified DearImGui.Raw as Raw
+import qualified DearImGui.Raw.ListClipper as Raw.ListClipper
 
 -- ListClipper
 import qualified Data.Vector as V
@@ -827,16 +828,19 @@ dragScalarN label dataType ref vSpeed refMin refMax format flags = liftIO do
   
 -- | Clips a large list of items
 --
--- The requirements on a are that they are all of the same height. Not sure, how this could be expressed.
+-- The requirements on @a@ are that they are all of the same height.
 withListClipper :: (MonadUnliftIO m) => V.Vector a -> (a -> IO b) -> m ()
-withListClipper list action = bracket (Raw.beginListClipper $ V.length list) Raw.endListClipper step_
+withListClipper list action = bracket Raw.ListClipper.new Raw.ListClipper.delete step
   where
-    step_ :: (MonadIO n) => ListClipper -> n ()
+    step clipper = liftIO do
+      Raw.ListClipper.begin  clipper $ V.length list
+      step_ clipper
+    step_ :: (MonadIO n) => Raw.ListClipper.ListClipper -> n ()
     step_ clipper = liftIO do
-      doStep <- Raw.stepListClipper clipper
+      doStep <- Raw.ListClipper.step clipper
       when doStep $ liftIO do
-        startIndex <- Raw.displayStartListClipper clipper
-        l <- Raw.displayEndListClipper clipper
+        startIndex <- Raw.ListClipper.displayStart clipper
+        l <- Raw.ListClipper.displayEnd clipper
         mapM_ action (V.slice startIndex (l - startIndex) list) 
         step_ clipper
 

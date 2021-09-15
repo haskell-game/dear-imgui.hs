@@ -92,6 +92,7 @@ library
   exposed-modules:
     DearImGui
     DearImGui.Raw
+    DearImGui.Raw.ListClipper
   other-modules:
     DearImGui.Context
     DearImGui.Enums
