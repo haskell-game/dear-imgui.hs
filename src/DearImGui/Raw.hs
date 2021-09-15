@@ -198,7 +198,7 @@ module DearImGui.Raw
   , closeCurrentPopup
 
     -- * Miscellaneous Utilities
-  , ImGuiListClipper
+  , ListClipper
   , beginListClipper
   , endListClipper
   , stepListClipper
@@ -253,46 +253,59 @@ C.context (Cpp.cppCtx <> C.bsCtx <> imguiContext)
 C.include "imgui.h"
 Cpp.using "namespace ImGui"
 
+
 -- | Wraps @ImGuiListClipper
-newtype ImGuiListClipper = ImGuiListClipper (Ptr ())
+newtype ListClipper = ListClipper (Ptr ImGuiListClipper)
 
-
--- | Wraps @ImGuiListClipper::Begin()
+-- | Wraps a constructor for @ImGuiListClipper
 -- 
--- The pointer has to be deleted manually by destroiyImGuiListClipper
-beginListClipper :: MonadIO m => Int -> m ImGuiListClipper
-beginListClipper size 
+-- Listclipper has manually by destroiyListClipper
+new :: (MonadIO m) => m ListClipper
+new = liftIO $ do             
+--  ListClipper <$> [C.block| ImGuiListClipper* { 
+  ListClipper <$> [C.exp| ImGuiListClipper* { new ImGuiListClipper } |]
+
+-- | Wraps a destructor for @ImGuiListClipper
+--
+-- | Deletes @ImGuiListClipper
+delete :: MonadIO m => ListClipper -> m Int
+delete (ListClipper clipper) = liftIO do
+  fromEnum <$> [Cpp.exp| void { delete clipper } |]
+
+-- | Wraps @ListClipper::Begin()
+-- 
+-- The pointer has to be deleted manually by destroiyListClipper
+begin:: (MonadIO m) => Int -> m ListClipper
+begin size 
   | size < 0 = error "Size of the Clipper can't be negative"
   | otherwise = liftIO $ do
     let length = toEnum size :: CInt
-    ImGuiListClipper <$> [Cpp.block| void* { 
-        ImGuiListClipper* clipper = new ImGuiListClipper;
+    ListClipper <$> [Cpp.block| ImGuiListClipper* { 
         clipper->Begin( $(int length) );
-        return reinterpret_cast<void*>(clipper);
       } |]
 
 
--- | Wraps @ImGuiListClipper::End()
-endListClipper :: MonadIO m => ImGuiListClipper -> m Int
-endListClipper (ImGuiListClipper clipper) = liftIO do
+-- | Wraps @ListClipper::End()
+endListClipper :: MonadIO m => ListClipper -> m Int
+endListClipper (ListClipper clipper) = liftIO do
   fromEnum <$> [Cpp.exp| void { delete (ImGuiListClipper*)$(void * clipper) } |]
 
 
--- | Wraps @ImGuiListClipper::Begin()
-displayStartListClipper :: MonadIO m => ImGuiListClipper -> m Int
-displayStartListClipper (ImGuiListClipper clipper)= liftIO do
+-- | Wraps @ListClipper::Begin()
+displayStartListClipper :: MonadIO m => ListClipper -> m Int
+displayStartListClipper (ListClipper clipper)= liftIO do
   fromEnum <$> [Cpp.exp| int { reinterpret_cast<ImGuiListClipper*>($(void* clipper))->DisplayStart } |] 
 
 
--- | Wraps @ImGuiListClipper::DisplayStart
-displayEndListClipper :: MonadIO m => ImGuiListClipper -> m Int
-displayEndListClipper (ImGuiListClipper clipper)= liftIO do
+-- | Wraps @ListClipper::DisplayStart
+displayEndListClipper :: MonadIO m => ListClipper -> m Int
+displayEndListClipper (ListClipper clipper)= liftIO do
   fromEnum <$> [Cpp.exp| int { reinterpret_cast<ImGuiListClipper*>($(void* clipper))->DisplayEnd } |]
 
 
--- | Wraps @ImGuiListClipper::DisplayEnd
-stepListClipper :: MonadIO m => ImGuiListClipper -> m Bool
-stepListClipper (ImGuiListClipper clipper)= liftIO do
+-- | Wraps @ListClipper::DisplayEnd
+stepListClipper :: MonadIO m => ListClipper -> m Bool
+stepListClipper (ListClipper clipper)= liftIO do
   (==) (CBool 1) <$> [Cpp.exp| bool { reinterpret_cast<ImGuiListClipper*>($(void* clipper))->Step()} |]
 
 

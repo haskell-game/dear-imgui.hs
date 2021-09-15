@@ -5,7 +5,7 @@ module DearImGui.Structs where
 
 -- base
 import Foreign
-  ( Storable(..), castPtr, plusPtr )
+  ( Storable(..), castPtr, plusPtr, Ptr )
 
 --------------------------------------------------------------------------------
 data ImVec2 = ImVec2 { x, y :: {-# unpack #-} !Float }
@@ -77,3 +77,7 @@ data ImGuiContext
 
 -- | Individual font handle.
 data ImFont
+
+-- | DearImGuinewtype ImGuiListClipper handle
+data ImGuiListClipper
+

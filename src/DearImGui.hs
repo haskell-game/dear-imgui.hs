@@ -831,7 +831,7 @@ dragScalarN label dataType ref vSpeed refMin refMax format flags = liftIO do
 withListClipper :: (MonadUnliftIO m) => V.Vector a -> (a -> IO b) -> m ()
 withListClipper list action = bracket (Raw.beginListClipper $ V.length list) Raw.endListClipper step_
   where
-    step_ :: (MonadIO n) => Raw.ImGuiListClipper -> n ()
+    step_ :: (MonadIO n) => ListClipper -> n ()
     step_ clipper = liftIO do
       doStep <- Raw.stepListClipper clipper
       when doStep $ liftIO do
