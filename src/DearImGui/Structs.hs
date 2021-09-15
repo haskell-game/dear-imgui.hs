@@ -4,6 +4,8 @@
 module DearImGui.Structs where
 
 -- base
+import Data.Word
+  ( Word32 )
 import Foreign
   ( Storable(..), castPtr, plusPtr )
 
@@ -77,3 +79,9 @@ data ImGuiContext
 
 -- | Individual font handle.
 data ImFont
+
+-- | Opaque DrawList handle.
+data ImDrawList
+
+-- | 32-bit unsigned integer (often used to store packed colors).
+type ImU32 = Word32
