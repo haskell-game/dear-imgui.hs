@@ -258,7 +258,6 @@ C.include "imgui.h"
 Cpp.using "namespace ImGui"
 
 
-
 -- | Wraps @ImGuiContext*@.
 newtype Context = Context (Ptr ImGuiContext)
 
