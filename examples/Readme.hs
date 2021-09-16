@@ -45,10 +45,7 @@ main = do
 
 
 mainLoop :: Window -> IO ()
-mainLoop window = do
-  -- Process the event loop
-  untilNothingM pollEventWithImGui
-
+mainLoop window = unlessQuit do
   -- Tell ImGui we're starting a new frame
   openGL2NewFrame
   sdl2NewFrame
@@ -78,4 +75,17 @@ mainLoop window = do
   mainLoop window
 
   where
-    untilNothingM m = m >>= maybe (return ()) (\_ -> untilNothingM m)
+    -- Process the event loop
+    unlessQuit action = do
+      shouldQuit <- checkEvents
+      if shouldQuit then pure () else action
+
+    checkEvents = do
+      pollEventWithImGui >>= \case
+        Nothing ->
+          return False
+        Just event ->
+          (isQuit event ||) <$> checkEvents
+
+    isQuit event =
+      SDL.eventPayload event == SDL.QuitEvent

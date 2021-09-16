@@ -54,6 +54,7 @@ module DearImGui
 
     -- ** Utilities
 
+  , Raw.getWindowDrawList
   , Raw.getWindowPos
   , Raw.getWindowSize
   , Raw.getWindowWidth
@@ -172,11 +173,11 @@ module DearImGui
   , inputTextMultiline
   , inputTextWithHint
 
-    -- * Color Editor/Picker
+    -- ** Color Editor/Picker
   , colorPicker3
   , colorButton
 
-    -- * Trees
+    -- ** Trees
   , treeNode
   , treePush
   , Raw.treePop
@@ -187,7 +188,7 @@ module DearImGui
     -- ** List Boxes
   , listBox
 
-    -- * Data Plotting
+    -- ** Data Plotting
   , plotHistogram
 
     -- ** Menus
@@ -221,7 +222,7 @@ module DearImGui
   , tabItemButton
   , setTabItemClosed
 
-    -- * Tooltips
+    -- ** Tooltips
   , withTooltip
   , Raw.beginTooltip
   , Raw.endTooltip
@@ -254,6 +255,13 @@ module DearImGui
   , Raw.addFontDefault
   , Raw.buildFontAtlas
   , Raw.clearFontAtlas
+
+    -- * Utilities
+
+    -- ** Miscellaneous
+  , Raw.getBackgroundDrawList
+  , Raw.getForegroundDrawList
+  , Raw.imCol32
 
     -- * Types
   , module DearImGui.Enums
