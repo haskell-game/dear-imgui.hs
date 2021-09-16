@@ -830,19 +830,18 @@ dragScalarN label dataType ref vSpeed refMin refMax format flags = liftIO do
 --
 -- The requirements on @a@ are that they are all of the same height.
 withListClipper :: (MonadUnliftIO m) => V.Vector a -> (a -> IO b) -> m ()
-withListClipper list action = bracket Raw.ListClipper.new Raw.ListClipper.delete step
+withListClipper list action = liftIO $ bracket 
+    (throwIfNull "withListClipper: ListClipper allocation failed" Raw.ListClipper.new) 
+    Raw.ListClipper.delete step 
   where
-    step clipper = liftIO do
-      Raw.ListClipper.begin  clipper $ V.length list
-      step_ clipper
-    step_ :: (MonadIO n) => Raw.ListClipper.ListClipper -> n ()
-    step_ clipper = liftIO do
+    step clipper = (Raw.ListClipper.begin clipper $ toEnum . V.length $ list) >> step' clipper
+    step' clipper = liftIO do
       doStep <- Raw.ListClipper.step clipper
       when doStep $ liftIO do
         startIndex <- Raw.ListClipper.displayStart clipper
         l <- Raw.ListClipper.displayEnd clipper
         mapM_ action (V.slice startIndex (l - startIndex) list) 
-        step_ clipper
+        step' clipper
 
 
 sliderScalar
