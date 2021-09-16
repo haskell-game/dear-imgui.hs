@@ -3,6 +3,7 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE PatternSynonyms #-}
@@ -241,9 +242,6 @@ module DearImGui
   , openPopup
   , Raw.closeCurrentPopup
 
-    -- * Miscellaneous Utilities
-  , withListClipper
-
     -- * Item/Widgets Utilities
   , Raw.isItemHovered
   , Raw.wantCaptureMouse
@@ -257,6 +255,11 @@ module DearImGui
   , Raw.clearFontAtlas
 
     -- * Utilities
+
+    -- ** ListClipper
+  , withListClipper
+  , ClipItems(..)
+  , ClipRange(..)
 
     -- ** Miscellaneous
   , Raw.getBackgroundDrawList
@@ -303,9 +306,10 @@ import UnliftIO.Exception (bracket, bracket_)
 import qualified DearImGui.Raw as Raw
 import qualified DearImGui.Raw.ListClipper as Raw.ListClipper
 
--- ListClipper
+-- vector
 import qualified Data.Vector as V
-
+import qualified Data.Vector.Storable as VS
+import qualified Data.Vector.Unboxed as VU
 
 -- | Get the compiled version string e.g. "1.80 WIP" (essentially the value for
 -- @IMGUI_VERSION@ from the compiled version of @imgui.cpp@).
@@ -832,25 +836,6 @@ dragScalarN label dataType ref vSpeed refMin refMax format flags = liftIO do
           ref $=! newValue
 
         return changed
-
-  
--- | Clips a large list of items
---
--- The requirements on @a@ are that they are all of the same height.
-withListClipper :: (MonadUnliftIO m) => V.Vector a -> (a -> IO b) -> m ()
-withListClipper list action = liftIO $ bracket 
-    (throwIfNull "withListClipper: ListClipper allocation failed" Raw.ListClipper.new) 
-    Raw.ListClipper.delete step 
-  where
-    step clipper = (Raw.ListClipper.begin clipper $ toEnum . V.length $ list) >> step' clipper
-    step' clipper = liftIO do
-      doStep <- Raw.ListClipper.step clipper
-      when doStep $ liftIO do
-        startIndex <- Raw.ListClipper.displayStart clipper
-        l <- Raw.ListClipper.displayEnd clipper
-        mapM_ action (V.slice startIndex (l - startIndex) list) 
-        step' clipper
-
 
 sliderScalar
   :: (HasSetter ref a, HasGetter ref a, Storable a, MonadIO m)
@@ -1724,3 +1709,86 @@ addFontFromFileTTF font size = liftIO do
     if castPtr ptr == nullPtr
       then Nothing
       else Just res
+
+-- | Clips a large list of items
+--
+-- The requirements on @a@ are that they are all of the same height.
+withListClipper :: (ClipItems t a, MonadUnliftIO m) => Maybe Float -> t a -> (a -> m ()) -> m ()
+withListClipper itemHeight items action =
+  bracket
+    (liftIO $ throwIfNull "withListClipper: ListClipper allocation failed" Raw.ListClipper.new)
+    Raw.ListClipper.delete
+    step
+  where
+    itemHeight' = maybe (-1.0) CFloat itemHeight
+    itemCount' = maybe maxBound fromIntegral (itemCount items)
+
+    step clipper = do
+      Raw.ListClipper.begin clipper itemCount' itemHeight'
+      go clipper
+
+    go clipper = do
+      doStep <- Raw.ListClipper.step clipper
+      when doStep do
+        let
+          startIndex = fromIntegral $ Raw.ListClipper.displayStart clipper
+          endIndex   = fromIntegral $ Raw.ListClipper.displayEnd clipper
+        stepItems action $
+          clipItems startIndex endIndex items
+
+        go clipper
+
+-- | Containers usable with 'ListClipper'.
+class ClipItems t a where
+  itemCount :: t a -> Maybe Int
+  clipItems :: Int -> Int -> t a -> t a
+  stepItems :: Monad m => (a -> m ()) -> t a -> m ()
+
+-- | Unbounded stream of items.
+instance ClipItems [] a where
+  itemCount = const Nothing
+
+  clipItems displayStart displayEnd =
+    take (displayEnd - displayStart) . drop displayStart
+
+  stepItems = mapM_
+
+instance ClipItems V.Vector a where
+  itemCount = Just . V.length
+
+  clipItems displayStart displayEnd =
+    V.slice displayStart (displayEnd - displayStart)
+
+  stepItems = V.mapM_
+
+instance Storable a => ClipItems VS.Vector a where
+  itemCount = Just . VS.length
+
+  clipItems displayStart displayEnd =
+    VS.slice displayStart (displayEnd - displayStart)
+
+  stepItems = VS.mapM_
+
+instance VU.Unbox a => ClipItems VU.Vector a where
+  itemCount = Just . VU.length
+
+  clipItems displayStart displayEnd =
+    VU.slice displayStart (displayEnd - displayStart)
+
+  stepItems = VU.mapM_
+
+-- | ClipList helper for arbitrary unmaterialized ranges.
+data ClipRange a = ClipRange a a
+  deriving (Eq, Ord, Show)
+
+instance (Ord a, Enum a, Num a) => ClipItems ClipRange a where
+  itemCount (ClipRange _begin end) =
+    Just $ fromEnum end
+
+  clipItems clipBegin clipEnd (ClipRange oldBegin oldEnd) =
+    ClipRange
+      (toEnum $ max clipBegin $ fromEnum oldBegin)
+      (toEnum $ min clipEnd $ fromEnum oldEnd)
+
+  stepItems action (ClipRange start end) =
+    mapM_ action [start .. end - 1]
