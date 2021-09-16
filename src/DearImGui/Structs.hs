@@ -7,7 +7,7 @@ module DearImGui.Structs where
 import Data.Word
   ( Word32 )
 import Foreign
-  ( Storable(..), castPtr, plusPtr, Ptr )
+  ( Storable(..), castPtr, plusPtr)
 
 --------------------------------------------------------------------------------
 data ImVec2 = ImVec2 { x, y :: {-# unpack #-} !Float }
