@@ -93,6 +93,7 @@ library
     DearImGui
     DearImGui.Raw
     DearImGui.Raw.DrawList
+    DearImGui.Raw.ListClipper
   other-modules:
     DearImGui.Context
     DearImGui.Enums
@@ -117,6 +118,7 @@ library
     , inline-c-cpp
     , StateVar
     , unliftio
+    , vector
 
   if flag(opengl2)
     exposed-modules:
@@ -241,7 +243,7 @@ executable test
   if (!flag(examples) || !flag(sdl) || !flag(opengl2))
     buildable: False
   else
-    build-depends: base, sdl2, gl, dear-imgui
+    build-depends: base, sdl2, gl, dear-imgui, vector
 
 executable glfw
   main-is: Main.hs

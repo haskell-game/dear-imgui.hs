@@ -83,5 +83,8 @@ data ImFont
 -- | Opaque DrawList handle.
 data ImDrawList
 
+-- | 'DearImGui.Raw.ListClipper.ListClipper' pointer tag.
+data ImGuiListClipper
+
 -- | 32-bit unsigned integer (often used to store packed colors).
 type ImU32 = Word32

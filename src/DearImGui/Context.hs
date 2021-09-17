@@ -37,5 +37,6 @@ imguiContext = mempty
       , ( TypeName "ImDrawList", [t| ImDrawList |] )
       , ( TypeName "ImGuiContext", [t| ImGuiContext |] )
       , ( TypeName "ImFont", [t| ImFont |] )
+      , ( TypeName "ImGuiListClipper", [t| ImGuiListClipper |] )
       ]
   }
