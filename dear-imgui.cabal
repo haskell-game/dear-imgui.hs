@@ -24,9 +24,44 @@ extra-source-files:
   imgui/imconfig.h,
   imgui/LICENSE.txt
 
+common build-flags
+  if flag(debug)
+    if os(linux)
+      ghc-options: -Wall -g -rtsopts -dcore-lint -debug -O0
+      cc-options: -g -O0 -fsanitize=address -fno-omit-frame-pointer
+      cxx-options: -g -O0 -fsanitize=address -fno-omit-frame-pointer -std=c++11
+    if os(darwin)
+      ghc-options: -Wall -g -rtsopts -dcore-lint -debug -O0
+      cc-options: -g -O0 -fsanitize=address -fno-omit-frame-pointer
+      cxx-options: -g -O0 -fsanitize=address -fno-omit-frame-pointer -std=c++11
+    if os(windows)
+      ghc-options: -Wall -g -rtsopts -dcore-lint -debug -O0
+      cc-options: -g -O0
+      cxx-options: -g -O0 -std=c++11
+  else
+    if os(linux)
+      ghc-options: -Wall -O2
+      cc-options: -O2
+      cxx-options: -std=c++11 -O2
+    if os(darwin)
+      ghc-options: -Wall -O2
+      cc-options: -O2
+    if os(windows)
+      ghc-options: -Wall -O2
+      cc-options: -O2
+
+
 source-repository head
   type: git
   location: https://github.com/haskell-game/dear-imgui.hs
+
+flag debug
+  description:
+    Enable debug mode.
+  default:
+    False
+  manual:
+    True
 
 flag opengl2
   description:
@@ -82,11 +117,11 @@ common common
         >= 4.12 && < 4.17
   default-language:
       Haskell2010
-  ghc-options:
-      -Wall
+--  ghc-options:
+--      -Wall
 
 library
-  import: common
+  import: common, build-flags
   hs-source-dirs:
     src
   exposed-modules:
@@ -104,8 +139,6 @@ library
     imgui/imgui_draw.cpp
     imgui/imgui_tables.cpp
     imgui/imgui_widgets.cpp
-  cxx-options:
-    -std=c++11
   extra-libraries:
     stdc++
   include-dirs:
@@ -202,7 +235,7 @@ library
         DearImGui.GLFW.Vulkan
 
 library dear-imgui-generator
-  import: common
+  import: common, build-flags
   hs-source-dirs: generator
   exposed-modules:
       DearImGui.Generator
@@ -236,27 +269,26 @@ library dear-imgui-generator
         >= 0.2.11 && < 0.2.15
 
 executable test
-  import: common
+  import: common, build-flags
   main-is: Main.hs
   default-language: Haskell2010
-  ghc-options: -Wall
   if (!flag(examples) || !flag(sdl) || !flag(opengl2))
     buildable: False
   else
     build-depends: base, sdl2, gl, dear-imgui, vector
 
 executable glfw
+  import: common, build-flags
   main-is: Main.hs
   hs-source-dirs: examples/glfw
   default-language: Haskell2010
-  ghc-options: -Wall
   if (!flag(examples) || !flag(glfw) || !flag(opengl2))
     buildable: False
   else
     build-depends: base, GLFW-b, gl, dear-imgui, managed
 
 executable readme
-  import: common
+  import: common, build-flags
   main-is: Readme.hs
   hs-source-dirs: examples
   build-depends: sdl2, gl, dear-imgui, managed
@@ -264,7 +296,7 @@ executable readme
     buildable: False
 
 executable image
-  import: common
+  import: common, build-flags
   main-is: Image.hs
   hs-source-dirs: examples/sdl
   build-depends: sdl2, gl, dear-imgui, managed, vector
@@ -272,12 +304,11 @@ executable image
     buildable: False
 
 executable vulkan
-  import: common
+  import: common, build-flags
   main-is: Main.hs
   other-modules: Attachments, Backend, Input, Util
   hs-source-dirs: examples/vulkan
   default-language: Haskell2010
-  ghc-options: -Wall
   if (!flag(examples) || !flag(sdl) || !flag(vulkan))
     buildable: False
   else
