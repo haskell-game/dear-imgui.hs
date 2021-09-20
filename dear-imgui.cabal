@@ -117,8 +117,6 @@ common common
         >= 4.12 && < 4.17
   default-language:
       Haskell2010
---  ghc-options:
---      -Wall
 
 library
   import: common, build-flags
