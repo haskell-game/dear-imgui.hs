@@ -1,7 +1,7 @@
 cabal-version: 3.0
 
 name: dear-imgui
-version: 1.2.0
+version: 1.2.1
 author: Oliver Charles
 maintainer: ollie@ocharles.org.uk, aenor.realm@gmail.com
 license: BSD-3-Clause
@@ -127,6 +127,7 @@ library
     DearImGui.Raw
     DearImGui.Raw.DrawList
     DearImGui.Raw.ListClipper
+    DearImGui.Raw.IO
   other-modules:
     DearImGui.Context
     DearImGui.Enums

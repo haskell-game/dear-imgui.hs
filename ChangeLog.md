@@ -1,5 +1,9 @@
 # Changelog for dear-imgui
 
+## [1.2.1]
+
+- Added `DearImGui.Raw.IO` with attribute setters.
+
 ## [1.2.0]
 
 - Fixed `nullPtr` in place of default arguments.
