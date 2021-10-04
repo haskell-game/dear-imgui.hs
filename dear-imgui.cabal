@@ -27,15 +27,15 @@ extra-source-files:
 common build-flags
   if flag(debug)
     if os(linux)
-      ghc-options: -Wall -g -rtsopts -dcore-lint -debug -O0
+      ghc-options: -Wall -g -rtsopts -dcore-lint -debug
       cc-options: -g -O0 -fsanitize=address -fno-omit-frame-pointer
       cxx-options: -g -O0 -fsanitize=address -fno-omit-frame-pointer -std=c++11
     if os(darwin)
-      ghc-options: -Wall -g -rtsopts -dcore-lint -debug -O0
+      ghc-options: -Wall -g -rtsopts -dcore-lint -debug
       cc-options: -g -O0 -fsanitize=address -fno-omit-frame-pointer
       cxx-options: -g -O0 -fsanitize=address -fno-omit-frame-pointer -std=c++11
     if os(windows)
-      ghc-options: -Wall -g -rtsopts -dcore-lint -debug -O0
+      ghc-options: -Wall -g -rtsopts -dcore-lint -debug
       cc-options: -g -O0
       cxx-options: -g -O0 -std=c++11
   else
@@ -119,7 +119,7 @@ common common
       Haskell2010
 
 library
-  import: common, build-flags
+  import: common
   hs-source-dirs:
     src
   exposed-modules:
@@ -132,6 +132,7 @@ library
     DearImGui.Context
     DearImGui.Enums
     DearImGui.Structs
+  cxx-options: -std=c++11
   cxx-sources:
     imgui/imgui.cpp
     imgui/imgui_demo.cpp
@@ -234,7 +235,7 @@ library
         DearImGui.GLFW.Vulkan
 
 library dear-imgui-generator
-  import: common, build-flags
+  import: common
   hs-source-dirs: generator
   exposed-modules:
       DearImGui.Generator
