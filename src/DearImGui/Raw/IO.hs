@@ -13,7 +13,19 @@
 
 -}
 
-module DearImGui.Raw.IO where
+module DearImGui.Raw.IO
+  ( setIniFilename
+  , setLogFilename
+
+  , setMouseDoubleClickMaxDist
+  , setMouseDoubleClickTime
+  , setMouseDragThreshold
+
+  , setKeyRepeatDelay
+  , setKeyRepeatRate
+
+  , setUserData
+  ) where
 
 -- TODO: add exports
 
