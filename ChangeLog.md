@@ -1,5 +1,9 @@
 # Changelog for dear-imgui
 
+## [1.2.2]
+
+- `imgui` updated to 1.85.
+
 ## [1.2.1]
 
 - Added `DearImGui.Raw.IO` with attribute setters.
@@ -40,3 +44,4 @@ Initial Hackage release based on 1.83.
 [1.0.2]: https://github.com/haskell-game/dear-imgui.hs/tree/v1.0.2
 [1.1.0]: https://github.com/haskell-game/dear-imgui.hs/tree/v1.1.0
 [1.2.0]: https://github.com/haskell-game/dear-imgui.hs/tree/v1.2.0
+[1.3.0]: https://github.com/haskell-game/dear-imgui.hs/tree/v1.3.0
