@@ -124,8 +124,10 @@ library
     src
   exposed-modules:
     DearImGui
+    DearImGui.Fonts
     DearImGui.Raw
     DearImGui.Raw.DrawList
+    DearImGui.Raw.Fonts
     DearImGui.Raw.ListClipper
     DearImGui.Raw.IO
   other-modules:
@@ -291,6 +293,14 @@ executable readme
   import: common, build-flags
   main-is: Readme.hs
   hs-source-dirs: examples
+  build-depends: sdl2, gl, dear-imgui, managed
+  if (!flag(examples) || !flag(sdl) || !flag(opengl2))
+    buildable: False
+
+executable fonts
+  import: common, build-flags
+  main-is: Main.hs
+  hs-source-dirs: examples/fonts
   build-depends: sdl2, gl, dear-imgui, managed
   if (!flag(examples) || !flag(sdl) || !flag(opengl2))
     buildable: False

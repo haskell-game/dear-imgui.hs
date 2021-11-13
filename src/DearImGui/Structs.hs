@@ -80,6 +80,9 @@ data ImGuiContext
 -- | Individual font handle.
 data ImFont
 
+-- | Font configuration handle.
+data ImFontConfig
+
 -- | Opaque DrawList handle.
 data ImDrawList
 
@@ -88,3 +91,7 @@ data ImGuiListClipper
 
 -- | 32-bit unsigned integer (often used to store packed colors).
 type ImU32 = Word32
+
+-- | Single wide character (used mostly in glyph management)
+data ImWchar = Word16
+-- FIXME: consider IMGUI_USE_WCHAR32
