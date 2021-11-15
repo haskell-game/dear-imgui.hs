@@ -5,7 +5,7 @@ module DearImGui.Structs where
 
 -- base
 import Data.Word
-  ( Word32 )
+  ( Word32, Word16 )
 import Foreign
   ( Storable(..), castPtr, plusPtr )
 
@@ -83,6 +83,9 @@ data ImFont
 -- | Font configuration handle.
 data ImFontConfig
 
+-- | Glyph ranges builder handle.
+data ImFontGlyphRangesBuilder
+
 -- | Opaque DrawList handle.
 data ImDrawList
 
@@ -93,5 +96,5 @@ data ImGuiListClipper
 type ImU32 = Word32
 
 -- | Single wide character (used mostly in glyph management)
-data ImWchar = Word16
+type ImWchar = Word16
 -- FIXME: consider IMGUI_USE_WCHAR32

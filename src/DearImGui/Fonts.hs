@@ -99,6 +99,7 @@ addFontFromFileTTF' font size mFontConfig mGlyphRanges = liftIO do
     if castPtr ptr == nullPtr
       then Nothing
       else Just res
+-- FIXME: fails with assertion if file does not exist.
 
 
 -- | Render widgets inside the block using provided font.
