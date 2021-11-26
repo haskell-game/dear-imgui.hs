@@ -103,7 +103,7 @@ new = liftIO do
     }
   |]
 
--- | Destroy an instance on builder
+-- | Destroy an instance of builder
 --
 -- Should be used __after__ font atlas building.
 destroy :: MonadIO m => GlyphRangesBuilder -> m ()
