@@ -124,7 +124,7 @@ library
     src
   exposed-modules:
     DearImGui
-    DearImGui.Fonts
+    DearImGui.FontAtlas
     DearImGui.Raw
     DearImGui.Raw.DrawList
     DearImGui.Raw.Fonts

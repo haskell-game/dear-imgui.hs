@@ -1,6 +1,8 @@
 {-# language BlockArguments #-}
 {-# language LambdaCase #-}
 {-# language OverloadedStrings #-}
+{-# language RecordWildCards #-}
+{-# language NamedFieldPuns #-}
 
 {- | Font usage example.
 
@@ -19,17 +21,42 @@ import Control.Monad.IO.Class
 import Control.Monad.Managed
 import Data.IORef
 import DearImGui
-import DearImGui.Fonts
+import qualified DearImGui.FontAtlas as FontAtlas
+import DearImGui.FontAtlas (Font)
 import DearImGui.OpenGL2
 import DearImGui.SDL
 import DearImGui.SDL.OpenGL
 import Graphics.GL
 import SDL
 
+-- Rebuild syntax enables us to keep fonts in any
+-- traversable type, so let's make our life a little easier.
+-- But feel free to use lists or maps.
+data FontSet a = FontSet
+  { droidFont :: a
+  , defaultFont :: a
+  , notoFont :: a
+  }
+
+instance Functor FontSet where
+  fmap fn (FontSet {..}) = FontSet
+    (fn droidFont)
+    (fn defaultFont)
+    (fn notoFont)
+instance Foldable FontSet where
+  foldr f z (FontSet {..}) =
+    droidFont `f` (defaultFont `f` (notoFont `f` z))
+instance Traversable FontSet where
+  traverse fn (FontSet {..}) = FontSet
+    <$> fn droidFont
+    <*> fn defaultFont
+    <*> fn notoFont
+
+
 main :: IO ()
 main = do
+  -- Window initialization is similar to another examples.
   initializeAll
-
   runManaged do
     window <- do
       let title = "Hello, Dear ImGui!"
@@ -40,31 +67,38 @@ main = do
     _ <- managed_ $ bracket_ (sdl2InitForOpenGL window glContext) sdl2Shutdown
     _ <- managed_ $ bracket_ openGL2Init openGL2Shutdown
 
-    -- The first loaded font is set as a global default.
-    addFontFromFileTTF' "./imgui/misc/fonts/DroidSans.ttf" 12 
-                                      Nothing (Just getGlyphRangesCyrillic) >>= \case
-      Nothing -> error "couldn't load DroidSans.ttf"
-      Just font -> return font
-    
-    -- You also may use a default hardcoded font for some purposes (i.e. as fallback)
-    defaultFont <- addFontDefault
+    -- We use high-level syntax to build font atlas and
+    -- get handles to use in the main loop.
+    fontSet <- FontAtlas.rebuild $ FontSet
+      -- The first mentioned font is loaded first
+      -- and set as a global default.
+      { droidFont = FontAtlas.FromTTF
+          "./imgui/misc/fonts/DroidSans.ttf" 12
+          mempty FontAtlas.Cyrillic
+      -- You also may use a default hardcoded font for
+      -- some purposes (i.e. as fallback)
+      , defaultFont = FontAtlas.DefaultFont
+      -- To optimize atlas size, use ranges builder and
+      -- provide source localization data.
+      , notoFont = FontAtlas.FromTTF
+          "./examples/fonts/NotoSansJP-Regular.otf" 16
+          mempty
+          (FontAtlas.RangesBuilder $
+             FontAtlas.addRanges FontAtlas.DefaultRanges <>
+             FontAtlas.addText "私をクリックしてください" <>
+             FontAtlas.addText "こんにちは"
+          )
 
-    notoFont <- addFontFromFileTTF' "./examples/fonts/NotoSansJP-Regular.otf" 16 
-                                     Nothing (Just getGlyphRangesJapanese) >>= \case
-      Nothing -> error "couldn't load NotoSansJP-Regular.otf"
-      Just font -> return font
-    
-    -- If you build fonts from memory or use glyphs, you should explicitly
-    -- build font atlas with buildAtlas. Though, it's not needed here.
+      }
 
     liftIO $ do
       fontFlag <- newIORef False
-      mainLoop window defaultFont notoFont fontFlag
+      mainLoop window fontSet fontFlag
 
 
-mainLoop :: Window -> Font -> Font -> IORef Bool -> IO ()
-mainLoop window defaultFont notoFont fontFlag = loop 
-  where 
+mainLoop :: Window -> FontSet Font -> IORef Bool -> IO ()
+mainLoop window (FontSet {defaultFont, notoFont}) fontFlag = loop
+  where
   loop = unlessQuit do
     openGL2NewFrame
     sdl2NewFrame
@@ -73,25 +107,25 @@ mainLoop window defaultFont notoFont fontFlag = loop
     withWindowOpen "Hello, ImGui!" do
       -- To use a font for widget text, you may either put it
       -- into a 'withFont' block:
-      withFont defaultFont do 
+      FontAtlas.withFont defaultFont do
         text "Hello, ImGui!"
       text "Привет, ImGui!"
-      
+
       -- ...or you can explicitly push and pop a font.
       -- Though it's not recommended.
       flagValue <- readIORef fontFlag
-      let buttonText = 
+      let buttonText =
             if flagValue then "私をクリックしてください"
                          else "Click Me!"
-      if flagValue then do          
-        pushFont notoFont
+      if flagValue then do
+        FontAtlas.pushFont notoFont
         text "こんにちは, ImGui!"
-      else do 
+      else do
         text "Hola, ImGui!"
-      button buttonText >>= \case 
-        True -> modifyIORef' fontFlag (not)        
+      button buttonText >>= \case
+        True -> modifyIORef' fontFlag (not)
         False -> return ()
-      when flagValue do popFont
+      when flagValue do FontAtlas.popFont
 
     showDemoWindow
 
