@@ -17,16 +17,16 @@ Font atlas builder, accompanied with lower-level functions.
 Supposed for qualified import, like such:
 
 @
- -- import qualified DearImGui.FontAtlas as FontAtlas
- FontAtlas.rebuild
-   [ FontAtlas.FileTTF "comic-sans-mono.ttf" 14
-       ( FontAtlas.fontNo 1 <> FontAtlas.glyphOffset (0, -1))
-       ( RangeBuilder $ FontAtlas.addText "Hello world"
-                     <> FontRanges.addChar 'Ꙑ'
-                     <> FontRanges.addRanges FontRanges.Korean
-       )
-   , FontAtlas.Default
-   ]
+-- import qualified DearImGui.FontAtlas as FontAtlas
+FontAtlas.rebuild
+  [ FontAtlas.FileTTF "comic-sans-mono.ttf" 14
+      ( FontAtlas.fontNo 1 <> FontAtlas.glyphOffset (0, -1))
+      ( RangeBuilder $ FontAtlas.addText "Hello world"
+                    <> FontRanges.addChar 'Ꙑ'
+                    <> FontRanges.addRanges FontRanges.Korean
+      )
+  , FontAtlas.Default
+  ]
 @
 
 -}
@@ -72,8 +72,8 @@ module DearImGui.FontAtlas
   , clear
   , setupFont
   , setupRanges
-  , buildRanges
-  , setupConfig
+  , withRanges
+  , withConfig
   , addFontFromFileTTF
   , addFontFromFileTTF'
   )
@@ -81,7 +81,6 @@ module DearImGui.FontAtlas
 
 -- base
 import Data.Bool (bool)
-import Data.Foldable (traverse_, sequenceA_)
 import Data.Maybe (fromMaybe)
 import Foreign
 import Foreign.C
@@ -90,9 +89,13 @@ import Foreign.C
 import Control.Monad.IO.Class
   ( MonadIO, liftIO )
 
+-- managed
+import qualified Control.Monad.Managed as Managed
+import Control.Monad.Managed (MonadManaged)
+
 -- unlift
 import UnliftIO (MonadUnliftIO)
-import UnliftIO.Exception (bracket_)
+import UnliftIO.Exception (bracket, bracket_)
 
 -- dear-imgui
 import DearImGui.Structs (ImVec2(..), ImWchar)
@@ -148,45 +151,37 @@ instance Monoid RangesBuilderSetup where
 
 
 -- | Rebuild font atlas with provided configuration
--- and returns corresponding structure of font handles
+-- and return corresponding structure of font handles
 -- to be used with 'withFont'.
 -- Accepts any 'Traversable' instance, so you are free to use
 -- lists, maps or custom structures.
 rebuild :: (MonadIO m, Traversable t) => t FontSetting -> m (t Font)
-rebuild fonts = do
-  Raw.clearFontAtlas
-  setFonts <- traverse setupFont fonts
-  Raw.buildFontAtlas
-  traverse_ sequenceA_ (snd <$> setFonts)
-  return (fst <$> setFonts)
+rebuild fonts = liftIO $ Managed.with m return
+  where
+    m = do
+      Raw.clearFontAtlas
+      handles <- traverse setupFont fonts
+      Raw.buildFontAtlas
+      return handles
+
 
 -- | Render widgets inside the block using provided font.
 withFont :: MonadUnliftIO m => Raw.Font -> m a -> m a
 withFont font = bracket_ (Raw.pushFont font) Raw.popFont
 
--- | Alias for 'Raw.clearFontAtlas'
+
+-- | Reset font atlas, clearing internal data
+--
+-- Alias for 'Raw.clearFontAtlas'
 clear :: (MonadIO m) => m ()
 clear = Raw.clearFontAtlas
 
--- | Alias for 'Raw.buildFontAtlas'
+-- | Build font atlas
+--
+-- Alias for 'Raw.buildFontAtlas'
 build :: (MonadIO m) => m ()
 build = Raw.buildFontAtlas
 
--- | Load a font with provided configuration,
---  return its handle and list of resource destructors.
-setupFont :: (MonadIO m) => FontSetting -> m (Font, [m ()])
-setupFont DefaultFont = (\x -> (x, [])) <$> Raw.addFontDefault
-setupFont (FromTTF path size fcs rs) = do
-  (ranges, dRanges) <- setupRanges rs
-  (config, dConfig) <- setupConfig fcs
-  mFont <- addFontFromFileTTF' path size config ranges
-  case mFont of
-    Nothing -> do
-      {- FIXME: lib itself crashes on load errors,
-                so we can't catch and process exceptions... or can we?
-      -}
-      liftIO . fail $ "Couldn't load font from " <> path
-    Just font -> return (font, dRanges <> dConfig)
 
 -- | Load a font from TTF file.
 --
@@ -225,49 +220,69 @@ addFontFromFileTTF' font size mConfig mRanges = liftIO do
     if castPtr ptr == nullPtr
       then Nothing
       else Just res
--- FIXME: fails with assertion if file does not exist.
+      -- FIXME: turn off asserts, so it would work
 
--- | Configure glyph ranges with provided configuration,
--- return their handle and list of resource destructors.
-setupRanges :: (MonadIO m) => RangesSetting -> m (Maybe GlyphRanges, [m ()])
-setupRanges (Ranges ranges) = return (Just ranges, [])
-setupRanges DefaultRanges = return (Nothing, [])
-setupRanges Korean = noDestruct Raw.getGlyphRangesKorean
-setupRanges Japanese = noDestruct Raw.getGlyphRangesJapanese
-setupRanges ChineseFull = noDestruct Raw.getGlyphRangesChineseFull
-setupRanges ChineseSimplifiedCommon = noDestruct Raw.getGlyphRangesChineseSimplifiedCommon
-setupRanges Cyrillic = noDestruct Raw.getGlyphRangesCyrillic
-setupRanges Thai = noDestruct Raw.getGlyphRangesThai
-setupRanges Vietnamese = noDestruct Raw.getGlyphRangesVietnamese
+
+-- | Load a font with provided configuration, return its handle
+-- and defer range builder and config destructors, if needed.
+setupFont :: (MonadManaged m) => FontSetting -> m Font
+setupFont DefaultFont = Raw.addFontDefault
+setupFont (FromTTF path size fcs rs) = do
+  ranges <- setupRanges rs
+  config <- Managed.managed (withConfig fcs)
+  mFont <- addFontFromFileTTF' path size config ranges
+  case mFont of
+    Nothing -> liftIO . fail $ "Couldn't load font from " <> path
+    Just font -> return font
+
+-- | Configure glyph ranges with provided configuration, return a handle
+-- and defer builder destructors, if needed.
+setupRanges :: (MonadManaged m) => RangesSetting -> m (Maybe GlyphRanges)
+setupRanges (Ranges ranges) = return $ Just ranges
+setupRanges DefaultRanges = return Nothing
+setupRanges Korean = return $ Just Raw.getGlyphRangesKorean
+setupRanges Japanese = return $ Just Raw.getGlyphRangesJapanese
+setupRanges ChineseFull = return $ Just Raw.getGlyphRangesChineseFull
+setupRanges ChineseSimplifiedCommon = return $ Just Raw.getGlyphRangesChineseSimplifiedCommon
+setupRanges Cyrillic = return $ Just Raw.getGlyphRangesCyrillic
+setupRanges Thai = return $ Just Raw.getGlyphRangesThai
+setupRanges Vietnamese = return $ Just Raw.getGlyphRangesVietnamese
 setupRanges (RangesBuilder settings) = do
-  (ranges, dRanges) <- buildRanges settings
-  return (Just ranges, dRanges)
+  ranges <- Managed.managed $ withRanges settings
+  return (Just ranges)
+
 
 -- | Perform glyph ranges build based on provided configuration,
--- return glyph ranges handle and list of resource destructors.
-buildRanges :: (MonadIO m) => RangesBuilderSetup -> m (GlyphRanges, [m ()])
-buildRanges (RangesBuilderSetup setup) = do
-  builder <- Builder.new
-  liftIO $ setup builder
-  rangesVec <- Builder.buildRanges builder
-  let ranges = Builder.fromRangesVector rangesVec
-      dRanges =
-        [ Builder.destroyRangesVector rangesVec
-        , Builder.destroy builder
-        ]
-  return (ranges, dRanges)
+-- and execute a computation with built glyph ranges.
+withRanges :: (MonadUnliftIO m) => RangesBuilderSetup
+           -> (GlyphRanges -> m a) -> m a
+withRanges (RangesBuilderSetup setup) fn =
+  bracket acquire release execute
+  where
+    acquire = do
+      builder <- Builder.new
+      liftIO $ setup builder
+      rangesVec <- Builder.buildRanges builder
+      return (rangesVec, builder)
+    release (rangesVec, builder) = do
+      Builder.destroyRangesVector rangesVec
+      Builder.destroy builder
+    execute (rangesVec, _) =
+      fn (Builder.fromRangesVector rangesVec)
 
 -- | Configure font config with provided setup,
+-- and execute a computation with built object.
 -- return its handle and list of resource destructors.
-setupConfig :: (MonadIO m) => Maybe ConfigSetup -> m (Maybe FontConfig, [m ()])
-setupConfig Nothing = return (Nothing, [])
-setupConfig (Just (ConfigSetup setup)) = do
-  config <- FontConfig.new
-  liftIO $ setup config
-  return (Just config, [FontConfig.destroy config])
-
-noDestruct :: (MonadIO m) => a -> m (Maybe a, [m ()])
-noDestruct x = return (Just x, [])
+withConfig :: (MonadUnliftIO m) => Maybe ConfigSetup
+           -> (Maybe FontConfig -> m a) -> m a
+withConfig Nothing fn = fn Nothing
+withConfig (Just (ConfigSetup setup)) fn =
+  bracket acquire (FontConfig.destroy) (fn . Just)
+  where
+    acquire = do
+      config <- FontConfig.new
+      liftIO $ setup config
+      return config
 
 
 -- | Single Unicode character
