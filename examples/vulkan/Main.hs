@@ -134,12 +134,6 @@ app = do
     ImGui.createContext
     ImGui.destroyContext
 
-  logDebug "Adding fonts"
-  ImGui.clearFontAtlas
-  _default <- ImGui.addFontDefault
-  _custom <- ImGui.addFontFromFileTTF "imgui/misc/fonts/ProggyTiny.ttf" 10
-  ImGui.buildFontAtlas
-
   let
     preferredFormat :: Vulkan.SurfaceFormatKHR
     preferredFormat =

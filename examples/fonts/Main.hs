@@ -23,7 +23,6 @@ import Control.Monad.Managed
 import Data.IORef
 import DearImGui
 import qualified DearImGui.FontAtlas as FontAtlas
-import DearImGui.FontAtlas (Font)
 import DearImGui.OpenGL2
 import DearImGui.SDL
 import DearImGui.SDL.OpenGL
@@ -56,65 +55,78 @@ main = do
 
     -- We use high-level syntax to build font atlas and
     -- get handles to use in the main loop.
-    fontSet <- FontAtlas.rebuild $ FontSet
-      -- The first mentioned font is loaded first
-      -- and set as a global default.
-      { droidFont = FontAtlas.FromTTF
-          "./imgui/misc/fonts/DroidSans.ttf" 12
-          mempty FontAtlas.Cyrillic
-      -- You also may use a default hardcoded font for
-      -- some purposes (i.e. as fallback)
-      , defaultFont = FontAtlas.DefaultFont
-      -- To optimize atlas size, use ranges builder and
-      -- provide source localization data.
-      , notoFont = FontAtlas.FromTTF
-          "./examples/fonts/NotoSansJP-Regular.otf" 16
-          mempty
-          (FontAtlas.RangesBuilder $
-             FontAtlas.addRanges FontAtlas.DefaultRanges <>
-             FontAtlas.addText "私をクリックしてください" <>
-             FontAtlas.addText "こんにちは"
-          )
+    fontSet <- FontAtlas.rebuild FontSet
+      { -- The first mentioned font is loaded first
+        -- and set as a global default.
+        droidFont =
+          FontAtlas.FromTTF
+            "./imgui/misc/fonts/DroidSans.ttf"
+            15
+            Nothing
+            FontAtlas.Cyrillic
 
+        -- You also may use a default hardcoded font for
+        -- some purposes (i.e. as fallback)
+      , defaultFont =
+          FontAtlas.DefaultFont
+
+        -- To optimize atlas size, use ranges builder and
+        -- provide source localization data.
+      , notoFont =
+          FontAtlas.FromTTF
+            "./examples/fonts/NotoSansJP-Regular.otf"
+            20
+            Nothing
+            ( FontAtlas.RangesBuilder $ mconcat
+                [ FontAtlas.addRanges FontAtlas.Latin
+                , FontAtlas.addText "私をクリックしてください"
+                , FontAtlas.addText "こんにちは"
+                ]
+            )
       }
 
     liftIO $ do
       fontFlag <- newIORef False
-      mainLoop window fontSet fontFlag
+      mainLoop window do
+        let FontSet{..} = fontSet
+        withWindowOpen "Hello, ImGui!" do
+          -- To use a font for widget text, you may either put it
+          -- into a 'withFont' block:
+          withFont defaultFont do
+            text "Hello, ImGui!"
 
+          text "Привет, ImGui!"
 
-mainLoop :: Window -> FontSet Font -> IORef Bool -> IO ()
-mainLoop window (FontSet {defaultFont, notoFont}) fontFlag = loop
+          -- ...or you can explicitly push and pop a font.
+          -- Though it's not recommended.
+          toggled <- readIORef fontFlag
+
+          when toggled $
+            pushFont notoFont
+
+          -- Some of those are only present in Noto font range
+          -- and will render as `?`s.
+          text "こんにちは, ImGui!"
+
+          let buttonText = if toggled then "私をクリックしてください" else "Click Me!"
+          button buttonText >>= \clicked ->
+            when clicked $
+              modifyIORef' fontFlag not
+
+          when toggled
+            popFont
+
+        showDemoWindow
+
+mainLoop :: Window -> IO () -> IO ()
+mainLoop window frameAction = loop
   where
   loop = unlessQuit do
     openGL2NewFrame
     sdl2NewFrame
     newFrame
 
-    withWindowOpen "Hello, ImGui!" do
-      -- To use a font for widget text, you may either put it
-      -- into a 'withFont' block:
-      FontAtlas.withFont defaultFont do
-        text "Hello, ImGui!"
-      text "Привет, ImGui!"
-
-      -- ...or you can explicitly push and pop a font.
-      -- Though it's not recommended.
-      flagValue <- readIORef fontFlag
-      let buttonText =
-            if flagValue then "私をクリックしてください"
-                         else "Click Me!"
-      if flagValue then do
-        FontAtlas.pushFont notoFont
-        text "こんにちは, ImGui!"
-      else do
-        text "Hola, ImGui!"
-      button buttonText >>= \case
-        True -> modifyIORef' fontFlag (not)
-        False -> return ()
-      when flagValue do FontAtlas.popFont
-
-    showDemoWindow
+    frameAction
 
     glClear GL_COLOR_BUFFER_BIT
     render

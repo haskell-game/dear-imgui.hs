@@ -16,10 +16,8 @@ IO functions to modify font config values.
 
 -}
 
-module DearImGui.Raw.FontConfig
-  ( -- * Types
-    FontConfig(..)
-    -- * Memory management
+module DearImGui.Raw.Font.Config
+  ( FontConfig(..)
   , new
   , destroy
     -- * Changing settings
@@ -51,8 +49,8 @@ import Foreign.C
 import DearImGui.Context
   ( imguiContext )
 import DearImGui.Structs
-import DearImGui.Raw.Fonts
-  ( FontConfig (..), GlyphRanges(..) )
+import DearImGui.Raw.Font.GlyphRanges
+  ( GlyphRanges(..) )
 
 -- inline-c
 import qualified Language.C.Inline as C
@@ -64,6 +62,10 @@ C.context (Cpp.cppCtx <> C.bsCtx <> imguiContext)
 C.include "imgui.h"
 Cpp.using "namespace ImGui"
 
+-- | Font configuration data handle
+--
+-- Wraps @ImFontConfig*@.
+newtype FontConfig = FontConfig (Ptr ImFontConfig)
 
 -- | Create an instance of config
 new :: MonadIO m => m FontConfig

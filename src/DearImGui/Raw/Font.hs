@@ -16,10 +16,9 @@ It includes default atlas management, font configuration and glyph ranges.
 
 -}
 
-module DearImGui.Raw.Fonts
+module DearImGui.Raw.Font
   ( -- * Types
     Font(..)
-  , FontConfig(..)
   , GlyphRanges(..)
     -- * Adding fonts
   , addFontDefault
@@ -28,15 +27,7 @@ module DearImGui.Raw.Fonts
     -- * Using fonts
   , pushFont
   , popFont
-    -- * Glyph ranges presets
-  , getGlyphRangesDefault
-  , getGlyphRangesKorean
-  , getGlyphRangesJapanese
-  , getGlyphRangesChineseFull
-  , getGlyphRangesChineseSimplifiedCommon
-  , getGlyphRangesCyrillic
-  , getGlyphRangesThai
-  , getGlyphRangesVietnamese
+
     -- * Atlas management
   , clearFontAtlas
   , buildFontAtlas
@@ -48,12 +39,15 @@ import Control.Monad.IO.Class
   ( MonadIO, liftIO )
 import Foreign ( Ptr, castPtr )
 import Foreign.C
-import System.IO.Unsafe (unsafePerformIO)
 
 -- dear-imgui
 import DearImGui.Context
   ( imguiContext )
 import DearImGui.Structs
+import DearImGui.Raw.Font.Config
+  ( FontConfig(..) )
+import DearImGui.Raw.Font.GlyphRanges
+  ( GlyphRanges(..) )
 
 -- inline-c
 import qualified Language.C.Inline as C
@@ -70,17 +64,6 @@ Cpp.using "namespace ImGui"
 --
 -- Wraps @ImFont*@.
 newtype Font = Font (Ptr ImFont)
-
--- | Font configuration data handle
---
--- Wraps @ImFontConfig*@.
-newtype FontConfig = FontConfig (Ptr ImFontConfig)
-
--- | Glyph ranges handle
---
--- Wraps @ImWchar*@.
-newtype GlyphRanges = GlyphRanges (Ptr ImWchar)
-
 
 -- | Add the default font (@ProggyClean.ttf@, 13 px) to the atlas.
 addFontDefault :: MonadIO m
@@ -133,84 +116,11 @@ pushFont (Font font) = liftIO do
   [C.exp| void { PushFont($(ImFont* font)); } |]
 
 -- | Pops a font pushed into the parameters stack
--- 
+--
 -- Should be called only after a corresponding 'pushFont' call.
 popFont :: MonadIO m => m ()
 popFont = liftIO do
   [C.exp| void { PopFont(); } |]
-  
-
--- | Basic Latin, Extended Latin
-getGlyphRangesDefault :: GlyphRanges
-getGlyphRangesDefault = unsafePerformIO do
-  GlyphRanges <$> [C.block|
-    const ImWchar* {
-      return GetIO().Fonts->GetGlyphRangesDefault();
-    }
-  |]
-
--- | Default + Korean characters
-getGlyphRangesKorean :: GlyphRanges
-getGlyphRangesKorean = unsafePerformIO do
-  GlyphRanges <$> [C.block|
-    const ImWchar* {
-      return GetIO().Fonts->GetGlyphRangesKorean();
-    }
-  |]
-
--- | Default + Hiragana, Katakana, Half-Width, Selection of 2999 Ideographs
-getGlyphRangesJapanese :: GlyphRanges
-getGlyphRangesJapanese = unsafePerformIO do
-  GlyphRanges <$> [C.block|
-    const ImWchar* {
-      return GetIO().Fonts->GetGlyphRangesJapanese();
-    }
-  |]
-
--- | Default + Half-Width + Japanese Hiragana/Katakana + full set of about 21000 CJK Unified Ideographs
-getGlyphRangesChineseFull :: GlyphRanges
-getGlyphRangesChineseFull = unsafePerformIO do
-  GlyphRanges <$> [C.block|
-    const ImWchar* {
-      return GetIO().Fonts->GetGlyphRangesChineseFull();
-    }
-  |]
-
--- | Default + Half-Width + Japanese Hiragana/Katakana + set of 2500 CJK Unified Ideographs for common simplified Chinese
-getGlyphRangesChineseSimplifiedCommon :: GlyphRanges
-getGlyphRangesChineseSimplifiedCommon = unsafePerformIO do
-  GlyphRanges <$> [C.block|
-    const ImWchar* {
-      return GetIO().Fonts->GetGlyphRangesChineseSimplifiedCommon();
-    }
-  |]
-
--- | Default + about 400 Cyrillic characters
-getGlyphRangesCyrillic :: GlyphRanges
-getGlyphRangesCyrillic = unsafePerformIO do
-  GlyphRanges <$> [C.block|
-    const ImWchar* {
-      return GetIO().Fonts->GetGlyphRangesCyrillic();
-    }
-  |]
-
--- | Default + Thai characters
-getGlyphRangesThai :: GlyphRanges
-getGlyphRangesThai = unsafePerformIO do
-  GlyphRanges <$> [C.block|
-    const ImWchar* {
-      return GetIO().Fonts->GetGlyphRangesThai();
-    }
-  |]
-
--- | Default + Vietnamese characters
-getGlyphRangesVietnamese :: GlyphRanges
-getGlyphRangesVietnamese = unsafePerformIO do
-  GlyphRanges <$> [C.block|
-    const ImWchar* {
-      return GetIO().Fonts->GetGlyphRangesVietnamese();
-    }
-  |]
 
 -- | Explicitly build pixels data for the atlas.
 buildFontAtlas :: MonadIO m => m ()
