@@ -3,6 +3,7 @@
 {-# language OverloadedStrings #-}
 {-# language RecordWildCards #-}
 {-# language NamedFieldPuns #-}
+{-# language DeriveTraversable #-}
 
 {- | Font usage example.
 
@@ -37,21 +38,7 @@ data FontSet a = FontSet
   , defaultFont :: a
   , notoFont :: a
   }
-
-instance Functor FontSet where
-  fmap fn (FontSet {..}) = FontSet
-    (fn droidFont)
-    (fn defaultFont)
-    (fn notoFont)
-instance Foldable FontSet where
-  foldr f z (FontSet {..}) =
-    droidFont `f` (defaultFont `f` (notoFont `f` z))
-instance Traversable FontSet where
-  traverse fn (FontSet {..}) = FontSet
-    <$> fn droidFont
-    <*> fn defaultFont
-    <*> fn notoFont
-
+  deriving (Functor, Foldable, Traversable)
 
 main :: IO ()
 main = do
