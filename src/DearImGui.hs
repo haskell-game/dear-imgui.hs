@@ -86,6 +86,11 @@ module DearImGui
   , pushStyleVar
   , popStyleVar
 
+  , withFont
+  , Raw.Font.pushFont
+  , Raw.Font.popFont
+  , Raw.Font.Font
+
     -- * Cursor/Layout
   , Raw.separator
   , Raw.sameLine
@@ -247,13 +252,6 @@ module DearImGui
   , Raw.wantCaptureMouse
   , Raw.wantCaptureKeyboard
 
-    -- * Fonts
-  , Raw.Font
-  , addFontFromFileTTF
-  , Raw.addFontDefault
-  , Raw.buildFontAtlas
-  , Raw.clearFontAtlas
-
     -- * Utilities
 
     -- ** ListClipper
@@ -287,6 +285,9 @@ import System.IO
 -- dear-imgui
 import DearImGui.Enums
 import DearImGui.Structs
+import qualified DearImGui.Raw as Raw
+import qualified DearImGui.Raw.Font as Raw.Font
+import qualified DearImGui.Raw.ListClipper as Raw.ListClipper
 
 -- managed
 import qualified Control.Monad.Managed as Managed
@@ -302,9 +303,6 @@ import Control.Monad.IO.Class
 -- unliftio
 import UnliftIO (MonadUnliftIO)
 import UnliftIO.Exception (bracket, bracket_)
-
-import qualified DearImGui.Raw as Raw
-import qualified DearImGui.Raw.ListClipper as Raw.ListClipper
 
 -- vector
 import qualified Data.Vector as V
@@ -1691,24 +1689,9 @@ popStyleVar :: (MonadIO m) => Int -> m ()
 popStyleVar n = liftIO do
   Raw.popStyleVar (fromIntegral n)
 
-
--- | Load a font from TTF file.
---
--- Specify font path and atlas glyph size.
---
--- Use 'addFontDefault' if you want to retain built-in font too.
---
--- Call 'buildFontAtlas' after adding all the fonts.
---
--- Call backend-specific `CreateFontsTexture` before using 'newFrame'.
-addFontFromFileTTF :: MonadIO m => FilePath -> Float -> m (Maybe Raw.Font)
-addFontFromFileTTF font size = liftIO do
-  res@(Raw.Font ptr) <- withCString font \fontPtr ->
-    Raw.addFontFromFileTTF fontPtr (CFloat size)
-  pure $
-    if castPtr ptr == nullPtr
-      then Nothing
-      else Just res
+-- | Render widgets inside the block using provided font.
+withFont :: MonadUnliftIO m => Raw.Font.Font -> m a -> m a
+withFont font = bracket_ (Raw.Font.pushFont font) Raw.Font.popFont
 
 -- | Clips a large list of items
 --
