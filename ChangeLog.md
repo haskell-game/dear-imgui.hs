@@ -1,5 +1,10 @@
 # Changelog for dear-imgui
 
+## [1.3.0]
+
+- Added `DearImGui.FontAtlas` and related `DearImGui.Raw.Font.*` bits.
+- Removed old font atlas functions from `DearImGui` and `DearImGui.Raw`.
+
 ## [1.2.2]
 
 - `imgui` updated to 1.85.
