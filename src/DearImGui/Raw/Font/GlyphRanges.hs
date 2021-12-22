@@ -24,12 +24,14 @@ Low-level example of usage:
   builder <- GRB.new
 
   GRB.addRanges builder getGlyphRangesDefault
-  liftIO $ withCString "Привет" \txt -> GRB.addText builder txt
+  liftIO $ withCString "Привет" $ GRB.addText builder
   rangesVec <- GRB.buildRanges builder
   let ranges = GRB.fromRangesVector rangesVec
 
-  addFontFromFileTTF' "./imgui/misc/fonts/DroidSans.ttf" 12
-                      Nothing (Just ranges)
+  addFontFromFileTTF'
+    "./imgui/misc/fonts/DroidSans.ttf" 12
+    Nothing
+    (Just ranges)
 
   -- it is strictly necessary to explicitly build the atlas
   buildFontAtlas
@@ -41,21 +43,27 @@ Low-level example of usage:
 
 -}
 
-module DearImGui.Raw.GlyphRangesBuilder
-  ( -- * Types
-    GlyphRangesBuilder(..)
-  , GlyphRangesVector(..)
-    -- * Memory management
+module DearImGui.Raw.Font.GlyphRanges
+  ( GlyphRanges(..)
+
+    -- * Built-in ranges
+  , Builtin(..)
+  , getBuiltin
+  , builtinSetup
+
+    -- * Preparing a builder
+  , GlyphRangesBuilder(..)
   , new
   , destroy
-  , destroyRangesVector
-    -- * Stuffing the builder
   , addChar
   , addText
   , addRanges
-    -- * Building and using
-  , buildRanges
+
+    -- * Extracting data
+  , GlyphRangesVector(..)
+  , buildRangesVector
   , fromRangesVector
+  , destroyRangesVector
   )
   where
 
@@ -70,7 +78,6 @@ import System.IO.Unsafe (unsafePerformIO)
 import DearImGui.Context
   ( imguiContext )
 import DearImGui.Structs
-import DearImGui.Raw.Fonts
 
 -- inline-c
 import qualified Language.C.Inline as C
@@ -82,6 +89,112 @@ C.context (Cpp.cppCtx <> C.bsCtx <> imguiContext)
 C.include "imgui.h"
 Cpp.using "namespace ImGui"
 
+-- | Glyph ranges handle
+--
+-- Wraps @ImWchar*@.
+newtype GlyphRanges = GlyphRanges (Ptr ImWchar)
+
+-- | Builtin glyph ranges tags.
+data Builtin
+  = Latin
+  | Korean
+  | Japanese
+  | ChineseFull
+  | ChineseSimplifiedCommon
+  | Cyrillic
+  | Thai
+  | Vietnamese
+  deriving (Eq, Ord, Show, Enum, Bounded)
+
+-- | Get builtin glyph ranges from a tag.
+getBuiltin :: Builtin -> GlyphRanges
+getBuiltin = \case
+  Latin                   -> getGlyphRangesDefault
+  Korean                  -> getGlyphRangesKorean
+  Japanese                -> getGlyphRangesJapanese
+  ChineseFull             -> getGlyphRangesChineseFull
+  ChineseSimplifiedCommon -> getGlyphRangesChineseSimplifiedCommon
+  Cyrillic                -> getGlyphRangesCyrillic
+  Thai                    -> getGlyphRangesThai
+  Vietnamese              -> getGlyphRangesVietnamese
+
+-- | Special case of @getBuiltin@, but for font source setup.
+builtinSetup :: Builtin -> Maybe GlyphRanges
+builtinSetup = \case
+  Latin -> Nothing
+  others  -> Just (getBuiltin others)
+
+-- | Basic Latin, Extended Latin
+getGlyphRangesDefault :: GlyphRanges
+getGlyphRangesDefault = unsafePerformIO do
+  GlyphRanges <$> [C.block|
+    const ImWchar* {
+      return GetIO().Fonts->GetGlyphRangesDefault();
+    }
+  |]
+
+-- | Default + Korean characters
+getGlyphRangesKorean :: GlyphRanges
+getGlyphRangesKorean = unsafePerformIO do
+  GlyphRanges <$> [C.block|
+    const ImWchar* {
+      return GetIO().Fonts->GetGlyphRangesKorean();
+    }
+  |]
+
+-- | Default + Hiragana, Katakana, Half-Width, Selection of 2999 Ideographs
+getGlyphRangesJapanese :: GlyphRanges
+getGlyphRangesJapanese = unsafePerformIO do
+  GlyphRanges <$> [C.block|
+    const ImWchar* {
+      return GetIO().Fonts->GetGlyphRangesJapanese();
+    }
+  |]
+
+-- | Default + Half-Width + Japanese Hiragana/Katakana + full set of about 21000 CJK Unified Ideographs
+getGlyphRangesChineseFull :: GlyphRanges
+getGlyphRangesChineseFull = unsafePerformIO do
+  GlyphRanges <$> [C.block|
+    const ImWchar* {
+      return GetIO().Fonts->GetGlyphRangesChineseFull();
+    }
+  |]
+
+-- | Default + Half-Width + Japanese Hiragana/Katakana + set of 2500 CJK Unified Ideographs for common simplified Chinese
+getGlyphRangesChineseSimplifiedCommon :: GlyphRanges
+getGlyphRangesChineseSimplifiedCommon = unsafePerformIO do
+  GlyphRanges <$> [C.block|
+    const ImWchar* {
+      return GetIO().Fonts->GetGlyphRangesChineseSimplifiedCommon();
+    }
+  |]
+
+-- | Default + about 400 Cyrillic characters
+getGlyphRangesCyrillic :: GlyphRanges
+getGlyphRangesCyrillic = unsafePerformIO do
+  GlyphRanges <$> [C.block|
+    const ImWchar* {
+      return GetIO().Fonts->GetGlyphRangesCyrillic();
+    }
+  |]
+
+-- | Default + Thai characters
+getGlyphRangesThai :: GlyphRanges
+getGlyphRangesThai = unsafePerformIO do
+  GlyphRanges <$> [C.block|
+    const ImWchar* {
+      return GetIO().Fonts->GetGlyphRangesThai();
+    }
+  |]
+
+-- | Default + Vietnamese characters
+getGlyphRangesVietnamese :: GlyphRanges
+getGlyphRangesVietnamese = unsafePerformIO do
+  GlyphRanges <$> [C.block|
+    const ImWchar* {
+      return GetIO().Fonts->GetGlyphRangesVietnamese();
+    }
+  |]
 
 -- | Glyph ranges builder handle
 --
@@ -149,24 +262,13 @@ addRanges (GlyphRangesBuilder builder) (GlyphRanges ranges) = liftIO do
 
 -- | Build new ranges and create ranges vector instance,
 -- containing them
-buildRanges :: MonadIO m => GlyphRangesBuilder -> m (GlyphRangesVector)
-buildRanges (GlyphRangesBuilder builder) = liftIO do
+buildRangesVector :: MonadIO m => GlyphRangesBuilder -> m (GlyphRangesVector)
+buildRangesVector (GlyphRangesBuilder builder) = liftIO do
   GlyphRangesVector <$> [C.block|
     void* {
       ImVector<ImWchar>* ranges = IM_NEW(ImVector<ImWchar>);
       $(ImFontGlyphRangesBuilder* builder)->BuildRanges(ranges);
       return ranges;
-    }
-  |]
-
--- | Destroy a ranges vector instance
---
--- Should be used __after__ font atlas building.
-destroyRangesVector :: MonadIO m => GlyphRangesVector -> m ()
-destroyRangesVector (GlyphRangesVector vecPtr) = liftIO do
-  [C.block|
-    void {
-      IM_DELETE(((ImVector<ImWchar>*) $(void* vecPtr)));
     }
   |]
 
@@ -178,5 +280,16 @@ fromRangesVector (GlyphRangesVector vecPtr) = unsafePerformIO do
   GlyphRanges <$> [C.block|
     ImWchar* {
       return ((ImVector<ImWchar>*) $(void* vecPtr))->Data;
+    }
+  |]
+
+-- | Destroy a ranges vector instance
+--
+-- Should be used __after__ font atlas building.
+destroyRangesVector :: MonadIO m => GlyphRangesVector -> m ()
+destroyRangesVector (GlyphRangesVector vecPtr) = liftIO do
+  [C.block|
+    void {
+      IM_DELETE(((ImVector<ImWchar>*) $(void* vecPtr)));
     }
   |]

@@ -86,6 +86,11 @@ module DearImGui
   , pushStyleVar
   , popStyleVar
 
+  , withFont
+  , Raw.Font.pushFont
+  , Raw.Font.popFont
+  , Raw.Font.Font
+
     -- * Cursor/Layout
   , Raw.separator
   , Raw.sameLine
@@ -280,6 +285,9 @@ import System.IO
 -- dear-imgui
 import DearImGui.Enums
 import DearImGui.Structs
+import qualified DearImGui.Raw as Raw
+import qualified DearImGui.Raw.Font as Raw.Font
+import qualified DearImGui.Raw.ListClipper as Raw.ListClipper
 
 -- managed
 import qualified Control.Monad.Managed as Managed
@@ -295,9 +303,6 @@ import Control.Monad.IO.Class
 -- unliftio
 import UnliftIO (MonadUnliftIO)
 import UnliftIO.Exception (bracket, bracket_)
-
-import qualified DearImGui.Raw as Raw
-import qualified DearImGui.Raw.ListClipper as Raw.ListClipper
 
 -- vector
 import qualified Data.Vector as V
@@ -1684,6 +1689,9 @@ popStyleVar :: (MonadIO m) => Int -> m ()
 popStyleVar n = liftIO do
   Raw.popStyleVar (fromIntegral n)
 
+-- | Render widgets inside the block using provided font.
+withFont :: MonadUnliftIO m => Raw.Font.Font -> m a -> m a
+withFont font = bracket_ (Raw.Font.pushFont font) Raw.Font.popFont
 
 -- | Clips a large list of items
 --

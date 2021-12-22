@@ -127,9 +127,9 @@ library
     DearImGui.FontAtlas
     DearImGui.Raw
     DearImGui.Raw.DrawList
-    DearImGui.Raw.Fonts
-    DearImGui.Raw.FontConfig
-    DearImGui.Raw.GlyphRangesBuilder
+    DearImGui.Raw.Font
+    DearImGui.Raw.Font.Config
+    DearImGui.Raw.Font.GlyphRanges
     DearImGui.Raw.ListClipper
     DearImGui.Raw.IO
   other-modules:
