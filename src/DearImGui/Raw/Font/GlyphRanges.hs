@@ -94,6 +94,7 @@ Cpp.using "namespace ImGui"
 -- Wraps @ImWchar*@.
 newtype GlyphRanges = GlyphRanges (Ptr ImWchar)
 
+-- | Builtin glyph ranges tags.
 data Builtin
   = Latin
   | Korean
@@ -105,6 +106,7 @@ data Builtin
   | Vietnamese
   deriving (Eq, Ord, Show, Enum, Bounded)
 
+-- | Get builtin glyph ranges from a tag.
 getBuiltin :: Builtin -> GlyphRanges
 getBuiltin = \case
   Latin                   -> getGlyphRangesDefault
@@ -116,6 +118,7 @@ getBuiltin = \case
   Thai                    -> getGlyphRangesThai
   Vietnamese              -> getGlyphRangesVietnamese
 
+-- | Special case of @getBuiltin@, but for font source setup.
 builtinSetup :: Builtin -> Maybe GlyphRanges
 builtinSetup = \case
   Latin -> Nothing
