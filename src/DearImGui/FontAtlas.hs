@@ -149,27 +149,35 @@ data Ranges
   | RangesBuiltin GlyphRanges.Builtin
   | RangesBuilder RangesBuilderSetup
 
+-- | Basic Latin, Extended Latin
 pattern Latin :: Ranges
 pattern Latin = RangesBuiltin GlyphRanges.Latin
 
+-- | Default + Korean characters
 pattern Korean :: Ranges
 pattern Korean = RangesBuiltin GlyphRanges.Korean
 
+-- | Default + Hiragana, Katakana, Half-Width, Selection of 2999 Ideographs
 pattern Japanese :: Ranges
 pattern Japanese = RangesBuiltin GlyphRanges.Japanese
 
+-- | Default + Half-Width + Japanese Hiragana/Katakana + full set of about 21000 CJK Unified Ideographs
 pattern ChineseFull :: Ranges
 pattern ChineseFull = RangesBuiltin GlyphRanges.ChineseFull
 
+-- | Default + Half-Width + Japanese Hiragana/Katakana + set of 2500 CJK Unified Ideographs for common simplified Chinese
 pattern ChineseSimplifiedCommon :: Ranges
 pattern ChineseSimplifiedCommon = RangesBuiltin GlyphRanges.ChineseSimplifiedCommon
 
+-- | Default + about 400 Cyrillic characters
 pattern Cyrillic :: Ranges
 pattern Cyrillic = RangesBuiltin GlyphRanges.Cyrillic
 
+-- | Default + Thai characters
 pattern Thai :: Ranges
 pattern Thai = RangesBuiltin GlyphRanges.Thai
 
+-- | Default + Vietnamese characters
 pattern Vietnamese :: Ranges
 pattern Vietnamese = RangesBuiltin GlyphRanges.Vietnamese
 
