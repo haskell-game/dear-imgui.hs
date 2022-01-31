@@ -1,5 +1,9 @@
 # Changelog for dear-imgui
 
+## [1.3.1]
+
+- `imgui` updated to [1.86].
+
 ## [1.3.0]
 
 - Added `DearImGui.FontAtlas` and related `DearImGui.Raw.Font.*` bits.
@@ -7,7 +11,7 @@
 
 ## [1.2.2]
 
-- `imgui` updated to 1.85.
+- `imgui` updated to [1.85].
 
 ## [1.2.1]
 
@@ -29,7 +33,7 @@
 
 ## [1.1.0]
 
-- `imgui` updated to 1.84.2.
+- `imgui` updated to [1.84.2].
 - Removed unused Window argument from SDL `newFrame` to match 1.84.
 - Added GLFW backend callbacks.
 - Added more withXXX wrappers.
@@ -44,7 +48,7 @@
 
 ## [1.0.0]
 
-Initial Hackage release based on 1.83.
+Initial Hackage release based on [1.83].
 
 [1.0.0]: https://github.com/haskell-game/dear-imgui.hs/tree/v1.0.0
 [1.0.1]: https://github.com/haskell-game/dear-imgui.hs/tree/v1.0.1
@@ -54,3 +58,9 @@ Initial Hackage release based on 1.83.
 [1.2.1]: https://github.com/haskell-game/dear-imgui.hs/tree/v1.2.1
 [1.2.2]: https://github.com/haskell-game/dear-imgui.hs/tree/v1.2.2
 [1.3.0]: https://github.com/haskell-game/dear-imgui.hs/tree/v1.3.0
+[1.3.1]: https://github.com/haskell-game/dear-imgui.hs/tree/v1.3.1
+
+[1.86]: https://github.com/ocornut/imgui/releases/tag/v1.86
+[1.85]: https://github.com/ocornut/imgui/releases/tag/v1.85
+[1.84.2]: https://github.com/ocornut/imgui/releases/tag/v1.84.2
+[1.83]: https://github.com/ocornut/imgui/releases/tag/v1.83
