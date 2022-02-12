@@ -146,6 +146,8 @@ headers = do
 
   _ <- skipManyTill anySingle ( namedSection "Viewports" )
 
+  _ <- skipManyTill anySingle ( namedSection "Platform Dependent Interfaces" ) -- XXX: since 1.87
+
   _ <- skipManyTill anySingle ( namedSection "Obsolete functions and types" )
 
   let
@@ -254,13 +256,21 @@ patternNameAndValue enumName =
   where
     count :: StateT EnumState m Integer
     count = do
-      _ <- single ( Identifier $ enumName <> "COUNT" )
+      let idName = enumName <> "COUNT"
+      _ <- single ( Identifier idName )
+
       mbVal <- optional do
         _ <- reservedSymbol '='
-        integerExpression
-      case mbVal of
+        EnumState{enumValues} <- get
+        integerExpression enumValues
+
+      countVal <- case mbVal of
         Nothing -> currEnumTag <$> get
         Just ct -> pure ct
+
+      modify' ( \ st -> st { enumValues = HashMap.insert idName countVal ( enumValues st ) } )
+      pure countVal
+
     value :: StateT EnumState m ( Text, Integer )
     value = do
       name <- identifier
@@ -271,13 +281,16 @@ patternNameAndValue enumName =
     patternRHS =
       ( do
         reservedSymbol '='
-        try integerExpression <|> try disjunction
+        EnumState{enumValues} <- get
+        try disjunction <|> try (integerExpression enumValues)
       )
       <|> ( currEnumTag <$> get )
 
     disjunction :: StateT EnumState m Integer
     disjunction = do
-      ( summands :: [Text] ) <- identifier `sepBy1` symbol "|"
+      initial <- identifier <* symbol "|"
+      ( rest :: [Text] ) <- identifier `sepBy1` symbol "|"
+      let summands = initial : rest
       valsMap <- enumValues <$> get
       let
         res :: Either [ Text ] Integer
@@ -327,34 +340,53 @@ symbol :: MonadParsec e [ Tok ] m => Text -> m ()
 symbol s = token ( \ case { Symbolic s' | s == s' -> Just (); _ -> Nothing } ) mempty
   <?> ( Text.unpack s <> " (symbol)" )
 
-integerExpression :: MonadParsec e [ Tok ] m => m Integer
-integerExpression = try integerPower <|> integer
-
-integerPower :: MonadParsec e [ Tok ] m => m Integer
-integerPower = do
-  a <- integer
-  _ <- symbol "<<"
-  i <- integer
-  pure ( a `shiftL` fromIntegral i )
-
-integer :: forall e m. MonadParsec e [ Tok ] m => m Integer
-integer =
-  option id mkSign <*>
-    token
-      ( \ case {
-        Number i suff
-          | Just  _  <- toBoundedInteger @Int64 i
-          , Right i' <- floatingOrInteger @Float @Integer i
-          , not ( Text.any ( (== 'f' ) . toLower ) suff )
-          -> Just i';
-         _ -> Nothing
-        }
-      )
-      mempty
-    <?> "integer"
+integerExpression :: MonadParsec e [ Tok ] m => HashMap Text Integer -> m Integer
+integerExpression enums = try integerPower <|> try integerAdd <|> try integerSub <|> integer
   where
-    mkSign :: m ( Integer -> Integer )
-    mkSign = ( symbol "+" $> id ) <|> ( symbol "-" $> negate )
+    integerPower :: MonadParsec e [ Tok ] m => m Integer
+    integerPower = do
+      a <- integer
+      _ <- symbol "<<"
+      i <- integer
+      pure ( a `shiftL` fromIntegral i )
+
+    integerAdd :: MonadParsec e [ Tok ] m => m Integer
+    integerAdd = do
+      a <- integer
+      _ <- symbol "+"
+      i <- integer
+      pure ( a + i )
+
+    integerSub :: MonadParsec e [ Tok ] m => m Integer
+    integerSub = do
+      a <- integer
+      _ <- symbol "-"
+      i <- integer
+      pure ( a - i )
+
+    integer :: forall e m. MonadParsec e [ Tok ] m => m Integer
+    integer =
+      option id mkSign <*>
+        token
+          ( \case
+              Number i suff
+                | Just  _  <- toBoundedInteger @Int64 i
+                , Right i' <- floatingOrInteger @Float @Integer i
+                , not ( Text.any ( (== 'f' ) . toLower ) suff )
+                ->
+                Just i'
+
+              Identifier name ->
+                HashMap.lookup name enums
+
+              _ ->
+                Nothing
+          )
+          mempty
+        <?> "integer"
+      where
+        mkSign :: m ( Integer -> Integer )
+        mkSign = ( symbol "+" $> id ) <|> ( symbol "-" $> negate )
 
 section :: MonadParsec e [ Tok ] m => m [Text]
 section =
