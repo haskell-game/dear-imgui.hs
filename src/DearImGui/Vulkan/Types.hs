@@ -31,6 +31,10 @@ vulkanTypesTable = Map.fromList
   , ( C.TypeName "VkRenderPass"         , [t| Vulkan.RenderPass          |] )
   , ( C.TypeName "VkResult"             , [t| Vulkan.Result              |] )
   , ( C.TypeName "VkSampleCountFlagBits", [t| Vulkan.SampleCountFlagBits |] )
+  , ( C.TypeName "VkSampler"            , [t| Vulkan.Sampler             |] )
+  , ( C.TypeName "VkImageView"          , [t| Vulkan.ImageView           |] )
+  , ( C.TypeName "VkImageLayout"        , [t| Vulkan.ImageLayout         |] )
+  , ( C.TypeName "VkDescriptorSet"      , [t| Vulkan.DescriptorSet       |] )
   ]
 
 vulkanCtx :: C.Context

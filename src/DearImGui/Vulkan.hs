@@ -19,6 +19,8 @@ module DearImGui.Vulkan
   , vulkanCreateFontsTexture
   , vulkanDestroyFontUploadObjects
   , vulkanSetMinImageCount
+
+  , vulkanAddTexture
   )
   where
 
@@ -32,7 +34,7 @@ import Foreign.Marshal.Alloc
 import Foreign.Ptr
   ( FunPtr, Ptr, freeHaskellFunPtr, nullPtr )
 import Foreign.Storable
-  ( Storable(poke) )
+  ( poke )
 
 -- inline-c
 import qualified Language.C.Inline as C
@@ -92,7 +94,7 @@ withVulkan initInfo renderPass action =
     ( \ ( _, initResult ) -> action initResult )
 
 -- | Wraps @ImGui_ImplVulkan_Init@.
--- 
+--
 -- Use 'vulkanShutdown' to clean up on shutdown.
 -- Prefer using 'withVulkan' when possible, as it automatically handles cleanup.
 vulkanInit :: MonadIO m => InitInfo -> Vulkan.RenderPass -> m (FunPtr (Vulkan.Result -> IO ()), Bool)
@@ -184,3 +186,16 @@ vulkanDestroyFontUploadObjects = liftIO do
 vulkanSetMinImageCount :: MonadIO m => Word32 -> m ()
 vulkanSetMinImageCount minImageCount = liftIO do
   [C.exp| void { ImGui_ImplVulkan_SetMinImageCount($(uint32_t minImageCount)); } |]
+
+-- | Wraps @ImGui_ImplVulkan_AddTexture@.
+vulkanAddTexture :: MonadIO m => Vulkan.Sampler -> Vulkan.ImageView -> Vulkan.ImageLayout -> m Vulkan.DescriptorSet
+vulkanAddTexture sampler imageView imageLayout = liftIO do
+  [C.block|
+    VkDescriptorSet {
+      return ImGui_ImplVulkan_AddTexture(
+        $(VkSampler sampler),
+        $(VkImageView imageView),
+        $(VkImageLayout imageLayout)
+      );
+    }
+  |]
