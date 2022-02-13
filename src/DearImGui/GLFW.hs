@@ -23,6 +23,7 @@ module DearImGui.GLFW (
     -- $callbacks
   , glfwWindowFocusCallback
   , glfwCursorEnterCallback
+  , glfwCursorPosCallback
   , glfwMouseButtonCallback
   , glfwScrollCallback
   , glfwKeyCallback
@@ -103,6 +104,20 @@ glfwCursorEnterCallback window entered = liftIO do
         $(void * windowPtr)
       ),
       $(int entered)
+    );
+  } |]
+  where
+    windowPtr = castPtr $ unWindow window
+
+glfwCursorPosCallback :: MonadIO m => Window -> CDouble -> CDouble -> m ()
+glfwCursorPosCallback window x y = liftIO do
+  [C.exp| void {
+    ImGui_ImplGlfw_CursorPosCallback(
+      static_cast<GLFWwindow *>(
+        $(void * windowPtr)
+      ),
+      $(double x),
+      $(double y)
     );
   } |]
   where
