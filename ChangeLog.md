@@ -1,5 +1,13 @@
 # Changelog for dear-imgui
 
+## [1.4.0]
+
+- `imgui` updated to [1.87].
+- Added `DearImGui.Vulkan.vulkanAddTexture`.
+- Added `DearImGui.GLFW.glfwCursorPosCallback`.
+  * Apps that don't install backend callbacks, *must* call it themselves.
+- Added flags `use-wchar32` (default on) and `disable-obsolete` (default off).
+
 ## [1.3.1]
 
 - `imgui` updated to [1.86].
@@ -59,7 +67,9 @@ Initial Hackage release based on [1.83].
 [1.2.2]: https://github.com/haskell-game/dear-imgui.hs/tree/v1.2.2
 [1.3.0]: https://github.com/haskell-game/dear-imgui.hs/tree/v1.3.0
 [1.3.1]: https://github.com/haskell-game/dear-imgui.hs/tree/v1.3.1
+[1.4.0]: https://github.com/haskell-game/dear-imgui.hs/tree/v1.4.0
 
+[1.87]: https://github.com/ocornut/imgui/releases/tag/v1.87
 [1.86]: https://github.com/ocornut/imgui/releases/tag/v1.86
 [1.85]: https://github.com/ocornut/imgui/releases/tag/v1.85
 [1.84.2]: https://github.com/ocornut/imgui/releases/tag/v1.84.2
