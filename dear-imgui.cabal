@@ -350,3 +350,5 @@ executable vulkan
          ^>= 3.9
       , vulkan-utils
          ^>= 0.4.1
+      , VulkanMemoryAllocator
+      , JuicyPixels

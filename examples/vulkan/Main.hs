@@ -24,7 +24,9 @@ import Control.Arrow
 import Control.Exception
   ( throw )
 import Control.Monad
-  ( unless, void )
+  ( unless, void, when )
+import Data.Bits
+  ( (.|.) )
 import Data.Foldable
   ( traverse_ )
 import Data.String
@@ -62,11 +64,13 @@ import qualified Data.Vector as Boxed
   ( Vector )
 import qualified Data.Vector as Boxed.Vector
   ( (!), head, singleton, unzip )
+import qualified Data.Vector.Storable as Storable.Vector
 
 -- vulkan
 import qualified Vulkan
-import qualified Vulkan.Exception as Vulkan
-import qualified Vulkan.Zero      as Vulkan
+import qualified Vulkan.Exception      as Vulkan
+import qualified Vulkan.Zero           as Vulkan
+import qualified VulkanMemoryAllocator as VMA
 
 -- dear-imgui
 import Attachments
@@ -76,6 +80,13 @@ import qualified DearImGui            as ImGui
 import qualified DearImGui.Vulkan     as ImGui.Vulkan
 import qualified DearImGui.SDL        as ImGui.SDL
 import qualified DearImGui.SDL.Vulkan as ImGui.SDL.Vulkan
+import Util (vmaVulkanFunctions)
+import Foreign (Ptr, castPtr, copyBytes, with, withForeignPtr, wordPtrToPtr)
+import qualified DearImGui.Raw as ImGui.Raw
+import UnliftIO (MonadUnliftIO)
+import qualified Vulkan.CStruct.Extends as Vulkan
+
+import qualified Codec.Picture as Picture
 
 --------------------------------------------------------------------------------
 
@@ -83,8 +94,8 @@ type Handler    = LogMessage -> ResourceT IO ()
 deriving via ( ReaderT Handler (ResourceT IO) )
   instance MonadResource ( LoggingT LogMessage (ResourceT IO) )
 
-gui :: MonadIO m => m ImGui.DrawData
-gui = do
+gui :: MonadUnliftIO m => (ImGui.Raw.ImVec2, Ptr ()) ->  m ImGui.DrawData
+gui texture = do
   -- Prepare frame
   ImGui.Vulkan.vulkanNewFrame
   ImGui.SDL.sdl2NewFrame
@@ -92,6 +103,25 @@ gui = do
 
   -- Run your windows
   ImGui.showDemoWindow
+  ImGui.withWindowOpen "Vulkan demo" do
+    clicked <- liftIO do
+      with (fst texture) \sizePtr ->
+        with (ImGui.Raw.ImVec2 0 0) \uv0Ptr ->
+          with (ImGui.Raw.ImVec2 1 1) \uv1Ptr ->
+            with (ImGui.Raw.ImVec4 1 1 1 1) \tintColPtr ->
+              with (ImGui.Raw.ImVec4 1 1 1 1) \bgColPtr ->
+                ImGui.Raw.imageButton
+                  (snd texture)
+                  sizePtr
+                  uv0Ptr
+                  uv1Ptr
+                  (-1)
+                  bgColPtr
+                  tintColPtr
+
+    when clicked $
+      ImGui.text "clicky click!"
+
 
   -- Process ImGui state into draw commands
   ImGui.render
@@ -275,6 +305,80 @@ app = do
   logDebug "Allocating command buffers"
   commandBuffers <- snd <$> allocatePrimaryCommandBuffers device commandPool imageCount
 
+  logDebug "Allocating VMA"
+  (_key, vma) <- VMA.withAllocator
+    Vulkan.zero
+      { VMA.instance'       = Vulkan.instanceHandle instance'
+      , VMA.device          = Vulkan.deviceHandle device
+      , VMA.physicalDevice  = Vulkan.physicalDeviceHandle physicalDevice
+      , VMA.vulkanFunctions = Just $ vmaVulkanFunctions device instance'
+      }
+    ResourceT.allocate
+
+  logDebug "Loading image data"
+  picture <- liftIO (Picture.readImage "Example.png") >>= either error (pure . Picture.convertRGBA8)
+
+  logDebug "Allocating image"
+  let textureWidth = Picture.imageWidth picture
+  let textureHeight = Picture.imageHeight picture
+
+  (_key, (image, _imageAllocation, _imageAllocationInfo)) <- VMA.withImage
+    vma
+    ( Vulkan.zero
+        { Vulkan.imageType     = Vulkan.IMAGE_TYPE_2D
+        , Vulkan.mipLevels     = 1
+        , Vulkan.arrayLayers   = 1
+        , Vulkan.format        = Vulkan.FORMAT_R8G8B8A8_SRGB
+        , Vulkan.extent        = Vulkan.Extent3D (fromIntegral textureWidth) (fromIntegral textureHeight) 1
+        , Vulkan.tiling        = Vulkan.IMAGE_TILING_OPTIMAL
+        , Vulkan.initialLayout = Vulkan.IMAGE_LAYOUT_UNDEFINED
+        , Vulkan.usage         = Vulkan.IMAGE_USAGE_SAMPLED_BIT .|. Vulkan.IMAGE_USAGE_TRANSFER_DST_BIT
+        , Vulkan.sharingMode   = Vulkan.SHARING_MODE_EXCLUSIVE
+        , Vulkan.samples       = Vulkan.SAMPLE_COUNT_1_BIT
+        }
+    )
+    ( Vulkan.zero
+        { VMA.flags         = Vulkan.zero
+        , VMA.usage         = VMA.MEMORY_USAGE_GPU_ONLY
+        , VMA.requiredFlags = Vulkan.MEMORY_PROPERTY_DEVICE_LOCAL_BIT
+        }
+    )
+    ResourceT.allocate
+
+  let (pictureF, pictureSize) = Storable.Vector.unsafeToForeignPtr0 (Picture.imageData picture)
+
+  let stageBufferCI = Vulkan.zero
+        { Vulkan.size        = fromIntegral pictureSize
+        , Vulkan.usage       = Vulkan.BUFFER_USAGE_TRANSFER_SRC_BIT
+        , Vulkan.sharingMode = Vulkan.SHARING_MODE_EXCLUSIVE
+        }
+  let stageAllocationCI = Vulkan.zero
+        { VMA.flags         = VMA.ALLOCATION_CREATE_MAPPED_BIT
+        , VMA.usage         = VMA.MEMORY_USAGE_CPU_TO_GPU
+        , VMA.requiredFlags = Vulkan.MEMORY_PROPERTY_HOST_VISIBLE_BIT
+        }
+
+  (stageKey, (stage, stageAllocation, stageAllocationInfo)) <- VMA.withBuffer
+    vma
+    stageBufferCI
+    stageAllocationCI
+    ResourceT.allocate
+
+  liftIO $ withForeignPtr pictureF \srcPtr ->
+    copyBytes (VMA.mappedData stageAllocationInfo) (castPtr srcPtr) pictureSize
+
+  VMA.flushAllocation vma stageAllocation 0 Vulkan.WHOLE_SIZE
+
+  logDebug "Allocating sampler"
+  (_key, sampler) <- Vulkan.withSampler device Vulkan.zero Nothing ResourceT.allocate
+  logDebug "Allocating image view"
+  (_key, imageView) <- createImageView
+    device
+    image
+    Vulkan.IMAGE_VIEW_TYPE_2D
+    Vulkan.FORMAT_R8G8B8A8_SRGB
+    Vulkan.IMAGE_ASPECT_COLOR_BIT
+
   -------------------------------------------
   -- Initialise Dear ImGui.
 
@@ -308,23 +412,96 @@ app = do
     logDebug "Creating fence"
     ( fenceKey, fence ) <- createFence device
     logDebug "Allocating one-shot command buffer"
-    ( fontUploadCommandBufferKey, fontUploadCommandBuffer ) <-
+    ( oneshotCommandBufferKey, oneshotCommandBuffer ) <-
       second Boxed.Vector.head <$>
         allocatePrimaryCommandBuffers device commandPool 1
 
     logDebug "Recording one-shot commands"
-    beginCommandBuffer fontUploadCommandBuffer
-    _ <- ImGui.Vulkan.vulkanCreateFontsTexture fontUploadCommandBuffer
-    endCommandBuffer fontUploadCommandBuffer
+    beginCommandBuffer oneshotCommandBuffer
+    _ <- ImGui.Vulkan.vulkanCreateFontsTexture oneshotCommandBuffer
+
+    logDebug "Uploading texture"
+    let textureSubresource = Vulkan.ImageSubresourceRange
+          { Vulkan.aspectMask     = Vulkan.IMAGE_ASPECT_COLOR_BIT
+          , Vulkan.baseMipLevel   = 0
+          , Vulkan.levelCount     = 1
+          , Vulkan.baseArrayLayer = 0
+          , Vulkan.layerCount     = 1
+          }
+
+    let uploadBarrier = Vulkan.zero
+          { Vulkan.srcAccessMask       = Vulkan.zero
+          , Vulkan.dstAccessMask       = Vulkan.ACCESS_TRANSFER_WRITE_BIT
+          , Vulkan.oldLayout           = Vulkan.IMAGE_LAYOUT_UNDEFINED
+          , Vulkan.newLayout           = Vulkan.IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL
+          , Vulkan.srcQueueFamilyIndex = Vulkan.QUEUE_FAMILY_IGNORED
+          , Vulkan.dstQueueFamilyIndex = Vulkan.QUEUE_FAMILY_IGNORED
+          , Vulkan.image               = image
+          , Vulkan.subresourceRange    = textureSubresource
+          } :: Vulkan.ImageMemoryBarrier '[]
+    Vulkan.cmdPipelineBarrier
+      oneshotCommandBuffer
+      Vulkan.PIPELINE_STAGE_TOP_OF_PIPE_BIT
+      Vulkan.PIPELINE_STAGE_TRANSFER_BIT
+      Vulkan.zero
+      mempty
+      mempty
+      (Boxed.Vector.singleton $ Vulkan.SomeStruct uploadBarrier)
+
+    Vulkan.cmdCopyBufferToImage oneshotCommandBuffer stage image Vulkan.IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL $
+      Boxed.Vector.singleton Vulkan.BufferImageCopy
+        { Vulkan.bufferOffset      = 0
+        , Vulkan.bufferRowLength   = Vulkan.zero
+        , Vulkan.bufferImageHeight = Vulkan.zero
+        , Vulkan.imageSubresource = Vulkan.ImageSubresourceLayers
+            { aspectMask     = Vulkan.IMAGE_ASPECT_COLOR_BIT
+            , mipLevel       = 0
+            , baseArrayLayer = 0
+            , layerCount     = 1
+            }
+        , Vulkan.imageOffset = Vulkan.zero
+        , Vulkan.imageExtent = Vulkan.Extent3D
+            { width  = fromIntegral textureWidth
+            , height = fromIntegral textureHeight
+            , depth  = 1
+            }
+        }
+
+    logDebug "Transitioning texture"
+    let transitionBarrier = Vulkan.zero
+          { Vulkan.srcAccessMask       = Vulkan.ACCESS_TRANSFER_WRITE_BIT
+          , Vulkan.dstAccessMask       = Vulkan.ACCESS_SHADER_READ_BIT
+          , Vulkan.oldLayout           = Vulkan.IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL
+          , Vulkan.newLayout           = Vulkan.IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
+          , Vulkan.srcQueueFamilyIndex = Vulkan.QUEUE_FAMILY_IGNORED
+          , Vulkan.dstQueueFamilyIndex = Vulkan.QUEUE_FAMILY_IGNORED
+          , Vulkan.image               = image
+          , Vulkan.subresourceRange    = textureSubresource
+          } :: Vulkan.ImageMemoryBarrier '[]
+    Vulkan.cmdPipelineBarrier
+      oneshotCommandBuffer
+      Vulkan.PIPELINE_STAGE_TRANSFER_BIT
+      Vulkan.PIPELINE_STAGE_FRAGMENT_SHADER_BIT
+      Vulkan.zero
+      mempty
+      mempty
+      (Boxed.Vector.singleton $ Vulkan.SomeStruct transitionBarrier)
+
+    endCommandBuffer oneshotCommandBuffer
 
     logDebug "Submitting one-shot commands"
-    submitCommandBuffer queue fontUploadCommandBuffer [] [] ( Just fence )
+    submitCommandBuffer queue oneshotCommandBuffer [] [] ( Just fence )
     waitForFences device ( WaitAll [ fence ] )
 
     logDebug "Finished uploading font objects"
     logDebug "Cleaning up one-shot commands"
     ImGui.Vulkan.vulkanDestroyFontUploadObjects
-    traverse_ ResourceT.release [ fenceKey, fontUploadCommandBufferKey ]
+    traverse_ ResourceT.release [ fenceKey, oneshotCommandBufferKey, stageKey ]
+
+    logDebug "Adding imgui texture"
+    Vulkan.DescriptorSet ds <- ImGui.Vulkan.vulkanAddTexture sampler imageView Vulkan.IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
+    let textureSize = ImGui.Raw.ImVec2 (fromIntegral textureWidth) (fromIntegral textureHeight)
+    let texture = (textureSize, wordPtrToPtr $ fromIntegral ds)
 
     let
       mainLoop :: AppState m -> m ()
@@ -364,7 +541,7 @@ app = do
                   beginCommandBuffer commandBuffer
                   cmdBeginRenderPass commandBuffer imGuiRenderPass framebuffer clearValues swapchainExtent
 
-                  drawData <- gui
+                  drawData <- gui texture
                   ImGui.Vulkan.vulkanRenderDrawData drawData commandBuffer Nothing
 
                   cmdEndRenderPass commandBuffer
