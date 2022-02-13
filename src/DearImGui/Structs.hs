@@ -1,11 +1,17 @@
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE NamedFieldPuns #-}
+{-# LANGUAGE CPP #-}
 
 module DearImGui.Structs where
 
 -- base
 import Data.Word
-  ( Word32, Word16 )
+  ( Word32
+#ifndef IMGUI_USE_WCHAR32
+  , Word16
+#endif
+  )
+
 import Foreign
   ( Storable(..), castPtr, plusPtr )
 
@@ -96,5 +102,8 @@ data ImGuiListClipper
 type ImU32 = Word32
 
 -- | Single wide character (used mostly in glyph management)
+#ifdef IMGUI_USE_WCHAR32
+type ImWchar = Word32
+#else
 type ImWchar = Word16
--- FIXME: consider IMGUI_USE_WCHAR32
+#endif
