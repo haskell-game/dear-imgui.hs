@@ -15,8 +15,10 @@ import Data.Functor.Identity
   ( Identity(..) )
 import Data.Traversable
   ( for )
+#if MIN_VERSION_VulkanMemoryAllocator(0,8,0)
 import Foreign
   ( castFunPtr )
+#endif
 
 -- transformers
 import Control.Monad.Trans.State.Strict
@@ -26,7 +28,9 @@ import Control.Monad.Trans.Writer.Strict
 
 -- vulkan
 import qualified Vulkan
+#if MIN_VERSION_VulkanMemoryAllocator(0,8,0)
 import qualified Vulkan.Dynamic as VkDynamic
+#endif
 import Vulkan.Zero (zero)
 
 -- VulkanMemoryAllocator
@@ -56,7 +60,7 @@ vmaVulkanFunctions
   :: Vulkan.Device
   -> Vulkan.Instance
   -> VMA.VulkanFunctions
-#if MIN_VERSION_vulkan(3,15,0)
+#if MIN_VERSION_VulkanMemoryAllocator(0,8,0)
 vmaVulkanFunctions Vulkan.Device{deviceCmds} Vulkan.Instance{instanceCmds} =
   zero
     { VMA.vkGetInstanceProcAddr =
