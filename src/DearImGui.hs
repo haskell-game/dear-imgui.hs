@@ -183,6 +183,16 @@ module DearImGui
   , colorPicker3
   , colorButton
 
+    -- ** Tables
+  , beginTable
+  , Raw.endTable
+  , withTable
+  , Raw.tableNextRow
+  , Raw.tableNextColumn
+  , tableSetColumnIndex
+  , tableSetupColumn
+  , Raw.tableHeadersRow
+
     -- ** Trees
   , treeNode
   , treePush
@@ -1274,6 +1284,51 @@ colorButton desc ref = liftIO do
 
     return changed
 
+
+-- | Wraps @ImGui::BeginTable()@.
+beginTable :: MonadIO m => String -> Int -> m Bool
+beginTable label columns = liftIO do
+  withCString label $ \l -> Raw.beginTable l (fromIntegral columns)
+
+-- | Create a table.
+--
+-- The action will get 'False' if the entry is not visible.
+--
+-- ==== __Example usage:__
+--
+-- > withTable "MyTable" 2 $ \case
+-- >   False -> return ()
+-- >   True  -> do
+-- >     tableSetupColumn "Hello"
+-- >     tableSetupColumn "World"
+-- >     tableHeadersRow
+-- >     forM_ [("a","1"),("b","2")] $\(a,b)
+-- >       tableNextRow
+-- >       whenM tableNextColumn (text a)
+-- >       whenM tableNextColumn (text b)
+--
+-- Displays:
+--
+-- @
+-- | Hello | World |
+-- +-------+-------+
+-- | a     | 1     |
+-- | b     | 2     |
+-- @
+--
+withTable :: MonadUnliftIO m => String -> Int -> (Bool -> m a) -> m a
+withTable label columns =
+  bracket (beginTable label columns) (`when` Raw.endTable)
+
+-- | Wraps @ImGui::TableSetColumnIndex()@.
+tableSetColumnIndex :: MonadIO m => Int -> m Bool
+tableSetColumnIndex column = liftIO do
+  Raw.tableSetColumnIndex (fromIntegral column)
+
+-- | Wraps @ImGui::TableSetupColumn()@.
+tableSetupColumn :: MonadIO m => String -> m ()
+tableSetupColumn label = liftIO do
+  withCString label Raw.tableSetupColumn
 
 -- | Wraps @ImGui::TreeNode()@.
 treeNode :: MonadIO m => String -> m Bool
