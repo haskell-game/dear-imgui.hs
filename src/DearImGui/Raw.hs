@@ -157,6 +157,15 @@ module DearImGui.Raw
   , colorPicker3
   , colorButton
 
+    -- * Tables
+  , beginTable
+  , endTable
+  , tableNextRow
+  , tableNextColumn
+  , tableSetColumnIndex
+  , tableSetupColumn
+  , tableHeadersRow
+
     -- * Trees
   , treeNode
   , treePush
@@ -1062,6 +1071,43 @@ colorButton :: (MonadIO m) => CString -> Ptr ImVec4 -> m Bool
 colorButton descPtr refPtr = liftIO do
   (0 /=) <$> [C.exp| bool { ColorButton( $(char* descPtr), *$(ImVec4* refPtr) ) } |]
 
+
+-- | Wraps @ImGui::BeginTable()@.
+beginTable :: MonadIO m => CString -> CInt -> m Bool
+beginTable labelPtr column = liftIO do
+  (0 /=) <$> [C.exp| bool { BeginTable($(char* labelPtr), $(int column)) } |]
+
+-- | Only call 'endTable' if 'beginMenuBar' returns true!
+-- 
+-- Wraps @ImGui::EndTable()@.
+endTable :: MonadIO m => m ()
+endTable = liftIO do
+  [C.exp| void { EndTable() } |]
+
+-- | Wraps @ImGui::TableNextRow()@.
+tableNextRow :: MonadIO m => m ()
+tableNextRow = liftIO do
+  [C.exp| void { TableNextRow() } |]
+
+-- | Wraps @ImGui::TableNextColumn()@.
+tableNextColumn :: MonadIO m => m Bool
+tableNextColumn = liftIO do
+  (0 /=) <$> [C.exp| bool { TableNextColumn() } |]
+
+-- | Wraps @ImGui::TableSetColumnIndex()@.
+tableSetColumnIndex :: MonadIO m => CInt -> m Bool
+tableSetColumnIndex column= liftIO do
+  (0 /=) <$> [C.exp| bool { TableSetColumnIndex($(int column)) } |]
+
+-- | Wraps @ImGui::TableSetupColumn()@.
+tableSetupColumn :: MonadIO m => CString -> m ()
+tableSetupColumn labelPtr = liftIO do
+  [C.exp| void { TableSetupColumn($(char* labelPtr)) } |]
+
+-- | Wraps @ImGui::TableHeadersRow()@.
+tableHeadersRow :: MonadIO m => m ()
+tableHeadersRow = liftIO do
+  [C.exp| void { TableHeadersRow() } |]
 
 -- | Wraps @ImGui::TreeNode()@.
 treeNode :: (MonadIO m) => CString -> m Bool
