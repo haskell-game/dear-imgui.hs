@@ -1086,10 +1086,17 @@ treePop = liftIO do
   [C.exp| void { TreePop() } |]
 
 
+-- -- | Wraps @ImGui::Selectable()@.
+-- selectable :: (MonadIO m) => CString -> m Bool
+-- selectable labelPtr = liftIO do
+--   (0 /=) <$> [C.exp| bool { Selectable($(char* labelPtr)) } |]
+
+
 -- | Wraps @ImGui::Selectable()@.
-selectable :: (MonadIO m) => CString -> m Bool
-selectable labelPtr = liftIO do
-  (0 /=) <$> [C.exp| bool { Selectable($(char* labelPtr)) } |]
+selectable :: (MonadIO m) => CString -> CBool -> ImGuiSelectableFlags -> Ptr ImVec2 -> m Bool
+selectable labelPtr selected flags size = liftIO do
+  (0 /=) <$> [C.exp| bool { Selectable($(char* labelPtr), $(bool selected), $(ImGuiSelectableFlags flags), *$(ImVec2 *size)) } |]
+
 
 
 -- | Wraps @ImGui::ListBox()@.

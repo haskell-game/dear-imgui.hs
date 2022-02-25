@@ -190,6 +190,9 @@ module DearImGui
 
     -- ** Selectables
   , selectable
+  , selectableWith
+  , SelectableOptions(..)
+  , defSelectableOptions
 
     -- ** List Boxes
   , listBox
@@ -1284,10 +1287,25 @@ treePush label = liftIO do
   withCString label Raw.treePush
 
 
--- | Wraps @ImGui::Selectable()@.
+-- | Wraps @ImGui::Selectable()@ with default options.
 selectable :: MonadIO m => String -> m Bool
-selectable label = liftIO do
-  withCString label Raw.selectable
+selectable = selectableWith defSelectableOptions
+
+data SelectableOptions = SelectableOptions
+                       { selected :: Bool
+                       , flags :: ImGuiSelectableFlags
+                       , size :: ImVec2
+                       } deriving Show
+
+defSelectableOptions :: SelectableOptions
+defSelectableOptions = SelectableOptions False (ImGuiSelectableFlags 0) (ImVec2 0 0)
+
+-- | Wraps @ImGui::Selectable()@ with explicit options.
+selectableWith :: MonadIO m => SelectableOptions -> String -> m Bool
+selectableWith (SelectableOptions selected flags size) label = liftIO do
+  with size $ \sizePtr ->
+    withCString label $ \labelPtr -> 
+      Raw.selectable labelPtr (bool 0 1 selected) flags sizePtr
 
 
 listBox :: (MonadIO m, HasGetter ref Int, HasSetter ref Int) => String -> ref -> [String] -> m Bool
