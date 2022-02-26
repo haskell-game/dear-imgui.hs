@@ -255,6 +255,7 @@ module DearImGui
   , Raw.endPopup
 
   , openPopup
+  , openPopupOnItemClick
   , Raw.closeCurrentPopup
 
     -- * Item/Widgets Utilities
@@ -1540,6 +1541,17 @@ withPopupModalOpen popupId action =
 openPopup :: MonadIO m => String -> m ()
 openPopup popupId = liftIO do
   withCString popupId Raw.openPopup
+
+-- | Opens a defined popup (i.e. defined with 'withPopup') on defined action.
+--
+-- Example:
+--
+-- > openPopupOnItemClick "myPopup" ImGuiPopupFlags_MouseButtonRight
+--
+-- Wraps @ImGui::OpenPopup()@
+openPopupOnItemClick :: MonadIO m => String -> ImGuiPopupFlags -> m ()
+openPopupOnItemClick popupId flags = liftIO do
+  withCString popupId $ \popupId' -> Raw.openPopupOnItemClick popupId' flags
 
 
 withCStringOrNull :: Maybe String -> (Ptr CChar -> IO a) -> IO a

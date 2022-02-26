@@ -206,6 +206,7 @@ module DearImGui.Raw
   , beginPopupModal
   , endPopup
   , openPopup
+  , openPopupOnItemClick
   , closeCurrentPopup
 
     -- * ID stack/scopes
@@ -1297,6 +1298,13 @@ endPopup = liftIO do
 openPopup :: (MonadIO m) => CString -> m ()
 openPopup popupIdPtr = liftIO do
   [C.exp| void { OpenPopup($(char* popupIdPtr)) } |]
+
+-- | Call to mark popup as open (don't call every frame!).
+--
+-- Wraps @ImGui::OpenPopupOnItemClick()@
+openPopupOnItemClick :: (MonadIO m) => CString -> ImGuiPopupFlags-> m ()
+openPopupOnItemClick popupIdPtr flags = liftIO do
+  [C.exp| void { OpenPopupOnItemClick($(char* popupIdPtr), $(ImGuiPopupFlags flags)) } |]
 
 
 -- | Manually close the popup we have begin-ed into.
