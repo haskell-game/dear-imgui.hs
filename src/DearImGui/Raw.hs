@@ -199,6 +199,7 @@ module DearImGui.Raw
   , openPopup
   , openPopupOnItemClick
   , closeCurrentPopup
+  , isPopupOpen
 
     -- * ID stack/scopes
   , pushIDInt
@@ -1253,7 +1254,10 @@ openPopup :: (MonadIO m) => CString -> m ()
 openPopup popupIdPtr = liftIO do
   [C.exp| void { OpenPopup($(char* popupIdPtr)) } |]
 
--- | Call to mark popup as open (don't call every frame!).
+
+-- | helper to open popup when clicked on last item.
+--
+-- Note: actually triggers on the mouse _released_ event to be consistent with popup behaviors.
 --
 -- Wraps @ImGui::OpenPopupOnItemClick()@
 openPopupOnItemClick :: (MonadIO m) => CString -> ImGuiPopupFlags-> m ()
@@ -1267,6 +1271,18 @@ openPopupOnItemClick popupIdPtr flags = liftIO do
 closeCurrentPopup :: (MonadIO m) => m ()
 closeCurrentPopup = liftIO do
   [C.exp| void { CloseCurrentPopup() } |]
+
+
+-- | Query popup status
+--
+-- - return 'True' if the popup is open at the current 'beginPopup' level of the popup stack.
+-- - with 'ImGuiPopupFlags_AnyPopupId': return 'True' if any popup is open at the current 'beginPopup' level of the popup stack.
+-- - with 'ImGuiPopupFlags_AnyPopupId' | 'ImGuiPopupFlags_AnyPopupLevel': return 'True' if any popup is open.
+--
+-- Wraps @ImGui::IsPopupOpen()@
+isPopupOpen :: (MonadIO m) => CString -> ImGuiPopupFlags-> m Bool
+isPopupOpen popupIdPtr flags = liftIO do
+  (0 /=) <$> [C.exp| bool { IsPopupOpen($(char* popupIdPtr), $(ImGuiPopupFlags flags)) } |]
 
 
 -- | Is the last item hovered? (and usable, aka not blocked by a popup, etc.).
