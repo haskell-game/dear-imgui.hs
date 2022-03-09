@@ -188,7 +188,9 @@ module DearImGui
   , Raw.endTable
   , withTable
   , defTableOptions
-  , Raw.tableNextRow
+  , tableNextRow
+  , tableNextRowWith
+  , defTableRowOptions
   , Raw.tableNextColumn
   , tableSetColumnIndex
 
@@ -1311,7 +1313,7 @@ beginTable (TableOptions flags outer inner) label columns = liftIO do
 --
 -- ==== __Example usage:__
 --
--- > withTable "MyTable" 2 $ \case
+-- > withTable defTableOptions "MyTable" 2 $ \case
 -- >   False -> return ()
 -- >   True  -> do
 -- >     tableSetupColumn "Hello"
@@ -1335,6 +1337,23 @@ withTable :: MonadUnliftIO m => TableOptions -> String -> Int -> (Bool -> m a) -
 withTable options label columns =
   bracket (beginTable options label columns) (`when` Raw.endTable)
 
+-- | Wraps @ImGui::TableNextRow()@ with default options.
+tableNextRow :: MonadIO m => m ()
+tableNextRow = tableNextRowWith defTableRowOptions
+
+data TableRowOptions = TableRowOptions
+                     { tableRowFlags :: ImGuiTableRowFlags
+                     , minRowHeight  :: Float
+                     } deriving Show
+
+defTableRowOptions :: TableRowOptions
+defTableRowOptions = TableRowOptions (ImGuiTableRowFlags 0) 0
+
+-- | Wraps @ImGui::TableNextRow()@ with explicit options.
+tableNextRowWith :: MonadIO m => TableRowOptions -> m ()
+tableNextRowWith (TableRowOptions flags minHeight) = liftIO do
+  Raw.tableNextRow flags (CFloat minHeight)
+
 -- | Wraps @ImGui::TableSetColumnIndex()@.
 tableSetColumnIndex :: MonadIO m => Int -> m Bool
 tableSetColumnIndex column = liftIO do
@@ -1349,7 +1368,6 @@ data TableColumnOptions = TableColumnOptions
 
 defTableColumnOptions :: TableColumnOptions
 defTableColumnOptions = TableColumnOptions (ImGuiTableColumnFlags 0) 0 0
-
 
 -- | Wraps @ImGui::TableSetupColumn()@.
 tableSetupColumn :: MonadIO m => String -> m ()
