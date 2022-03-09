@@ -1109,10 +1109,41 @@ tableSetupColumn :: MonadIO m => CString -> m ()
 tableSetupColumn labelPtr = liftIO do
   [C.exp| void { TableSetupColumn($(char* labelPtr)) } |]
 
+-- | Wraps @ImGui::TableSetupScrollFreeze()@.
+tableSetupScrollFreeze :: MonadIO m => CInt -> CInt -> m ()
+tableSetupScrollFreeze cols rows = liftIO do
+  [C.exp| void { TableSetupScrollFreeze($(int cols), $(int rows)) } |]
+
 -- | Wraps @ImGui::TableHeadersRow()@.
 tableHeadersRow :: MonadIO m => m ()
 tableHeadersRow = liftIO do
   [C.exp| void { TableHeadersRow() } |]
+
+-- | Wraps @ImGui::TableHeader()@.
+tableHeadersRow :: MonadIO m => CString -> m ()
+tableHeadersRow labelPtr = liftIO do
+  [C.exp| void { TableHeader($(char* labelPtr)) } |]
+
+-- TODO: STILL TO WRAP:
+    -- // Tables: Sorting
+    -- // - Call TableGetSortSpecs() to retrieve latest sort specs for the table. NULL when not sorting.
+    -- // - When 'SpecsDirty == true' you should sort your data. It will be true when sorting specs have changed
+    -- //   since last call, or the first time. Make sure to set 'SpecsDirty = false' after sorting, else you may
+    -- //   wastefully sort your data every frame!
+    -- // - Lifetime: don't hold on this pointer over multiple frames or past any subsequent call to BeginTable().
+    -- IMGUI_API ImGuiTableSortSpecs*  TableGetSortSpecs();                        // get latest sort specs for the table (NULL if not sorting).
+    --
+    -- // Tables: Miscellaneous functions
+    -- // - Functions args 'int column_n' treat the default value of -1 as the same as passing the current column index.
+    -- IMGUI_API int                   TableGetColumnCount();                      // return number of columns (value passed to BeginTable)
+    -- IMGUI_API int                   TableGetColumnIndex();                      // return current column index.
+    -- IMGUI_API int                   TableGetRowIndex();                         // return current row index.
+    -- IMGUI_API const char*           TableGetColumnName(int column_n = -1);      // return "" if column didn't have a name declared by TableSetupColumn(). Pass -1 to use current column.
+    -- IMGUI_API ImGuiTableColumnFlags TableGetColumnFlags(int column_n = -1);     // return column flags so you can query their Enabled/Visible/Sorted/Hovered status flags. Pass -1 to use current column.
+    -- IMGUI_API void                  TableSetColumnEnabled(int column_n, bool v);// change user accessible enabled/disabled state of a column. Set to false to hide the column. User can use the context menu to change this themselves (right-click in headers, or right-click in columns body with ImGuiTableFlags_ContextMenuInBody)
+    -- IMGUI_API void                  TableSetBgColor(ImGuiTableBgTarget target, ImU32 color, int column_n = -1);  // change the color of a cell, row, or column. See ImGuiTableBgTarget_ flags for details.
+
+
 
 -- | Wraps @ImGui::TreeNode()@.
 treeNode :: (MonadIO m) => CString -> m Bool
