@@ -163,8 +163,12 @@ module DearImGui.Raw
   , tableNextRow
   , tableNextColumn
   , tableSetColumnIndex
+  
   , tableSetupColumn
+  , tableSetupScrollFreeze
   , tableHeadersRow
+  , tableHeader
+  
 
     -- * Trees
   , treeNode
@@ -1078,9 +1082,9 @@ colorButton descPtr refPtr = liftIO do
 
 
 -- | Wraps @ImGui::BeginTable()@.
-beginTable :: MonadIO m => CString -> CInt -> m Bool
-beginTable labelPtr column = liftIO do
-  (0 /=) <$> [C.exp| bool { BeginTable($(char* labelPtr), $(int column)) } |]
+beginTable :: MonadIO m => CString -> CInt -> ImGuiTableFlags -> Ptr ImVec2 -> CFloat -> m Bool
+beginTable labelPtr column flags outerSizePtr innerWidth = liftIO do
+  (0 /=) <$> [C.exp| bool { BeginTable($(char* labelPtr), $(int column), $(ImGuiTableFlags flags), *$(ImVec2* outerSizePtr), $(float innerWidth)) } |]
 
 -- | Only call 'endTable' if 'beginMenuBar' returns true!
 -- 
@@ -1090,9 +1094,9 @@ endTable = liftIO do
   [C.exp| void { EndTable() } |]
 
 -- | Wraps @ImGui::TableNextRow()@.
-tableNextRow :: MonadIO m => m ()
-tableNextRow = liftIO do
-  [C.exp| void { TableNextRow() } |]
+tableNextRow :: MonadIO m => ImGuiTableRowFlags -> CFloat -> m ()
+tableNextRow flags minRowHeight = liftIO do
+  [C.exp| void { TableNextRow($(ImGuiTableRowFlags flags), $(float minRowHeight)) } |]
 
 -- | Wraps @ImGui::TableNextColumn()@.
 tableNextColumn :: MonadIO m => m Bool
@@ -1105,9 +1109,9 @@ tableSetColumnIndex column= liftIO do
   (0 /=) <$> [C.exp| bool { TableSetColumnIndex($(int column)) } |]
 
 -- | Wraps @ImGui::TableSetupColumn()@.
-tableSetupColumn :: MonadIO m => CString -> m ()
-tableSetupColumn labelPtr = liftIO do
-  [C.exp| void { TableSetupColumn($(char* labelPtr)) } |]
+tableSetupColumn :: MonadIO m => CString -> ImGuiTableColumnFlags -> CFloat -> ImGuiID-> m ()
+tableSetupColumn labelPtr flags initWidthOrWeight userId = liftIO do
+  [C.exp| void { TableSetupColumn($(char* labelPtr), $(ImGuiTableColumnFlags flags), $(float initWidthOrWeight), $(ImGuiID userId)) } |]
 
 -- | Wraps @ImGui::TableSetupScrollFreeze()@.
 tableSetupScrollFreeze :: MonadIO m => CInt -> CInt -> m ()
@@ -1120,8 +1124,8 @@ tableHeadersRow = liftIO do
   [C.exp| void { TableHeadersRow() } |]
 
 -- | Wraps @ImGui::TableHeader()@.
-tableHeadersRow :: MonadIO m => CString -> m ()
-tableHeadersRow labelPtr = liftIO do
+tableHeader :: MonadIO m => CString -> m ()
+tableHeader labelPtr = liftIO do
   [C.exp| void { TableHeader($(char* labelPtr)) } |]
 
 -- TODO: STILL TO WRAP:

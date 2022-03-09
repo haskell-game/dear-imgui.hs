@@ -98,6 +98,10 @@ data ImDrawList
 -- | 'DearImGui.Raw.ListClipper.ListClipper' pointer tag.
 data ImGuiListClipper
 
+-- | A unique ID used by widgets (typically the result of hashing a stack of string)
+--   unsigned Integer (same as ImU32)
+type ImGuiID = Word32
+
 -- | 32-bit unsigned integer (often used to store packed colors).
 type ImU32 = Word32
 

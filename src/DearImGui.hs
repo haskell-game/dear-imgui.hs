@@ -187,11 +187,16 @@ module DearImGui
   , beginTable
   , Raw.endTable
   , withTable
+  , defTableOptions
   , Raw.tableNextRow
   , Raw.tableNextColumn
   , tableSetColumnIndex
+
   , tableSetupColumn
+  , defTableColumnOptions
+  , tableSetupScrollFreeze
   , Raw.tableHeadersRow
+  , Raw.tableHeader
 
     -- ** Trees
   , treeNode
@@ -1284,11 +1289,21 @@ colorButton desc ref = liftIO do
 
     return changed
 
+data TableOptions = TableOptions
+                  { tableFlags :: ImGuiTableFlags
+                  , outerSize :: ImVec2
+                  , innerWidth :: Float
+                  } deriving Show
+
+defTableOptions :: TableOptions
+defTableOptions = TableOptions (ImGuiTableFlags 0) (ImVec2 0 0) 0
 
 -- | Wraps @ImGui::BeginTable()@.
-beginTable :: MonadIO m => String -> Int -> m Bool
-beginTable label columns = liftIO do
-  withCString label $ \l -> Raw.beginTable l (fromIntegral columns)
+beginTable :: MonadIO m => TableOptions -> String -> Int -> m Bool
+beginTable (TableOptions flags outer inner) label columns = liftIO do
+  withCString label $ \l -> 
+    with outer $ \o ->
+      Raw.beginTable l (fromIntegral columns) flags o (CFloat inner)
 
 -- | Create a table.
 --
@@ -1316,19 +1331,40 @@ beginTable label columns = liftIO do
 -- | b     | 2     |
 -- @
 --
-withTable :: MonadUnliftIO m => String -> Int -> (Bool -> m a) -> m a
-withTable label columns =
-  bracket (beginTable label columns) (`when` Raw.endTable)
+withTable :: MonadUnliftIO m => TableOptions -> String -> Int -> (Bool -> m a) -> m a
+withTable options label columns =
+  bracket (beginTable options label columns) (`when` Raw.endTable)
 
 -- | Wraps @ImGui::TableSetColumnIndex()@.
 tableSetColumnIndex :: MonadIO m => Int -> m Bool
 tableSetColumnIndex column = liftIO do
   Raw.tableSetColumnIndex (fromIntegral column)
 
+
+data TableColumnOptions = TableColumnOptions
+                        { tableColumnFlags  :: ImGuiTableColumnFlags
+                        , initWidthOrWeight :: Float
+                        , userId            :: ImGuiID
+                        } deriving Show
+
+defTableColumnOptions :: TableColumnOptions
+defTableColumnOptions = TableColumnOptions (ImGuiTableColumnFlags 0) 0 0
+
+
 -- | Wraps @ImGui::TableSetupColumn()@.
 tableSetupColumn :: MonadIO m => String -> m ()
-tableSetupColumn label = liftIO do
-  withCString label Raw.tableSetupColumn
+tableSetupColumn = tableSetupColumnWith defTableColumnOptions
+
+-- | Wraps @ImGui::TableSetupColumn() with explicit options@.
+tableSetupColumnWith :: MonadIO m => TableColumnOptions -> String -> m ()
+tableSetupColumnWith (TableColumnOptions flags weight userId) label = liftIO do
+  withCString label $ \l ->
+    Raw.tableSetupColumn l flags (CFloat weight) userId
+
+-- | Wraps @ImGui::TableSetupScrollFreeze()@.
+tableSetupScrollFreeze :: MonadIO m => Int -> Int -> m ()
+tableSetupScrollFreeze cols rows = liftIO do
+  Raw.tableSetupScrollFreeze (fromIntegral cols) (fromIntegral rows)
 
 -- | Wraps @ImGui::TreeNode()@.
 treeNode :: MonadIO m => String -> m Bool
