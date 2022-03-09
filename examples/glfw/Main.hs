@@ -67,24 +67,11 @@ mainLoop win = do
       clicking <- button "Clickety Click"
       when clicking $
         putStrLn "Ow!"
-
-      -- Attach a popup to the latest widget
-      let popupId = "pop-me"
-      openPopupOnItemClick popupId ImGuiPopupFlags_MouseButtonRight
-
-      -- Put some content into a popup window
-      -- alternatively: withPopup (closes automatically)
-      withPopupModalOpen popupId do
+      itemContextPopup do
         text "pop!"
         button "ok" >>= \clicked ->
           when clicked $
             closeCurrentPopup
-
-      -- Query popup status
-      popping <- isCurrentPopupOpen popupId
-      when popping do
-        sameLine
-        text "Popping right now."
 
     -- Show the ImGui demo window
     showDemoWindow

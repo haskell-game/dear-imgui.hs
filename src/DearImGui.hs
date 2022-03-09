@@ -234,20 +234,42 @@ module DearImGui
   , Raw.endTooltip
 
     -- * Popups/Modals
+
+    -- ** Generic
   , withPopup
   , withPopupOpen
   , beginPopup
+  , Raw.endPopup
 
+    -- ** Modal
   , withPopupModal
   , withPopupModalOpen
   , beginPopupModal
 
-  , Raw.endPopup
+    -- ** Item context
+  , itemContextPopup
+  , withPopupContextItemOpen
+  , withPopupContextItem
+  , beginPopupContextItem
 
+    -- ** Window context
+  , windowContextPopup
+  , withPopupContextWindowOpen
+  , withPopupContextWindow
+  , beginPopupContextWindow
+
+    -- ** Void context
+  , voidContextPopup
+  , withPopupContextVoidOpen
+  , withPopupContextVoid
+  , beginPopupContextVoid
+
+    -- ** Manual
   , openPopup
   , openPopupOnItemClick
   , Raw.closeCurrentPopup
 
+    -- ** Queries
   , isCurrentPopupOpen
   , isAnyPopupOpen
   , isAnyLevelPopupOpen
@@ -1483,6 +1505,52 @@ withPopupModal popupId = bracket (beginPopupModal popupId) (`when` Raw.endPopup)
 withPopupModalOpen :: MonadUnliftIO m => String -> m () -> m ()
 withPopupModalOpen popupId action =
   withPopupModal popupId (`when` action)
+
+beginPopupContextItem :: MonadIO m => Maybe String -> ImGuiPopupFlags -> m Bool
+beginPopupContextItem itemId flags = liftIO do
+  withCStringOrNull itemId \popupIdPtr ->
+    Raw.beginPopupContextItem popupIdPtr flags
+
+withPopupContextItem :: MonadUnliftIO m => Maybe String -> ImGuiPopupFlags -> (Bool -> m a) -> m a
+withPopupContextItem popupId flags = bracket (beginPopupContextItem popupId flags) (`when` Raw.endPopup)
+
+withPopupContextItemOpen :: MonadUnliftIO m => Maybe String -> ImGuiPopupFlags -> m () -> m ()
+withPopupContextItemOpen popupId flags action = withPopupContextItem popupId flags (`when` action)
+
+-- | Attach item context popup to right mouse button click on a last item.
+itemContextPopup :: MonadUnliftIO m => m () -> m ()
+itemContextPopup = withPopupContextItemOpen Nothing ImGuiPopupFlags_MouseButtonRight
+
+beginPopupContextWindow :: MonadIO m => Maybe String -> ImGuiPopupFlags -> m Bool
+beginPopupContextWindow popupId flags = liftIO do
+  withCStringOrNull popupId \popupIdPtr ->
+    Raw.beginPopupContextWindow popupIdPtr flags
+
+withPopupContextWindow :: MonadUnliftIO m => Maybe String -> ImGuiPopupFlags -> (Bool -> m a) -> m a
+withPopupContextWindow popupId flags = bracket (beginPopupContextWindow popupId flags) (`when` Raw.endPopup)
+
+withPopupContextWindowOpen :: MonadUnliftIO m => Maybe String -> ImGuiPopupFlags -> m () -> m ()
+withPopupContextWindowOpen popupId flags action = withPopupContextWindow popupId flags (`when` action)
+
+-- | Attach item context popup to right mouse button click on a current window.
+windowContextPopup :: MonadUnliftIO m => m () -> m ()
+windowContextPopup = withPopupContextWindowOpen Nothing ImGuiPopupFlags_MouseButtonRight
+
+beginPopupContextVoid :: MonadIO m => Maybe String -> ImGuiPopupFlags -> m Bool
+beginPopupContextVoid popupId flags = liftIO do
+  withCStringOrNull popupId \popupIdPtr ->
+    Raw.beginPopupContextVoid popupIdPtr flags
+
+withPopupContextVoid :: MonadUnliftIO m => Maybe String -> ImGuiPopupFlags -> (Bool -> m a) -> m a
+withPopupContextVoid popupId flags = bracket (beginPopupContextVoid popupId flags) (`when` Raw.endPopup)
+
+withPopupContextVoidOpen :: MonadUnliftIO m => Maybe String -> ImGuiPopupFlags -> m () -> m ()
+withPopupContextVoidOpen popupId flags action = withPopupContextVoid popupId flags (`when` action)
+
+-- | Attach item context popup to right mouse button click outside of any windows.
+voidContextPopup :: MonadUnliftIO m => m () -> m ()
+voidContextPopup = withPopupContextWindowOpen Nothing ImGuiPopupFlags_MouseButtonRight
+
 
 -- | Call to mark popup as open (don't call every frame!).
 --
