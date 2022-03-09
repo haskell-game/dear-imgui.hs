@@ -258,6 +258,10 @@ module DearImGui
   , openPopupOnItemClick
   , Raw.closeCurrentPopup
 
+  , isCurrentPopupOpen
+  , isAnyPopupOpen
+  , isAnyLevelPopupOpen
+
     -- * Item/Widgets Utilities
   , Raw.isItemHovered
   , Raw.wantCaptureMouse
@@ -1551,7 +1555,27 @@ openPopup popupId = liftIO do
 -- Wraps @ImGui::OpenPopup()@
 openPopupOnItemClick :: MonadIO m => String -> ImGuiPopupFlags -> m ()
 openPopupOnItemClick popupId flags = liftIO do
-  withCString popupId $ \popupId' -> Raw.openPopupOnItemClick popupId' flags
+  withCString popupId $ \idPtr ->
+    Raw.openPopupOnItemClick idPtr flags
+
+-- | Check if the popup is open at the current 'beginPopup' level of the popup stack.
+isCurrentPopupOpen :: MonadIO m => String -> m Bool
+isCurrentPopupOpen popupId = liftIO do
+  withCString popupId $ \idPtr ->
+    Raw.isPopupOpen idPtr ImGuiPopupFlags_None
+
+-- | Check if *any* popup is open at the current 'beginPopup' level of the popup stack.
+isAnyPopupOpen :: MonadIO m => String -> m Bool
+isAnyPopupOpen popupId = liftIO do
+  withCString popupId $ \idPtr ->
+    Raw.isPopupOpen idPtr ImGuiPopupFlags_AnyPopupId
+
+-- | Check if *any* popup is open at any level of the popup stack.
+isAnyLevelPopupOpen :: MonadIO m => String -> m Bool
+isAnyLevelPopupOpen popupId = liftIO do
+  withCString popupId $ \idPtr ->
+    Raw.isPopupOpen idPtr $
+      ImGuiPopupFlags_AnyPopupId .|. ImGuiPopupFlags_AnyPopupLevel
 
 
 withCStringOrNull :: Maybe String -> (Ptr CChar -> IO a) -> IO a

@@ -64,9 +64,27 @@ mainLoop win = do
       text "Hello, ImGui!"
 
       -- Add a button widget, and call 'putStrLn' when it's clicked
-      button "Clickety Click" >>= \case
-        False -> return ()
-        True  -> putStrLn "Ow!"
+      clicking <- button "Clickety Click"
+      when clicking $
+        putStrLn "Ow!"
+
+      -- Attach a popup to the latest widget
+      let popupId = "pop-me"
+      openPopupOnItemClick popupId ImGuiPopupFlags_MouseButtonRight
+
+      -- Put some content into a popup window
+      -- alternatively: withPopup (closes automatically)
+      withPopupModalOpen popupId do
+        text "pop!"
+        button "ok" >>= \clicked ->
+          when clicked $
+            closeCurrentPopup
+
+      -- Query popup status
+      popping <- isCurrentPopupOpen popupId
+      when popping do
+        sameLine
+        text "Popping right now."
 
     -- Show the ImGui demo window
     showDemoWindow
