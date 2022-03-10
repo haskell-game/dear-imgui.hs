@@ -187,18 +187,29 @@ module DearImGui
   , beginTable
   , Raw.endTable
   , withTable
+  , TableOptions(..)
   , defTableOptions
   , tableNextRow
   , tableNextRowWith
+  , TableRowOptions(..)
   , defTableRowOptions
   , Raw.tableNextColumn
   , tableSetColumnIndex
 
   , tableSetupColumn
+  , TableColumnOptions(..)
   , defTableColumnOptions
   , tableSetupScrollFreeze
   , Raw.tableHeadersRow
   , Raw.tableHeader
+
+  , tableGetColumnCount
+  , tableGetColumnIndex
+  , tableGetRowIndex
+  , tableGetColumnName
+  , tableGetColumnFlags
+  , tableSetColumnEnabled
+  , tableSetBgColor
 
     -- ** Trees
   , treeNode
@@ -1337,7 +1348,8 @@ withTable :: MonadUnliftIO m => TableOptions -> String -> Int -> (Bool -> m a) -
 withTable options label columns =
   bracket (beginTable options label columns) (`when` Raw.endTable)
 
--- | Wraps @ImGui::TableNextRow()@ with default options.
+-- | Wraps @ImGui::TableNextRow()@ with 'defTableRowOptions'.
+--   append into the first cell of a new row.
 tableNextRow :: MonadIO m => m ()
 tableNextRow = tableNextRowWith defTableRowOptions
 
@@ -1355,6 +1367,7 @@ tableNextRowWith (TableRowOptions flags minHeight) = liftIO do
   Raw.tableNextRow flags (CFloat minHeight)
 
 -- | Wraps @ImGui::TableSetColumnIndex()@.
+--   append into the specified column. Return true when column is visible.
 tableSetColumnIndex :: MonadIO m => Int -> m Bool
 tableSetColumnIndex column = liftIO do
   Raw.tableSetColumnIndex (fromIntegral column)
@@ -1369,7 +1382,7 @@ data TableColumnOptions = TableColumnOptions
 defTableColumnOptions :: TableColumnOptions
 defTableColumnOptions = TableColumnOptions (ImGuiTableColumnFlags 0) 0 0
 
--- | Wraps @ImGui::TableSetupColumn()@.
+-- | Wraps @ImGui::TableSetupColumn()@ using 'defTableColumnOptions'.
 tableSetupColumn :: MonadIO m => String -> m ()
 tableSetupColumn = tableSetupColumnWith defTableColumnOptions
 
@@ -1380,9 +1393,60 @@ tableSetupColumnWith (TableColumnOptions flags weight userId) label = liftIO do
     Raw.tableSetupColumn l flags (CFloat weight) userId
 
 -- | Wraps @ImGui::TableSetupScrollFreeze()@.
+--   lock columns/rows so they stay visible when scrolled.
 tableSetupScrollFreeze :: MonadIO m => Int -> Int -> m ()
 tableSetupScrollFreeze cols rows = liftIO do
   Raw.tableSetupScrollFreeze (fromIntegral cols) (fromIntegral rows)
+
+-- | Wraps @ImGui::TableGetColumnCount()@.
+--   return number of columns (value passed to BeginTable)
+tableGetColumnCount :: MonadIO m => m Int
+tableGetColumnCount = 
+  fromIntegral <$> Raw.tableGetColumnCount
+
+-- | Wraps @ImGui::TableGetColumnIndex()@.
+--   return current column index.
+tableGetColumnIndex :: MonadIO m => m Int
+tableGetColumnIndex = 
+  fromIntegral <$> Raw.tableGetColumnIndex
+
+-- | Wraps @ImGui::TableGetRowIndex()@.
+--   return current row index
+tableGetRowIndex :: MonadIO m => m Int
+tableGetRowIndex =
+  fromIntegral <$> Raw.tableGetRowIndex
+
+-- | Wraps @ImGui::TableGetColumnName
+--   returns "" if column didn't have a name declared by TableSetupColumn
+--   'Nothing' returns the current column name
+tableGetColumnName :: MonadIO m => Maybe Int -> m String
+tableGetColumnName c = liftIO do
+  Raw.tableGetColumnName (fromIntegral <$> c) >>= peekCString
+
+-- | Wraps @ImGui::TableGetRowIndex()@.
+--    return column flags so you can query their Enabled/Visible/Sorted/Hovered
+--    status flags.
+--   'Nothing' returns the current column flags
+tableGetColumnFlags :: MonadIO m => Maybe Int -> m ImGuiTableColumnFlags
+tableGetColumnFlags =
+  Raw.tableGetColumnFlags . fmap fromIntegral
+
+-- | Wraps @ImGui::TableSetColumnEnabled()@.
+--   change user accessible enabled/disabled state of a column. Set to false to
+--   hide the column. User can use the context menu to change this themselves
+--   (right-click in headers, or right-click in columns body with
+--   'ImGuiTableFlags_ContextMenuInBody')
+tableSetColumnEnabled :: MonadIO m => Int -> Bool -> m ()
+tableSetColumnEnabled column_n v =
+  Raw.tableSetColumnEnabled (fromIntegral column_n) (bool 0 1 v)
+
+-- | Wraps @ImGui::TableSetBgColor()@.
+--   change the color of a cell, row, or column.
+--   See 'ImGuiTableBgTarget' flags for details.
+--   'Nothing' sets the current row/column color
+tableSetBgColor :: MonadIO m => ImGuiTableBgTarget -> ImU32 -> Maybe Int -> m ()
+tableSetBgColor target color column_n =
+ Raw.tableSetBgColor target color (fromIntegral <$> column_n)
 
 -- | Wraps @ImGui::TreeNode()@.
 treeNode :: MonadIO m => String -> m Bool
