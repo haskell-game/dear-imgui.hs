@@ -199,6 +199,9 @@ module DearImGui.Raw
   , openPopup
   , openPopupOnItemClick
   , closeCurrentPopup
+  , beginPopupContextItem
+  , beginPopupContextWindow
+  , beginPopupContextVoid
   , isPopupOpen
 
     -- * ID stack/scopes
@@ -1255,7 +1258,7 @@ openPopup popupIdPtr = liftIO do
   [C.exp| void { OpenPopup($(char* popupIdPtr)) } |]
 
 
--- | helper to open popup when clicked on last item.
+-- | Open popup when clicked on last item.
 --
 -- Note: actually triggers on the mouse _released_ event to be consistent with popup behaviors.
 --
@@ -1272,6 +1275,24 @@ closeCurrentPopup :: (MonadIO m) => m ()
 closeCurrentPopup = liftIO do
   [C.exp| void { CloseCurrentPopup() } |]
 
+-- | Open+begin popup when clicked on last item.
+--
+-- Use str_id==NULL to associate the popup to previous item.
+--
+-- If you want to use that on a non-interactive item such as 'text' you need to pass in an explicit ID here.
+beginPopupContextItem :: (MonadIO m) => CString -> ImGuiPopupFlags-> m Bool
+beginPopupContextItem popupIdPtr flags = liftIO do
+  (0 /=) <$> [C.exp| bool { BeginPopupContextItem($(char* popupIdPtr), $(ImGuiPopupFlags flags)) } |]
+
+-- | Open+begin popup when clicked on current window.
+beginPopupContextWindow :: (MonadIO m) => CString -> ImGuiPopupFlags-> m Bool
+beginPopupContextWindow popupIdPtr flags = liftIO do
+  (0 /=) <$> [C.exp| bool { BeginPopupContextWindow($(char* popupIdPtr), $(ImGuiPopupFlags flags)) } |]
+
+-- | Open+begin popup when clicked in void (where there are no windows).
+beginPopupContextVoid :: (MonadIO m) => CString -> ImGuiPopupFlags-> m Bool
+beginPopupContextVoid popupIdPtr flags = liftIO do
+  (0 /=) <$> [C.exp| bool { BeginPopupContextVoid($(char* popupIdPtr), $(ImGuiPopupFlags flags)) } |]
 
 -- | Query popup status
 --
