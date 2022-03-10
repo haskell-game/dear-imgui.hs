@@ -168,6 +168,8 @@ module DearImGui.Raw
   , tableSetupScrollFreeze
   , tableHeadersRow
   , tableHeader
+  
+  , tableGetSortSpecs
 
   , tableGetColumnCount
   , tableGetColumnIndex
@@ -1142,17 +1144,26 @@ tableHeader :: MonadIO m => CString -> m ()
 tableHeader labelPtr = liftIO do
   [C.exp| void { TableHeader($(char* labelPtr)) } |]
 
--- TODO: STILL TO WRAP:
-    -- // Tables: Sorting
-    -- // - Call TableGetSortSpecs() to retrieve latest sort specs for the table. NULL when not sorting.
-    -- // - When 'SpecsDirty == true' you should sort your data. It will be true when sorting specs have changed
-    -- //   since last call, or the first time. Make sure to set 'SpecsDirty = false' after sorting, else you may
-    -- //   wastefully sort your data every frame!
-    -- // - Lifetime: don't hold on this pointer over multiple frames or past any subsequent call to BeginTable().
-    -- IMGUI_API ImGuiTableSortSpecs*  TableGetSortSpecs();                        // get latest sort specs for the table (NULL if not sorting).
-    --
-    -- // Tables: Miscellaneous functions
-    -- // - Functions args 'int column_n' treat the default value of -1 as the same as passing the current column index.
+-- | Wraps @ImGui::TableGetSortSpecs()@.
+--   Low-level-Function. Better use the wrapper that outomatically conform
+--   to the things described below
+--
+--   Tables: Sorting
+--   - Call TableGetSortSpecs() to retrieve latest sort specs for the table.
+--     NULL when not sorting.
+--   - When 'SpecsDirty == true' you should sort your data. It will be true when
+--     sorting specs have changed since last call, or the first time. Make sure
+--     to set 'SpecsDirty = false' after sorting, else you may wastefully sort
+--     your data every frame!
+--   - Lifetime: don't hold on this pointer over multiple frames or past any
+--     subsequent call to BeginTable().
+tableGetSortSpecs :: MonadIO m => m (Maybe (Ptr ImGuiTableSortSpecs))
+tableGetSortSpecs = liftIO do
+  ptr <- [C.exp| ImGuiTableSortSpecs* { TableGetSortSpecs() } |]
+  if ptr == nullPtr then
+    return Nothing
+  else
+    return $ Just ptr
 
 -- | Wraps @ImGui::TableGetColumnCount()@.
 tableGetColumnCount :: MonadIO m => m CInt

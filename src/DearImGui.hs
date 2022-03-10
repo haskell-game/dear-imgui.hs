@@ -203,6 +203,9 @@ module DearImGui
   , Raw.tableHeadersRow
   , Raw.tableHeader
 
+  , withSortableTable
+  , TableSortingSpecs(..)
+
   , tableGetColumnCount
   , tableGetColumnIndex
   , tableGetRowIndex
@@ -1397,6 +1400,58 @@ tableSetupColumnWith (TableColumnOptions flags weight userId) label = liftIO do
 tableSetupScrollFreeze :: MonadIO m => Int -> Int -> m ()
 tableSetupScrollFreeze cols rows = liftIO do
   Raw.tableSetupScrollFreeze (fromIntegral cols) (fromIntegral rows)
+
+data TableSortingSpecs = TableSortingSpecs
+     { tableSortingId        :: ImGuiID -- ^ User id of the column (if specified by a TableSetupColumn() call)
+     , tableSortingColumn    :: Int     -- ^ Index of the column, starting at 0
+     , dableSortingOrder     :: Int     -- ^ Index within parent ImGuiTableSortSpecs (always stored in order starting from 0, tables sorted on a single criteria will always have a 0 here).
+                                        --   On 'ImGuiTableFlags_SortMulti' this is the order in which should be sorted.
+     , tableSortingDirection :: ImGuiSortDirection -- ^ 'ImGuiSortDirection_Ascending' or 'ImGuiSortDirection_Descending'. Should not be 'ImGuiSortDirection_None'
+     } deriving (Show, Eq)
+
+-- | High-Level sorting. Returns of the underlying data should be sorted
+--   and to what specification. Number of Specifications is mostly 0 or 1, but
+--   can be more if 'ImGuiTableFlags_SortMulti' is enabled on the table.
+--
+--   The Bool only fires true for one frame on each sorting event and resets
+--   automatically.
+--
+--   Must be called AFTER all columns are set up with 'tableSetupColumn'
+--
+--   Hint: Don't forget to set 'ImGuiTableFlags_Sortable' to enable sorting
+--   on tables.
+--
+-- ==== __Example usage:__
+--
+-- > withTable defTableOptions "MyTable" 2 $ \case
+-- >   False -> return ()
+-- >   True  -> do
+-- >     tableSetupColumn "Hello"
+-- >     tableSetupColumn "World"
+-- >     withSortableTable $ \(mustSort, sortSpecs) do
+-- >     when mustSort $
+-- >        -- ... do your sorting here & cache it. Dont sort every frame.
+-- >     tableHeadersRow
+-- >     forM_ [("a","1"),("b","2")] $\(a,b) -- use sorted data here.
+-- >       tableNextRow
+-- >       whenM tableNextColumn (text a)
+-- >       whenM tableNextColumn (text b)
+withSortableTable :: MonadIO m => ((Bool,[TableSortingSpecs]) -> m a) -> m a
+withSortableTable action = do
+  specsPtr <- liftIO $ Raw.tableGetSortSpecs
+  case specsPtr of
+    Nothing -> action (False, [])
+    Just ptr -> do
+      specs <- liftIO $ peek ptr
+      cSpecs <- liftIO $ peekArray (fromIntegral $ imGuiTableSortSpecsCount specs) (imGuiTableColumnSortSpecs specs)
+
+      -- just map singed 16-bit-int to something nice for the end-user
+      let cSpecs' = (\(ImGuiTableColumnSortSpecs a b c d) -> TableSortingSpecs a (fromIntegral b) (fromIntegral c) d) <$> cSpecs
+
+      result <- action (imGuiTableSortSpecsDirty specs /= 0, cSpecs')
+      -- set dirty to 0 after everything is done.
+      liftIO $ poke (ptr `plusPtr` (sizeOf (imGuiTableColumnSortSpecs specs)) `plusPtr` (sizeOf (imGuiTableSortSpecsCount specs))) (0 :: CInt)
+      return result
 
 -- | Wraps @ImGui::TableGetColumnCount()@.
 --   return number of columns (value passed to BeginTable)
