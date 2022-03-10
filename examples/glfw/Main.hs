@@ -13,6 +13,7 @@ import Data.Bits ((.|.))
 import Data.IORef
 import Data.List (sortBy)
 import Data.Foldable (traverse_)
+import Data.Text (Text, pack)
 
 import DearImGui
 import DearImGui.OpenGL2
@@ -61,7 +62,7 @@ main = do
 
   GLFW.terminate
 
-mainLoop :: Window -> IORef [(Integer, String)] -> IO ()
+mainLoop :: Window -> IORef [(Integer, Text)] -> IO ()
 mainLoop win tableRef = do
   -- Process the event loop
   GLFW.pollEvents
@@ -102,7 +103,7 @@ mainLoop win tableRef = do
 
     mainLoop win tableRef
 
-mkTable :: IORef [(Integer, String)] -> IO ()
+mkTable :: IORef [(Integer, Text)] -> IO ()
 mkTable tableRef =
   withTableOpen sortable "MyTable" 3 $ do
     tableSetupColumn "Hello"
@@ -120,7 +121,7 @@ mkTable tableRef =
     readIORef tableRef >>=
       traverse_ \(ix, title) -> do
         tableNextRow
-        tableNextColumn $ text (show ix)
+        tableNextColumn $ text (pack $ show ix)
         tableNextColumn $ text title
         tableNextColumn $ void (button "♥")
   where
