@@ -8,6 +8,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE PatternSynonyms #-}
 {-# LANGUAGE QuasiQuotes #-}
+{-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE TemplateHaskell #-}
 
 {-|
@@ -184,28 +185,38 @@ module DearImGui
   , colorButton
 
     -- ** Tables
-  , beginTable
-  , Raw.endTable
   , withTable
+  , withTableOpen
   , TableOptions(..)
   , defTableOptions
+  , beginTable
+  , Raw.endTable
+
+    -- *** Setup
+  , tableSetupColumn
+  , tableSetupColumnWith
+  , TableColumnOptions(..)
+  , defTableColumnOptions
+
+  , Raw.tableHeadersRow
+  , Raw.tableHeader
+  , tableSetupScrollFreeze
+
+    -- *** Rows
   , tableNextRow
   , tableNextRowWith
   , TableRowOptions(..)
   , defTableRowOptions
-  , Raw.tableNextColumn
+
+    -- *** Columns
+  , tableNextColumn
   , tableSetColumnIndex
 
-  , tableSetupColumn
-  , TableColumnOptions(..)
-  , defTableColumnOptions
-  , tableSetupScrollFreeze
-  , Raw.tableHeadersRow
-  , Raw.tableHeader
-
+    -- *** Sorting
   , withSortableTable
   , TableSortingSpecs(..)
 
+    -- *** Queries
   , tableGetColumnCount
   , tableGetColumnIndex
   , tableGetRowIndex
@@ -1306,20 +1317,23 @@ colorButton desc ref = liftIO do
     return changed
 
 data TableOptions = TableOptions
-                  { tableFlags :: ImGuiTableFlags
-                  , outerSize :: ImVec2
-                  , innerWidth :: Float
-                  } deriving Show
+  { tableFlags      :: ImGuiTableFlags
+  , tableOuterSize  :: ImVec2
+  , tableInnerWidth :: Float
+  } deriving Show
 
 defTableOptions :: TableOptions
-defTableOptions = TableOptions (ImGuiTableFlags 0) (ImVec2 0 0) 0
-
+defTableOptions = TableOptions
+  { tableFlags      = ImGuiTableFlags_None
+  , tableOuterSize  = ImVec2 0  0
+  , tableInnerWidth = 0
+  }
 -- | Wraps @ImGui::BeginTable()@.
 beginTable :: MonadIO m => TableOptions -> String -> Int -> m Bool
-beginTable (TableOptions flags outer inner) label columns = liftIO do
-  withCString label $ \l -> 
-    with outer $ \o ->
-      Raw.beginTable l (fromIntegral columns) flags o (CFloat inner)
+beginTable TableOptions{..} label columns = liftIO do
+  withCString label \labelPtr ->
+    with tableOuterSize \outerSizePtr ->
+      Raw.beginTable labelPtr (fromIntegral columns) tableFlags outerSizePtr (CFloat tableInnerWidth)
 
 -- | Create a table.
 --
@@ -1327,16 +1341,15 @@ beginTable (TableOptions flags outer inner) label columns = liftIO do
 --
 -- ==== __Example usage:__
 --
--- > withTable defTableOptions "MyTable" 2 $ \case
--- >   False -> return ()
--- >   True  -> do
--- >     tableSetupColumn "Hello"
--- >     tableSetupColumn "World"
--- >     tableHeadersRow
--- >     forM_ [("a","1"),("b","2")] $\(a,b)
--- >       tableNextRow
--- >       whenM tableNextColumn (text a)
--- >       whenM tableNextColumn (text b)
+-- > withTableOpen defTableOptions "MyTable" do
+-- >   tableSetupColumn "Hello"
+-- >   tableSetupColumn "World"
+-- >   tableHeadersRow
+-- >
+-- >   for_ [("a","1"),("b","2")] \(a,b) -> do
+-- >     tableNextRow
+-- >     tableNextColumn (text a)
+-- >     tableNextColumn (text b)
 --
 -- Displays:
 --
@@ -1351,23 +1364,33 @@ withTable :: MonadUnliftIO m => TableOptions -> String -> Int -> (Bool -> m a) -
 withTable options label columns =
   bracket (beginTable options label columns) (`when` Raw.endTable)
 
+withTableOpen :: MonadUnliftIO m => TableOptions -> String -> Int -> m () -> m ()
+withTableOpen options label columns action =
+  withTable options label columns (`when` action)
+
 -- | Wraps @ImGui::TableNextRow()@ with 'defTableRowOptions'.
 --   append into the first cell of a new row.
 tableNextRow :: MonadIO m => m ()
 tableNextRow = tableNextRowWith defTableRowOptions
 
 data TableRowOptions = TableRowOptions
-                     { tableRowFlags :: ImGuiTableRowFlags
-                     , minRowHeight  :: Float
-                     } deriving Show
+  { tableRowFlags     :: ImGuiTableRowFlags
+  , tableRowMinHeight :: Float
+  } deriving Show
 
 defTableRowOptions :: TableRowOptions
-defTableRowOptions = TableRowOptions (ImGuiTableRowFlags 0) 0
+defTableRowOptions = TableRowOptions
+  { tableRowFlags     = ImGuiTableRowFlags_None
+  , tableRowMinHeight = 0
+  }
 
 -- | Wraps @ImGui::TableNextRow()@ with explicit options.
 tableNextRowWith :: MonadIO m => TableRowOptions -> m ()
-tableNextRowWith (TableRowOptions flags minHeight) = liftIO do
-  Raw.tableNextRow flags (CFloat minHeight)
+tableNextRowWith TableRowOptions{..} = liftIO do
+  Raw.tableNextRow tableRowFlags (CFloat tableRowMinHeight)
+
+tableNextColumn :: MonadIO m => m () -> m ()
+tableNextColumn action = Raw.tableNextColumn >>= (`when` action)
 
 -- | Wraps @ImGui::TableSetColumnIndex()@.
 --   append into the specified column. Return true when column is visible.
@@ -1375,15 +1398,18 @@ tableSetColumnIndex :: MonadIO m => Int -> m Bool
 tableSetColumnIndex column = liftIO do
   Raw.tableSetColumnIndex (fromIntegral column)
 
-
 data TableColumnOptions = TableColumnOptions
-                        { tableColumnFlags  :: ImGuiTableColumnFlags
-                        , initWidthOrWeight :: Float
-                        , userId            :: ImGuiID
-                        } deriving Show
+  { tableColumnFlags             :: ImGuiTableColumnFlags
+  , tableColumnInitWidthOrWeight :: Float
+  , tableColumnUserId            :: ImGuiID
+  } deriving Show
 
 defTableColumnOptions :: TableColumnOptions
-defTableColumnOptions = TableColumnOptions (ImGuiTableColumnFlags 0) 0 0
+defTableColumnOptions = TableColumnOptions
+  { tableColumnFlags             = ImGuiTableColumnFlags_None
+  , tableColumnInitWidthOrWeight = 0
+  , tableColumnUserId            = 0
+  }
 
 -- | Wraps @ImGui::TableSetupColumn()@ using 'defTableColumnOptions'.
 tableSetupColumn :: MonadIO m => String -> m ()
@@ -1391,9 +1417,9 @@ tableSetupColumn = tableSetupColumnWith defTableColumnOptions
 
 -- | Wraps @ImGui::TableSetupColumn() with explicit options@.
 tableSetupColumnWith :: MonadIO m => TableColumnOptions -> String -> m ()
-tableSetupColumnWith (TableColumnOptions flags weight userId) label = liftIO do
-  withCString label $ \l ->
-    Raw.tableSetupColumn l flags (CFloat weight) userId
+tableSetupColumnWith TableColumnOptions{..} label = liftIO do
+  withCString label \labelPtr ->
+    Raw.tableSetupColumn labelPtr tableColumnFlags (CFloat tableColumnInitWidthOrWeight) tableColumnUserId
 
 -- | Wraps @ImGui::TableSetupScrollFreeze()@.
 --   lock columns/rows so they stay visible when scrolled.
@@ -1402,12 +1428,18 @@ tableSetupScrollFreeze cols rows = liftIO do
   Raw.tableSetupScrollFreeze (fromIntegral cols) (fromIntegral rows)
 
 data TableSortingSpecs = TableSortingSpecs
-     { tableSortingId        :: ImGuiID -- ^ User id of the column (if specified by a TableSetupColumn() call)
-     , tableSortingColumn    :: Int     -- ^ Index of the column, starting at 0
-     , dableSortingOrder     :: Int     -- ^ Index within parent ImGuiTableSortSpecs (always stored in order starting from 0, tables sorted on a single criteria will always have a 0 here).
-                                        --   On 'ImGuiTableFlags_SortMulti' this is the order in which should be sorted.
-     , tableSortingDirection :: ImGuiSortDirection -- ^ 'ImGuiSortDirection_Ascending' or 'ImGuiSortDirection_Descending'. Should not be 'ImGuiSortDirection_None'
-     } deriving (Show, Eq)
+  { tableSortingColumn  :: Int -- ^ Index of the column, starting at 0
+  , tableSortingReverse :: Bool
+  , tableSortingUserId  :: ImGuiID -- ^ User id of the column (if specified by a 'tableSetupColumn' call).
+  } deriving (Eq, Ord, Show)
+
+convertTableSortingSpecs :: ImGuiTableColumnSortSpecs -> TableSortingSpecs
+convertTableSortingSpecs ImGuiTableColumnSortSpecs{..} =
+  TableSortingSpecs
+    { tableSortingColumn  = fromIntegral columnIndex
+    , tableSortingReverse = sortDirection == ImGuiSortDirection_Descending
+    , tableSortingUserId  = columnUserID
+    }
 
 -- | High-Level sorting. Returns of the underlying data should be sorted
 --   and to what specification. Number of Specifications is mostly 0 or 1, but
@@ -1423,46 +1455,50 @@ data TableSortingSpecs = TableSortingSpecs
 --
 -- ==== __Example usage:__
 --
--- > withTable defTableOptions "MyTable" 2 $ \case
--- >   False -> return ()
--- >   True  -> do
--- >     tableSetupColumn "Hello"
--- >     tableSetupColumn "World"
--- >     withSortableTable $ \(mustSort, sortSpecs) do
--- >     when mustSort $
--- >        -- ... do your sorting here & cache it. Dont sort every frame.
+-- > sortedData <- newIORef [("a","1"), ("b","2")]
+-- >
+-- > let sortable = defTableOptions { tableFlags = ImGuiTableFlags_Sortable }
+-- > withTableOpen sortable "MyTable" 2 $ do
+-- >   tableSetupColumn "Hello"
+-- >   tableSetupColumn "World"
+-- >
+-- >   withSortableTable \isDirty sortSpecs -> do
+-- >     when isDirty $
+-- >       -- XXX: do your sorting & cache it. Dont sort every frame.
+-- >       modifyIORef' sortedData . sortBy $
+-- >         foldMap columnSorter sortSpecs
+-- >
 -- >     tableHeadersRow
--- >     forM_ [("a","1"),("b","2")] $\(a,b) -- use sorted data here.
+-- >     for_ sortedData \(a, b) -> do
 -- >       tableNextRow
--- >       whenM tableNextColumn (text a)
--- >       whenM tableNextColumn (text b)
-withSortableTable :: MonadIO m => ((Bool,[TableSortingSpecs]) -> m a) -> m a
+-- >       tableNextColumn $ text a
+-- >       tableNextColumn $ text b
+withSortableTable :: MonadIO m => (Bool -> [TableSortingSpecs] -> m ()) -> m ()
 withSortableTable action = do
-  specsPtr <- liftIO $ Raw.tableGetSortSpecs
-  case specsPtr of
-    Nothing -> action (False, [])
-    Just ptr -> do
-      specs <- liftIO $ peek ptr
-      cSpecs <- liftIO $ peekArray (fromIntegral $ imGuiTableSortSpecsCount specs) (imGuiTableColumnSortSpecs specs)
+  liftIO Raw.tableGetSortSpecs >>= \case
+    Nothing ->
+      -- XXX: The table is not sortable
+      pure ()
 
-      -- just map singed 16-bit-int to something nice for the end-user
-      let cSpecs' = (\(ImGuiTableColumnSortSpecs a b c d) -> TableSortingSpecs a (fromIntegral b) (fromIntegral c) d) <$> cSpecs
+    Just specsPtr -> do
+      ImGuiTableSortSpecs{..} <- liftIO $ peek specsPtr
+      let isDirty = 0 /= specsDirty
+      columns <- liftIO $ peekArray (fromIntegral specsCount) specs
 
-      result <- action (imGuiTableSortSpecsDirty specs /= 0, cSpecs')
-      -- set dirty to 0 after everything is done.
-      liftIO $ poke (ptr `plusPtr` (sizeOf (imGuiTableColumnSortSpecs specs)) `plusPtr` (sizeOf (imGuiTableSortSpecsCount specs))) (0 :: CInt)
-      return result
+      action isDirty (map convertTableSortingSpecs columns)
+      when isDirty $
+        Raw.tableClearSortSpecsDirty specsPtr
 
 -- | Wraps @ImGui::TableGetColumnCount()@.
 --   return number of columns (value passed to BeginTable)
 tableGetColumnCount :: MonadIO m => m Int
-tableGetColumnCount = 
+tableGetColumnCount =
   fromIntegral <$> Raw.tableGetColumnCount
 
 -- | Wraps @ImGui::TableGetColumnIndex()@.
 --   return current column index.
 tableGetColumnIndex :: MonadIO m => m Int
-tableGetColumnIndex = 
+tableGetColumnIndex =
   fromIntegral <$> Raw.tableGetColumnIndex
 
 -- | Wraps @ImGui::TableGetRowIndex()@.
@@ -1520,19 +1556,23 @@ selectable :: MonadIO m => String -> m Bool
 selectable = selectableWith defSelectableOptions
 
 data SelectableOptions = SelectableOptions
-                       { selected :: Bool
-                       , flags :: ImGuiSelectableFlags
-                       , size :: ImVec2
-                       } deriving Show
+  { selected :: Bool
+  , flags    :: ImGuiSelectableFlags
+  , size     :: ImVec2
+  } deriving Show
 
 defSelectableOptions :: SelectableOptions
-defSelectableOptions = SelectableOptions False (ImGuiSelectableFlags 0) (ImVec2 0 0)
+defSelectableOptions = SelectableOptions
+  { selected = False
+  , flags    = ImGuiSelectableFlags_None
+  , size     = ImVec2 0 0
+  }
 
 -- | Wraps @ImGui::Selectable()@ with explicit options.
 selectableWith :: MonadIO m => SelectableOptions -> String -> m Bool
 selectableWith (SelectableOptions selected flags size) label = liftIO do
-  with size $ \sizePtr ->
-    withCString label $ \labelPtr -> 
+  with size \sizePtr ->
+    withCString label \labelPtr ->
       Raw.selectable labelPtr (bool 0 1 selected) flags sizePtr
 
 

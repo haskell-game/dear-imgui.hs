@@ -1,6 +1,7 @@
 {-# language BlockArguments #-}
 {-# language LambdaCase #-}
 {-# language OverloadedStrings #-}
+{-# language RecordWildCards #-}
 
 module Main ( main ) where
 
@@ -8,6 +9,11 @@ import Control.Exception
 import Control.Monad
 import Control.Monad.IO.Class
 import Control.Monad.Managed
+import Data.Bits ((.|.))
+import Data.IORef
+import Data.List (sortBy)
+import Data.Foldable (traverse_)
+
 import DearImGui
 import DearImGui.OpenGL2
 import DearImGui.GLFW
@@ -40,14 +46,23 @@ main = do
         -- Initialize ImGui's OpenGL backend
         _ <- managed_ $ bracket_ openGL2Init openGL2Shutdown
 
-        liftIO $ mainLoop win
+        tableRef <- liftIO $ newIORef
+          [ (1,  "foo")
+          , (2,  "bar")
+          , (3,  "baz")
+          , (10, "spam")
+          , (11, "spam")
+          , (12, "spam")
+          ]
+
+        liftIO $ mainLoop win tableRef
       Nothing -> do
         error "GLFW createWindow failed"
 
   GLFW.terminate
 
-mainLoop :: Window -> IO ()
-mainLoop win = do
+mainLoop :: Window -> IORef [(Integer, String)] -> IO ()
+mainLoop win tableRef = do
   -- Process the event loop
   GLFW.pollEvents
   close <- GLFW.windowShouldClose win
@@ -73,8 +88,9 @@ mainLoop win = do
           when clicked $
             closeCurrentPopup
 
-    -- Show the ImGui demo window
-    showDemoWindow
+      newLine
+
+      mkTable tableRef
 
     -- Render
     glClear GL_COLOR_BUFFER_BIT
@@ -84,4 +100,41 @@ mainLoop win = do
 
     GLFW.swapBuffers win
 
-    mainLoop win
+    mainLoop win tableRef
+
+mkTable :: IORef [(Integer, String)] -> IO ()
+mkTable tableRef =
+  withTableOpen sortable "MyTable" 3 $ do
+    tableSetupColumn "Hello"
+    tableSetupColumnWith defTableColumnOptions "World"
+
+    withSortableTable \isDirty sortSpecs ->
+      when (isDirty && not (null sortSpecs)) do
+        -- XXX: do your sorting & cache it. Dont sort every frame.
+        putStrLn "So dirty!"
+        print sortSpecs
+        modifyIORef' tableRef . sortBy $
+          foldMap mkCompare sortSpecs
+
+    tableHeadersRow
+    readIORef tableRef >>=
+      traverse_ \(ix, title) -> do
+        tableNextRow
+        tableNextColumn $ text (show ix)
+        tableNextColumn $ text title
+        tableNextColumn $ void (button "♥")
+  where
+    mkCompare TableSortingSpecs{..} a b =
+      let
+        dir = if tableSortingReverse then flip else id
+      in
+        case tableSortingColumn of
+          0 -> dir compare (fst a) (fst b)
+          1 -> dir compare (snd a) (snd b)
+          _ -> EQ
+
+    sortable = defTableOptions
+      { tableFlags =
+          ImGuiTableFlags_Sortable .|.
+          ImGuiTableFlags_SortMulti
+      }

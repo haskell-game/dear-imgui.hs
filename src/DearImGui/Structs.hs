@@ -1,5 +1,6 @@
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE NamedFieldPuns #-}
+{-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE CPP #-}
 
 module DearImGui.Structs where
@@ -13,11 +14,12 @@ import Data.Word
   )
 
 import Foreign
-  ( Storable(..), castPtr, plusPtr, Ptr, Int16 )
+  ( Storable(..), castPtr, plusPtr, Ptr, Int16, nullPtr )
 import Foreign.C
   ( CInt, CBool )
 
 import DearImGui.Enums
+import Data.Bits ((.&.))
 
 --------------------------------------------------------------------------------
 data ImVec2 = ImVec2 { x, y :: {-# unpack #-} !Float }
@@ -104,7 +106,7 @@ data ImGuiListClipper
 
 -- | A unique ID used by widgets (typically the result of hashing a stack of string)
 --   unsigned Integer (same as ImU32)
-type ImGuiID = Word32
+type ImGuiID = ImU32
 
 -- | 32-bit unsigned integer (often used to store packed colors).
 type ImU32 = Word32
@@ -125,62 +127,88 @@ type ImWchar = Word16
 --   When @SpecsDirty == true@ you can sort your data. It will be true with sorting specs have changed since last call, or the first time.
 --   Make sure to set @SpecsDirty = false@ after sorting, else you may wastefully sort your data every frame!
 data ImGuiTableSortSpecs = ImGuiTableSortSpecs
-     { imGuiTableColumnSortSpecs :: Ptr ImGuiTableColumnSortSpecs
-     , imGuiTableSortSpecsCount :: CInt
-     , imGuiTableSortSpecsDirty :: CBool
-     }
+  { specs      :: Ptr ImGuiTableColumnSortSpecs
+  , specsCount :: CInt
+  , specsDirty :: CBool
+  } deriving (Show, Eq)
 
 instance Storable ImGuiTableSortSpecs where
-  sizeOf _ = sizeOf (undefined :: Ptr ImGuiTableColumnSortSpecs)
-           + sizeOf (undefined :: CInt)
-           + sizeOf (undefined :: CBool)
+  sizeOf _ =
+    sizeOf (undefined :: Ptr ImGuiTableColumnSortSpecs) +
+    sizeOf (undefined :: CInt) +
+    sizeOf (undefined :: CBool)
 
-  alignment _ = 0
+  alignment _ =
+    alignment nullPtr
 
-  poke ptr (ImGuiTableSortSpecs s c d) = do
-    poke ( castPtr ptr                   ) s
-    poke ( castPtr ptr `plusPtr` sizeOf s) c
-    poke ((castPtr ptr `plusPtr` sizeOf s)
-                       `plusPtr` sizeOf c) d
+  poke ptr ImGuiTableSortSpecs{..} = do
+    let specsPtr = castPtr ptr
+    poke specsPtr specs
+
+    let specsCountPtr = castPtr $ specsPtr `plusPtr` sizeOf specs
+    poke specsCountPtr specsCount
+
+    let specsDirtyPtr = castPtr $ specsCountPtr `plusPtr` sizeOf specsCount
+    poke specsDirtyPtr specsDirty
 
   peek ptr = do
-    s <- peek ( castPtr ptr                   )
-    c <- peek ( castPtr ptr `plusPtr` sizeOf s)
-    d <- peek ((castPtr ptr `plusPtr` sizeOf s)
-                            `plusPtr` sizeOf c)
-    return (ImGuiTableSortSpecs s c d)
+    let specsPtr = castPtr ptr
+    specs <- peek specsPtr
+
+    let specsCountPtr = castPtr $ specsPtr `plusPtr` sizeOf specs
+    specsCount <- peek specsCountPtr
+
+    let specsDirtyPtr = castPtr $ specsCountPtr `plusPtr` sizeOf specsCount
+    specsDirty <- peek specsDirtyPtr
+
+    pure ImGuiTableSortSpecs{..}
 
 -- | Sorting specification for one column of a table
 data ImGuiTableColumnSortSpecs = ImGuiTableColumnSortSpecs
-     { imGuiTableColumnSortUserID      :: ImGuiID -- ^ User id of the column (if specified by a TableSetupColumn() call)
-     , imGuiTableColumnSortColumnIndex :: ImS16 -- ^ Index of the column
-     , imGuiTableColumnSortOrder       :: ImS16 -- ^ Index within parent ImGuiTableSortSpecs (always stored in order starting from 0, tables sorted on a single criteria will always have a 0 here)
-     , imGuiTableColumnSortDirection   :: ImGuiSortDirection -- ^ 'ImGuiSortDirection_Ascending' or 'ImGuiSortDirection_Descending'
-     } deriving (Show, Eq)
+  { columnUserID  :: ImGuiID            -- ^ User id of the column (if specified by a TableSetupColumn() call)
+  , columnIndex   :: ImS16              -- ^ Index of the column
+  , sortOrder     :: ImS16              -- ^ Index within parent ImGuiTableSortSpecs (always stored in order starting from 0, tables sorted on a single criteria will always have a 0 here)
+  , sortDirection :: ImGuiSortDirection -- ^ 'ImGuiSortDirection_Ascending' or 'ImGuiSortDirection_Descending'
+  } deriving (Show, Eq)
 
 instance Storable ImGuiTableColumnSortSpecs where
-  sizeOf _  = sizeOf (undefined :: ImGuiID)
-            + sizeOf (undefined :: ImS16)
-            + sizeOf (undefined :: ImS16)
-            + sizeOf (undefined :: ImGuiSortDirection)
+  sizeOf _ = 12
+  alignment _ = 4
 
-  alignment _ = 0
+  poke ptr ImGuiTableColumnSortSpecs{..} = do
+    let columnUserIDPtr = castPtr ptr
+    poke columnUserIDPtr columnUserID
 
-  poke ptr (ImGuiTableColumnSortSpecs a b c d) = do
-    poke (  castPtr ptr                   ) a
-    poke (  castPtr ptr `plusPtr` sizeOf a) b
-    poke (( castPtr ptr `plusPtr` sizeOf a)
-                        `plusPtr` sizeOf b) c
-    poke (((castPtr ptr `plusPtr` sizeOf a)
-                        `plusPtr` sizeOf b)
-                        `plusPtr` sizeOf c) d
+    let columnIndexPtr = castPtr $ columnUserIDPtr `plusPtr` sizeOf columnUserID
+    poke columnIndexPtr columnIndex
+
+    let sortOrderPtr = castPtr $ columnIndexPtr `plusPtr` sizeOf columnIndex
+    poke sortOrderPtr sortOrder
+
+    let sortDirectionPtr = castPtr $ sortOrderPtr `plusPtr` sizeOf sortOrder
+    poke sortDirectionPtr sortDirection
 
   peek ptr = do
-    a <- peek (  castPtr ptr                   )
-    b <- peek (  castPtr ptr `plusPtr` sizeOf a)
-    c <- peek (( castPtr ptr `plusPtr` sizeOf a)
-                             `plusPtr` sizeOf b)
-    d <- peek (((castPtr ptr `plusPtr` sizeOf a)
-                             `plusPtr` sizeOf b)
-                             `plusPtr` sizeOf c)
-    return (ImGuiTableColumnSortSpecs a b c d)
+    let columnUserIDPtr = castPtr ptr
+    columnUserID <- peek columnUserIDPtr
+
+    let columnIndexPtr = castPtr $ columnUserIDPtr `plusPtr` sizeOf columnUserID
+    columnIndex <- peek columnIndexPtr
+
+    let sortOrderPtr = castPtr $ columnIndexPtr `plusPtr` sizeOf columnIndex
+    sortOrder <- peek sortOrderPtr
+
+    let sortDirectionPtr = castPtr $ sortOrderPtr `plusPtr` sizeOf sortOrder
+    sortDirection' <- peek sortDirectionPtr :: IO CInt
+    -- XXX: Specs struct uses trimmed field: @SortDirection : 8@
+    let sortDirection = case sortDirection' .&. 0xFF of
+          0 ->
+            ImGuiSortDirection_None
+          1 ->
+            ImGuiSortDirection_Ascending
+          2 ->
+            ImGuiSortDirection_Descending
+          _ ->
+            error $ "Unexpected value for ImGuiSortDirection: " <> show sortDirection
+
+    pure ImGuiTableColumnSortSpecs{..}
