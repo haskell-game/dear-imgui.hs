@@ -157,6 +157,28 @@ module DearImGui.Raw
   , colorPicker3
   , colorButton
 
+    -- * Tables
+  , beginTable
+  , endTable
+  , tableNextRow
+  , tableNextColumn
+  , tableSetColumnIndex
+  
+  , tableSetupColumn
+  , tableSetupScrollFreeze
+  , tableHeadersRow
+  , tableHeader
+  
+  , tableGetSortSpecs
+
+  , tableGetColumnCount
+  , tableGetColumnIndex
+  , tableGetRowIndex
+  , tableGetColumnName
+  , tableGetColumnFlags
+  , tableSetColumnEnabled
+  , tableSetBgColor
+
     -- * Trees
   , treeNode
   , treePush
@@ -1067,6 +1089,122 @@ colorButton :: (MonadIO m) => CString -> Ptr ImVec4 -> m Bool
 colorButton descPtr refPtr = liftIO do
   (0 /=) <$> [C.exp| bool { ColorButton( $(char* descPtr), *$(ImVec4* refPtr) ) } |]
 
+
+-- | Wraps @ImGui::BeginTable()@.
+beginTable :: MonadIO m => CString -> CInt -> ImGuiTableFlags -> Ptr ImVec2 -> CFloat -> m Bool
+beginTable labelPtr column flags outerSizePtr innerWidth = liftIO do
+  (0 /=) <$> [C.exp| bool { BeginTable($(char* labelPtr), $(int column), $(ImGuiTableFlags flags), *$(ImVec2* outerSizePtr), $(float innerWidth)) } |]
+
+-- | Only call 'endTable' if 'beginTable' returns true!
+-- 
+-- Wraps @ImGui::EndTable()@.
+endTable :: MonadIO m => m ()
+endTable = liftIO do
+  [C.exp| void { EndTable() } |]
+
+-- | Wraps @ImGui::TableNextRow()@.
+--   append into the first cell of a new row.
+tableNextRow :: MonadIO m => ImGuiTableRowFlags -> CFloat -> m ()
+tableNextRow flags minRowHeight = liftIO do
+  [C.exp| void { TableNextRow($(ImGuiTableRowFlags flags), $(float minRowHeight)) } |]
+
+-- | Wraps @ImGui::TableNextColumn()@.
+--   append into the next column (or first column of next row if currently in
+--   last column). Return true when column is visible.
+tableNextColumn :: MonadIO m => m Bool
+tableNextColumn = liftIO do
+  (0 /=) <$> [C.exp| bool { TableNextColumn() } |]
+
+-- | Wraps @ImGui::TableSetColumnIndex()@.
+--   append into the specified column. Return true when column is visible.
+tableSetColumnIndex :: MonadIO m => CInt -> m Bool
+tableSetColumnIndex column= liftIO do
+  (0 /=) <$> [C.exp| bool { TableSetColumnIndex($(int column)) } |]
+
+-- | Wraps @ImGui::TableSetupColumn()@.
+tableSetupColumn :: MonadIO m => CString -> ImGuiTableColumnFlags -> CFloat -> ImGuiID-> m ()
+tableSetupColumn labelPtr flags initWidthOrWeight userId = liftIO do
+  [C.exp| void { TableSetupColumn($(char* labelPtr), $(ImGuiTableColumnFlags flags), $(float initWidthOrWeight), $(ImGuiID userId)) } |]
+
+-- | Wraps @ImGui::TableSetupScrollFreeze()@.
+tableSetupScrollFreeze :: MonadIO m => CInt -> CInt -> m ()
+tableSetupScrollFreeze cols rows = liftIO do
+  [C.exp| void { TableSetupScrollFreeze($(int cols), $(int rows)) } |]
+
+-- | Wraps @ImGui::TableHeadersRow()@.
+--   submit all headers cells based on data provided to 'tableSetupColumn'
+--   + submit context menu
+tableHeadersRow :: MonadIO m => m ()
+tableHeadersRow = liftIO do
+  [C.exp| void { TableHeadersRow() } |]
+
+-- | Wraps @ImGui::TableHeader()@.
+--   submit one header cell manually (rarely used)
+tableHeader :: MonadIO m => CString -> m ()
+tableHeader labelPtr = liftIO do
+  [C.exp| void { TableHeader($(char* labelPtr)) } |]
+
+-- | Wraps @ImGui::TableGetSortSpecs()@.
+--   Low-level-Function. Better use the wrapper that outomatically conform
+--   to the things described below
+--
+--   Tables: Sorting
+--   - Call TableGetSortSpecs() to retrieve latest sort specs for the table.
+--     NULL when not sorting.
+--   - When 'SpecsDirty == true' you should sort your data. It will be true when
+--     sorting specs have changed since last call, or the first time. Make sure
+--     to set 'SpecsDirty = false' after sorting, else you may wastefully sort
+--     your data every frame!
+--   - Lifetime: don't hold on this pointer over multiple frames or past any
+--     subsequent call to BeginTable().
+tableGetSortSpecs :: MonadIO m => m (Maybe (Ptr ImGuiTableSortSpecs))
+tableGetSortSpecs = liftIO do
+  ptr <- [C.exp| ImGuiTableSortSpecs* { TableGetSortSpecs() } |]
+  if ptr == nullPtr then
+    return Nothing
+  else
+    return $ Just ptr
+
+-- | Wraps @ImGui::TableGetColumnCount()@.
+tableGetColumnCount :: MonadIO m => m CInt
+tableGetColumnCount = liftIO do
+  [C.exp| int { TableGetColumnCount() } |]
+
+-- | Wraps @ImGui::TableGetColumnIndex()@.
+tableGetColumnIndex :: MonadIO m => m CInt
+tableGetColumnIndex = liftIO do
+  [C.exp| int { TableGetColumnIndex() } |]
+
+-- | Wraps @ImGui::TableGetRowIndex()@.
+tableGetRowIndex :: MonadIO m => m CInt
+tableGetRowIndex = liftIO do
+  [C.exp| int { TableGetRowIndex() } |]
+
+-- | Wraps @ImGui::TableGetColumnName
+--   'Nothing' returns the current column name
+tableGetColumnName :: MonadIO m => Maybe CInt -> m CString
+tableGetColumnName Nothing = tableGetColumnName (Just (-1))
+tableGetColumnName (Just column_n) = liftIO do
+  [C.exp| const char* { TableGetColumnName($(int column_n)) } |]
+
+-- | Wraps @ImGui::TableGetRowIndex()@.
+--   'Nothing' returns the current column flags
+tableGetColumnFlags :: MonadIO m => Maybe CInt -> m ImGuiTableColumnFlags
+tableGetColumnFlags Nothing = tableGetColumnFlags (Just (-1))
+tableGetColumnFlags (Just column_n) = liftIO do
+  [C.exp| ImGuiTableColumnFlags { TableGetColumnFlags($(int column_n)) } |]
+
+-- | Wraps @ImGui::TableSetColumnEnabled()@.
+tableSetColumnEnabled :: MonadIO m => CInt -> CBool -> m ()
+tableSetColumnEnabled column_n v = liftIO do
+  [C.exp| void { TableSetColumnEnabled($(int column_n), $(bool v)) } |]
+
+-- | Wraps @ImGui::TableSetBgColor()@.
+--   'Nothing' sets the current row/column color
+tableSetBgColor :: MonadIO m => ImGuiTableBgTarget -> ImU32 -> Maybe CInt -> m ()
+tableSetBgColor target color Nothing = tableSetBgColor target color (Just (-1))
+tableSetBgColor target color (Just column_n) = liftIO do
+  [C.exp| void { TableSetBgColor($(ImGuiTableBgTarget target), $(ImU32 color), $(int column_n)) } |]
 
 -- | Wraps @ImGui::TreeNode()@.
 treeNode :: (MonadIO m) => CString -> m Bool

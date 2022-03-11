@@ -183,6 +183,37 @@ module DearImGui
   , colorPicker3
   , colorButton
 
+    -- ** Tables
+  , beginTable
+  , Raw.endTable
+  , withTable
+  , TableOptions(..)
+  , defTableOptions
+  , tableNextRow
+  , tableNextRowWith
+  , TableRowOptions(..)
+  , defTableRowOptions
+  , Raw.tableNextColumn
+  , tableSetColumnIndex
+
+  , tableSetupColumn
+  , TableColumnOptions(..)
+  , defTableColumnOptions
+  , tableSetupScrollFreeze
+  , Raw.tableHeadersRow
+  , Raw.tableHeader
+
+  , withSortableTable
+  , TableSortingSpecs(..)
+
+  , tableGetColumnCount
+  , tableGetColumnIndex
+  , tableGetRowIndex
+  , tableGetColumnName
+  , tableGetColumnFlags
+  , tableSetColumnEnabled
+  , tableSetBgColor
+
     -- ** Trees
   , treeNode
   , treePush
@@ -1274,6 +1305,203 @@ colorButton desc ref = liftIO do
 
     return changed
 
+data TableOptions = TableOptions
+                  { tableFlags :: ImGuiTableFlags
+                  , outerSize :: ImVec2
+                  , innerWidth :: Float
+                  } deriving Show
+
+defTableOptions :: TableOptions
+defTableOptions = TableOptions (ImGuiTableFlags 0) (ImVec2 0 0) 0
+
+-- | Wraps @ImGui::BeginTable()@.
+beginTable :: MonadIO m => TableOptions -> String -> Int -> m Bool
+beginTable (TableOptions flags outer inner) label columns = liftIO do
+  withCString label $ \l -> 
+    with outer $ \o ->
+      Raw.beginTable l (fromIntegral columns) flags o (CFloat inner)
+
+-- | Create a table.
+--
+-- The action will get 'False' if the entry is not visible.
+--
+-- ==== __Example usage:__
+--
+-- > withTable defTableOptions "MyTable" 2 $ \case
+-- >   False -> return ()
+-- >   True  -> do
+-- >     tableSetupColumn "Hello"
+-- >     tableSetupColumn "World"
+-- >     tableHeadersRow
+-- >     forM_ [("a","1"),("b","2")] $\(a,b)
+-- >       tableNextRow
+-- >       whenM tableNextColumn (text a)
+-- >       whenM tableNextColumn (text b)
+--
+-- Displays:
+--
+-- @
+-- | Hello | World |
+-- +-------+-------+
+-- | a     | 1     |
+-- | b     | 2     |
+-- @
+--
+withTable :: MonadUnliftIO m => TableOptions -> String -> Int -> (Bool -> m a) -> m a
+withTable options label columns =
+  bracket (beginTable options label columns) (`when` Raw.endTable)
+
+-- | Wraps @ImGui::TableNextRow()@ with 'defTableRowOptions'.
+--   append into the first cell of a new row.
+tableNextRow :: MonadIO m => m ()
+tableNextRow = tableNextRowWith defTableRowOptions
+
+data TableRowOptions = TableRowOptions
+                     { tableRowFlags :: ImGuiTableRowFlags
+                     , minRowHeight  :: Float
+                     } deriving Show
+
+defTableRowOptions :: TableRowOptions
+defTableRowOptions = TableRowOptions (ImGuiTableRowFlags 0) 0
+
+-- | Wraps @ImGui::TableNextRow()@ with explicit options.
+tableNextRowWith :: MonadIO m => TableRowOptions -> m ()
+tableNextRowWith (TableRowOptions flags minHeight) = liftIO do
+  Raw.tableNextRow flags (CFloat minHeight)
+
+-- | Wraps @ImGui::TableSetColumnIndex()@.
+--   append into the specified column. Return true when column is visible.
+tableSetColumnIndex :: MonadIO m => Int -> m Bool
+tableSetColumnIndex column = liftIO do
+  Raw.tableSetColumnIndex (fromIntegral column)
+
+
+data TableColumnOptions = TableColumnOptions
+                        { tableColumnFlags  :: ImGuiTableColumnFlags
+                        , initWidthOrWeight :: Float
+                        , userId            :: ImGuiID
+                        } deriving Show
+
+defTableColumnOptions :: TableColumnOptions
+defTableColumnOptions = TableColumnOptions (ImGuiTableColumnFlags 0) 0 0
+
+-- | Wraps @ImGui::TableSetupColumn()@ using 'defTableColumnOptions'.
+tableSetupColumn :: MonadIO m => String -> m ()
+tableSetupColumn = tableSetupColumnWith defTableColumnOptions
+
+-- | Wraps @ImGui::TableSetupColumn() with explicit options@.
+tableSetupColumnWith :: MonadIO m => TableColumnOptions -> String -> m ()
+tableSetupColumnWith (TableColumnOptions flags weight userId) label = liftIO do
+  withCString label $ \l ->
+    Raw.tableSetupColumn l flags (CFloat weight) userId
+
+-- | Wraps @ImGui::TableSetupScrollFreeze()@.
+--   lock columns/rows so they stay visible when scrolled.
+tableSetupScrollFreeze :: MonadIO m => Int -> Int -> m ()
+tableSetupScrollFreeze cols rows = liftIO do
+  Raw.tableSetupScrollFreeze (fromIntegral cols) (fromIntegral rows)
+
+data TableSortingSpecs = TableSortingSpecs
+     { tableSortingId        :: ImGuiID -- ^ User id of the column (if specified by a TableSetupColumn() call)
+     , tableSortingColumn    :: Int     -- ^ Index of the column, starting at 0
+     , dableSortingOrder     :: Int     -- ^ Index within parent ImGuiTableSortSpecs (always stored in order starting from 0, tables sorted on a single criteria will always have a 0 here).
+                                        --   On 'ImGuiTableFlags_SortMulti' this is the order in which should be sorted.
+     , tableSortingDirection :: ImGuiSortDirection -- ^ 'ImGuiSortDirection_Ascending' or 'ImGuiSortDirection_Descending'. Should not be 'ImGuiSortDirection_None'
+     } deriving (Show, Eq)
+
+-- | High-Level sorting. Returns of the underlying data should be sorted
+--   and to what specification. Number of Specifications is mostly 0 or 1, but
+--   can be more if 'ImGuiTableFlags_SortMulti' is enabled on the table.
+--
+--   The Bool only fires true for one frame on each sorting event and resets
+--   automatically.
+--
+--   Must be called AFTER all columns are set up with 'tableSetupColumn'
+--
+--   Hint: Don't forget to set 'ImGuiTableFlags_Sortable' to enable sorting
+--   on tables.
+--
+-- ==== __Example usage:__
+--
+-- > withTable defTableOptions "MyTable" 2 $ \case
+-- >   False -> return ()
+-- >   True  -> do
+-- >     tableSetupColumn "Hello"
+-- >     tableSetupColumn "World"
+-- >     withSortableTable $ \(mustSort, sortSpecs) do
+-- >     when mustSort $
+-- >        -- ... do your sorting here & cache it. Dont sort every frame.
+-- >     tableHeadersRow
+-- >     forM_ [("a","1"),("b","2")] $\(a,b) -- use sorted data here.
+-- >       tableNextRow
+-- >       whenM tableNextColumn (text a)
+-- >       whenM tableNextColumn (text b)
+withSortableTable :: MonadIO m => ((Bool,[TableSortingSpecs]) -> m a) -> m a
+withSortableTable action = do
+  specsPtr <- liftIO $ Raw.tableGetSortSpecs
+  case specsPtr of
+    Nothing -> action (False, [])
+    Just ptr -> do
+      specs <- liftIO $ peek ptr
+      cSpecs <- liftIO $ peekArray (fromIntegral $ imGuiTableSortSpecsCount specs) (imGuiTableColumnSortSpecs specs)
+
+      -- just map singed 16-bit-int to something nice for the end-user
+      let cSpecs' = (\(ImGuiTableColumnSortSpecs a b c d) -> TableSortingSpecs a (fromIntegral b) (fromIntegral c) d) <$> cSpecs
+
+      result <- action (imGuiTableSortSpecsDirty specs /= 0, cSpecs')
+      -- set dirty to 0 after everything is done.
+      liftIO $ poke (ptr `plusPtr` (sizeOf (imGuiTableColumnSortSpecs specs)) `plusPtr` (sizeOf (imGuiTableSortSpecsCount specs))) (0 :: CInt)
+      return result
+
+-- | Wraps @ImGui::TableGetColumnCount()@.
+--   return number of columns (value passed to BeginTable)
+tableGetColumnCount :: MonadIO m => m Int
+tableGetColumnCount = 
+  fromIntegral <$> Raw.tableGetColumnCount
+
+-- | Wraps @ImGui::TableGetColumnIndex()@.
+--   return current column index.
+tableGetColumnIndex :: MonadIO m => m Int
+tableGetColumnIndex = 
+  fromIntegral <$> Raw.tableGetColumnIndex
+
+-- | Wraps @ImGui::TableGetRowIndex()@.
+--   return current row index
+tableGetRowIndex :: MonadIO m => m Int
+tableGetRowIndex =
+  fromIntegral <$> Raw.tableGetRowIndex
+
+-- | Wraps @ImGui::TableGetColumnName
+--   returns "" if column didn't have a name declared by TableSetupColumn
+--   'Nothing' returns the current column name
+tableGetColumnName :: MonadIO m => Maybe Int -> m String
+tableGetColumnName c = liftIO do
+  Raw.tableGetColumnName (fromIntegral <$> c) >>= peekCString
+
+-- | Wraps @ImGui::TableGetRowIndex()@.
+--    return column flags so you can query their Enabled/Visible/Sorted/Hovered
+--    status flags.
+--   'Nothing' returns the current column flags
+tableGetColumnFlags :: MonadIO m => Maybe Int -> m ImGuiTableColumnFlags
+tableGetColumnFlags =
+  Raw.tableGetColumnFlags . fmap fromIntegral
+
+-- | Wraps @ImGui::TableSetColumnEnabled()@.
+--   change user accessible enabled/disabled state of a column. Set to false to
+--   hide the column. User can use the context menu to change this themselves
+--   (right-click in headers, or right-click in columns body with
+--   'ImGuiTableFlags_ContextMenuInBody')
+tableSetColumnEnabled :: MonadIO m => Int -> Bool -> m ()
+tableSetColumnEnabled column_n v =
+  Raw.tableSetColumnEnabled (fromIntegral column_n) (bool 0 1 v)
+
+-- | Wraps @ImGui::TableSetBgColor()@.
+--   change the color of a cell, row, or column.
+--   See 'ImGuiTableBgTarget' flags for details.
+--   'Nothing' sets the current row/column color
+tableSetBgColor :: MonadIO m => ImGuiTableBgTarget -> ImU32 -> Maybe Int -> m ()
+tableSetBgColor target color column_n =
+ Raw.tableSetBgColor target color (fromIntegral <$> column_n)
 
 -- | Wraps @ImGui::TreeNode()@.
 treeNode :: MonadIO m => String -> m Bool
