@@ -6,6 +6,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE PatternSynonyms #-}
 {-# LANGUAGE QuasiQuotes #-}
+{-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE ViewPatterns #-}
 
@@ -163,13 +164,14 @@ module DearImGui.Raw
   , tableNextRow
   , tableNextColumn
   , tableSetColumnIndex
-  
+
   , tableSetupColumn
   , tableSetupScrollFreeze
   , tableHeadersRow
   , tableHeader
-  
+
   , tableGetSortSpecs
+  , tableClearSortSpecsDirty
 
   , tableGetColumnCount
   , tableGetColumnIndex
@@ -1096,7 +1098,7 @@ beginTable labelPtr column flags outerSizePtr innerWidth = liftIO do
   (0 /=) <$> [C.exp| bool { BeginTable($(char* labelPtr), $(int column), $(ImGuiTableFlags flags), *$(ImVec2* outerSizePtr), $(float innerWidth)) } |]
 
 -- | Only call 'endTable' if 'beginTable' returns true!
--- 
+--
 -- Wraps @ImGui::EndTable()@.
 endTable :: MonadIO m => m ()
 endTable = liftIO do
@@ -1164,6 +1166,12 @@ tableGetSortSpecs = liftIO do
     return Nothing
   else
     return $ Just ptr
+
+tableClearSortSpecsDirty :: MonadIO m => Ptr ImGuiTableSortSpecs -> m ()
+tableClearSortSpecsDirty specsPtr = liftIO do
+  [C.block| void {
+    $(ImGuiTableSortSpecs* specsPtr)->SpecsDirty = false;
+  } |]
 
 -- | Wraps @ImGui::TableGetColumnCount()@.
 tableGetColumnCount :: MonadIO m => m CInt
