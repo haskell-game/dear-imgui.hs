@@ -1,5 +1,11 @@
 # Changelog for dear-imgui
 
+## [1.5.0]
+
+- Added table wrappers.
+- Added popup wrappers.
+- Added `selectableWith`/`SelectableOptions` to expose optional arguments.
+
 ## [1.4.0]
 
 - `imgui` updated to [1.87].
@@ -68,6 +74,7 @@ Initial Hackage release based on [1.83].
 [1.3.0]: https://github.com/haskell-game/dear-imgui.hs/tree/v1.3.0
 [1.3.1]: https://github.com/haskell-game/dear-imgui.hs/tree/v1.3.1
 [1.4.0]: https://github.com/haskell-game/dear-imgui.hs/tree/v1.4.0
+[1.5.0]: https://github.com/haskell-game/dear-imgui.hs/tree/v1.5.0
 
 [1.87]: https://github.com/ocornut/imgui/releases/tag/v1.87
 [1.86]: https://github.com/ocornut/imgui/releases/tag/v1.86
