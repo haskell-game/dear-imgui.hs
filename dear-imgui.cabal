@@ -151,13 +151,20 @@ library
     DearImGui.Context
     DearImGui.Enums
     DearImGui.Structs
-  cxx-options: -std=c++11
+  cxx-options:
+    -std=c++11
   cxx-sources:
     imgui/imgui.cpp
     imgui/imgui_demo.cpp
     imgui/imgui_draw.cpp
     imgui/imgui_tables.cpp
     imgui/imgui_widgets.cpp
+  install-includes:
+    imgui.h
+    imgui_internal.h
+    imstb_rectpack.h
+    imstb_textedit.h
+    imstb_truetype.h
   extra-libraries:
     stdc++
   include-dirs:

@@ -2,3 +2,5 @@ packages: *.cabal
 package dear-imgui
   flags: +sdl2 +glfw +opengl2 +opengl3 +vulkan +examples
   ghc-options: -Wall -Wcompat -fno-warn-unused-do-bind
+
+shared: true
