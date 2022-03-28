@@ -5,6 +5,7 @@
 - Added table wrappers.
 - Added popup wrappers.
 - Added `selectableWith`/`SelectableOptions` to expose optional arguments.
+- Fix GHC-9.2 compatibility.
 
 ## [1.4.0]
 
