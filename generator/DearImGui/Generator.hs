@@ -24,6 +24,10 @@ import Data.Traversable
   ( for )
 import Foreign.Storable
   ( Storable )
+#if MIN_VERSION_template_haskell(2,18,0)
+import Data.Coerce
+  ( coerce )
+#endif
 
 -- containers
 import Data.Map.Strict
@@ -171,7 +175,7 @@ declareEnumeration finiteEnumName countName ( Enumeration {..} ) = do
         else
           \ nm args dir pat ->
           TH.patSynD_doc nm args dir pat
-            ( Just $ Text.unpack patDoc ) []
+            ( Just $ Text.unpack _patDoc ) []
       )
 #else
       TH.patSynD
