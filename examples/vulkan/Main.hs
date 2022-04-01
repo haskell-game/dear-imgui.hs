@@ -201,9 +201,7 @@ app = do
   surfaceCapabilities <- Vulkan.getPhysicalDeviceSurfaceCapabilitiesKHR physicalDevice ( Vulkan.SurfaceKHR surface )
 
   let
-    minImageCount, maxImageCount, imageCount :: Word32
-    minImageCount = ( Vulkan.minImageCount :: Vulkan.SurfaceCapabilitiesKHR -> Word32 ) surfaceCapabilities
-    maxImageCount = ( Vulkan.maxImageCount :: Vulkan.SurfaceCapabilitiesKHR -> Word32 ) surfaceCapabilities
+    Vulkan.SurfaceCapabilitiesKHR{minImageCount, maxImageCount} = surfaceCapabilities
     imageCount
       | maxImageCount == 0 =   minImageCount + 1
       | otherwise          = ( minImageCount + 1 ) `min` maxImageCount
@@ -213,31 +211,30 @@ app = do
 
     swapchainResources :: Maybe SwapchainResources -> m ( m (), SwapchainResources )
     swapchainResources mbOldResources = do
-      ( surfaceFormat, imGuiRenderPass ) <- case mbOldResources of
+      ( colFmt, surfaceFormat, imGuiRenderPass ) <- case mbOldResources of
         Nothing -> do
           logDebug "Choosing swapchain format & color space"
           surfaceFormat <- chooseSwapchainFormat preferredFormat physicalDevice surface
-          let
-            colFmt :: Vulkan.Format
-            colFmt = ( Vulkan.format :: Vulkan.SurfaceFormatKHR -> Vulkan.Format ) surfaceFormat
+          let Vulkan.SurfaceFormatKHR{format=colFmt} = surfaceFormat
           logDebug "Creating Dear ImGui render pass"
           ( _, imGuiRenderPass ) <-
             simpleRenderPass device
               ( noAttachments
                 { colorAttachments = Boxed.Vector.singleton $ presentableColorAttachmentDescription colFmt }
               )
-          pure ( surfaceFormat, imGuiRenderPass )
-        Just oldResources -> pure ( surfaceFormat oldResources, imGuiRenderPass oldResources )
-
-      let
-        colFmt :: Vulkan.Format
-        colFmt = ( Vulkan.format :: Vulkan.SurfaceFormatKHR -> Vulkan.Format ) surfaceFormat
+          pure ( colFmt, surfaceFormat, imGuiRenderPass )
+        Just oldResources -> do
+          let surFmt = surfaceFormat oldResources
+          let Vulkan.SurfaceFormatKHR{format=colFmt} = surFmt
+          pure ( colFmt, surFmt, imGuiRenderPass oldResources )
 
       logDebug "Creating swapchain"
       ( swapchainKey, swapchain, swapchainExtent ) <-
         createSwapchain
-          physicalDevice device
-          surface surfaceFormat
+          physicalDevice
+          device
+          surface
+          surfaceFormat
           surfaceUsage
           imageCount
           ( swapchain <$> mbOldResources )
