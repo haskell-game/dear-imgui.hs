@@ -570,21 +570,58 @@ arrowButton strId dir = liftIO do
   withCString strId \strIdPtr ->
     Raw.arrowButton strIdPtr dir
 
-
 -- | Wraps @ImGui::Checkbox()@.
 checkbox :: (HasSetter ref Bool, HasGetter ref Bool, MonadIO m) => String -> ref -> m Bool
-checkbox label ref = liftIO do
-  currentValue <- get ref
-  with (bool 0 1 currentValue) \boolPtr -> do
-    changed <- withCString label \labelPtr ->
-      Raw.checkbox labelPtr boolPtr
+checkbox label ref = stateful ref $ checkboxM label
 
-    when changed do
-      newValue <- peek boolPtr
-      ref $=! (newValue == 1)
+-- | Wraps @ImGui::Checkbox()@.
+checkboxM :: (MonadIO m) => String -> Bool -> m (Maybe Bool)
+checkboxM label currentValue =
+  changing
+    (bool 0 1 currentValue)
+    ( \valuePtr ->
+        withCString label \labelPtr ->
+          Raw.checkbox labelPtr valuePtr
+    )
+    (pure . (/=) 0)
 
-    return changed
+{-# INLINEABLE changing #-}
+changing
+  :: (MonadIO m, Storable a1)
+  => a1
+  -> (Ptr a1 -> IO Bool)
+  -> (a1 -> IO a2)
+  -> m (Maybe a2)
+changing oldValue action extract = liftIO do
+  with oldValue \valuePtr ->
+    action valuePtr >>=
+      peekChanged valuePtr extract
 
+{-# INLINEABLE peekChanged #-}
+peekChanged
+  :: (MonadIO m, Storable a1)
+  => Ptr a1 -> (a1 -> m a2) -> Bool -> m (Maybe a2)
+peekChanged ptr action flag = do
+  if flag then
+    liftIO (peek ptr) >>=
+      fmap Just . action
+  else
+    pure Nothing
+
+{-# INLINEABLE stateful #-}
+stateful
+  :: (HasGetter t a, MonadIO m, HasSetter t a)
+  => t -> (a -> m (Maybe a)) -> m Bool
+stateful ref action = get ref >>= action >>= maybeSet ref
+
+{-# INLINEABLE maybeSet #-}
+maybeSet :: (HasSetter t a, MonadIO f) => t -> Maybe a -> f Bool
+maybeSet ref = \case
+  Nothing ->
+    pure False
+  Just val -> do
+    ref $=! val
+    pure True
 
 progressBar :: MonadIO m => Float -> Maybe String -> m ()
 progressBar progress overlay = liftIO do
