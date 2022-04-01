@@ -190,9 +190,9 @@ initialiseVulkanContext instanceType appName ( VulkanRequirements { instanceRequ
   device <- logDebug "Creating logical device" *>
     Vulkan.Utils.createDeviceFromRequirements swapchainDeviceRequirements [] physicalDevice deviceCreateInfo
   queue  <- Vulkan.getDeviceQueue device ( fromIntegral queueFamily ) 0
-  
+
   pure ( VulkanContext { .. } )
-  
+
 
 
 vulkanInstanceInfo
@@ -206,7 +206,7 @@ vulkanInstanceInfo appName = do
   let
     validationLayer :: Maybe ValidationLayerName
     validationLayer
-      = coerce 
+      = coerce
       . foldMap
         (  (  Vulkan.layerName :: Vulkan.LayerProperties -> ByteString )
         >>> \case
@@ -374,11 +374,10 @@ chooseSwapchainFormat
 
       case sortOn ( Down . score ) ( Boxed.Vector.toList surfaceFormats ) of
         [] -> error "No formats found."
-        ( best : _ )
-          | Vulkan.FORMAT_UNDEFINED <- ( Vulkan.format :: Vulkan.SurfaceFormatKHR -> Vulkan.Format ) best
-            -> pure preferredFormat
-          | otherwise
-            -> pure best
+        Vulkan.SurfaceFormatKHR{format=Vulkan.FORMAT_UNDEFINED} : _rest ->
+          pure preferredFormat
+        best : _rest
+          -> pure best
 
     where
       match :: Eq a => a -> a -> Int
@@ -406,20 +405,17 @@ createSwapchain physicalDevice device surface surfaceFormat imageUsage imageCoun
   surfaceCapabilities <- Vulkan.getPhysicalDeviceSurfaceCapabilitiesKHR physicalDevice ( Vulkan.SurfaceKHR surface )
 
   ( _, presentModes ) <- Vulkan.getPhysicalDeviceSurfacePresentModesKHR physicalDevice ( Vulkan.SurfaceKHR surface )
-  
+
   let
     presentMode :: Vulkan.PresentModeKHR
-    presentMode 
+    presentMode
       | Vulkan.PRESENT_MODE_MAILBOX_KHR `elem` presentModes
       = Vulkan.PRESENT_MODE_MAILBOX_KHR
       | otherwise
       = Vulkan.PRESENT_MODE_FIFO_KHR
 
-    currentExtent :: Vulkan.Extent2D
-    currentExtent = ( Vulkan.currentExtent :: Vulkan.SurfaceCapabilitiesKHR -> Vulkan.Extent2D ) surfaceCapabilities
-
-    currentTransform :: Vulkan.SurfaceTransformFlagBitsKHR
-    currentTransform = ( Vulkan.currentTransform :: Vulkan.SurfaceCapabilitiesKHR -> Vulkan.SurfaceTransformFlagBitsKHR ) surfaceCapabilities
+    Vulkan.SurfaceCapabilitiesKHR{currentExtent, currentTransform} = surfaceCapabilities
+    Vulkan.SurfaceFormatKHR{format=fmt, colorSpace=csp} = surfaceFormat
 
     swapchainCreateInfo :: Vulkan.SwapchainCreateInfoKHR '[]
     swapchainCreateInfo =
@@ -428,8 +424,8 @@ createSwapchain physicalDevice device surface surfaceFormat imageUsage imageCoun
         , Vulkan.flags                 = Vulkan.zero
         , Vulkan.surface               = Vulkan.SurfaceKHR surface
         , Vulkan.minImageCount         = imageCount
-        , Vulkan.imageFormat           = ( Vulkan.format     :: Vulkan.SurfaceFormatKHR -> Vulkan.Format        ) surfaceFormat
-        , Vulkan.imageColorSpace       = ( Vulkan.colorSpace :: Vulkan.SurfaceFormatKHR -> Vulkan.ColorSpaceKHR ) surfaceFormat
+        , Vulkan.imageFormat           = fmt
+        , Vulkan.imageColorSpace       = csp
         , Vulkan.imageExtent           = currentExtent
         , Vulkan.imageArrayLayers      = 1
         , Vulkan.imageUsage            = imageUsage
@@ -494,7 +490,7 @@ simpleRenderPass dev attachments = Vulkan.withRenderPass dev createInfo Nothing 
         { Vulkan.next         = ()
         , Vulkan.flags        = Vulkan.zero
         , Vulkan.attachments  = Boxed.Vector.fromList attachmentDescriptions
-        , Vulkan.subpasses    = Boxed.Vector.singleton subpass 
+        , Vulkan.subpasses    = Boxed.Vector.singleton subpass
         , Vulkan.dependencies = Boxed.Vector.fromList [ dependency1, dependency2 ]
         }
 
@@ -591,7 +587,7 @@ createFramebuffer
   -> Vulkan.Extent2D
   -> f Vulkan.ImageView
   -> m ( ResourceT.ReleaseKey, Vulkan.Framebuffer )
-createFramebuffer dev renderPass extent attachments = Vulkan.withFramebuffer dev createInfo Nothing ResourceT.allocate
+createFramebuffer dev renderPass Vulkan.Extent2D{width, height} attachments = Vulkan.withFramebuffer dev createInfo Nothing ResourceT.allocate
   where
     createInfo :: Vulkan.FramebufferCreateInfo '[]
     createInfo =
@@ -600,8 +596,8 @@ createFramebuffer dev renderPass extent attachments = Vulkan.withFramebuffer dev
         , Vulkan.flags       = Vulkan.zero
         , Vulkan.renderPass  = renderPass
         , Vulkan.attachments = Boxed.Vector.fromList . toList $ attachments
-        , Vulkan.width       = ( Vulkan.width  :: Vulkan.Extent2D -> Word32 ) extent
-        , Vulkan.height      = ( Vulkan.height :: Vulkan.Extent2D -> Word32 ) extent
+        , Vulkan.width       = width
+        , Vulkan.height      = height
         , Vulkan.layers      = 1
         }
 

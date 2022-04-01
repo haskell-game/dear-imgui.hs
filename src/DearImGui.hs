@@ -842,8 +842,8 @@ dragIntRange2 desc refMin refMax speed minValue maxValue minFmt maxFmt = liftIO 
       return changed
 
 dragScalar
-  :: (HasSetter ref a, HasGetter ref a, Storable a, MonadIO m)
-  => Text -> ImGuiDataType -> ref -> Float -> ref -> ref -> Text -> ImGuiSliderFlags -> m Bool
+  :: (HasSetter ref a, HasGetter ref a, HasGetter range a, Storable a, MonadIO m)
+  => Text -> ImGuiDataType -> ref -> Float -> range -> range -> Text -> ImGuiSliderFlags -> m Bool
 dragScalar label dataType ref vSpeed refMin refMax format flags = liftIO do
   currentValue <- get ref
   minValue <- get refMin
@@ -872,8 +872,8 @@ dragScalar label dataType ref vSpeed refMin refMax format flags = liftIO do
         return changed
 
 dragScalarN
-  :: (HasSetter valueRef [a], HasGetter valueRef [a], HasGetter rangeRef a, Storable a, MonadIO m)
-  => Text -> ImGuiDataType -> valueRef -> Float -> rangeRef -> rangeRef -> Text -> ImGuiSliderFlags -> m Bool
+  :: (HasSetter ref [a], HasGetter ref [a], HasGetter range a, Storable a, MonadIO m)
+  => Text -> ImGuiDataType -> ref -> Float -> range -> range -> Text -> ImGuiSliderFlags -> m Bool
 dragScalarN label dataType ref vSpeed refMin refMax format flags = liftIO do
   currentValues <- get ref
   minValue <- get refMin
@@ -903,8 +903,8 @@ dragScalarN label dataType ref vSpeed refMin refMax format flags = liftIO do
         return changed
 
 sliderScalar
-  :: (HasSetter ref a, HasGetter ref a, Storable a, MonadIO m)
-  => Text -> ImGuiDataType -> ref -> ref -> ref -> Text -> ImGuiSliderFlags -> m Bool
+  :: (HasGetter ref a, HasSetter ref a, HasGetter range a, Storable a, MonadIO m)
+  => Text -> ImGuiDataType -> ref -> range -> range -> Text -> ImGuiSliderFlags -> m Bool
 sliderScalar label dataType ref refMin refMax format flags = liftIO do
   currentValue <- get ref
   minValue <- get refMin
@@ -932,8 +932,8 @@ sliderScalar label dataType ref refMin refMax format flags = liftIO do
         return changed
 
 sliderScalarN
-  :: (HasSetter valueRef [a], HasGetter valueRef [a], HasGetter rangeRef a, Storable a, MonadIO m)
-  => Text -> ImGuiDataType -> valueRef -> rangeRef -> rangeRef -> Text -> ImGuiSliderFlags -> m Bool
+  :: (HasSetter value [a], HasGetter value [a], HasGetter range a, Storable a, MonadIO m)
+  => Text -> ImGuiDataType -> value -> range -> range -> Text -> ImGuiSliderFlags -> m Bool
 sliderScalarN label dataType ref refMin refMax format flags = liftIO do
   currentValues <- get ref
   minValue <- get refMin
@@ -1182,8 +1182,8 @@ vSliderInt label size ref minValue maxValue = liftIO do
       return changed
 
 vSliderScalar
-  :: (HasSetter ref a, HasGetter ref a, Storable a, MonadIO m)
-  => Text -> ImVec2 -> ImGuiDataType -> ref -> ref -> ref -> Text -> ImGuiSliderFlags -> m Bool
+  :: (HasSetter ref a, HasGetter ref a, HasGetter range a, Storable a, MonadIO m)
+  => Text -> ImVec2 -> ImGuiDataType -> ref -> range -> range -> Text -> ImGuiSliderFlags -> m Bool
 vSliderScalar label size dataType ref refMin refMax format flags = liftIO do
   currentValue <- get ref
   minValue <- get refMin
@@ -1875,7 +1875,12 @@ isAnyLevelPopupOpen popupId = liftIO do
 -- | Set next window position. Call before `begin` Use pivot=(0.5,0.5) to center on given point, etc.
 --
 -- Wraps @ImGui::SetNextWindowPos()@
-setNextWindowPos :: (MonadIO m, HasGetter ref ImVec2) => ref -> ImGuiCond -> Maybe ref -> m ()
+setNextWindowPos
+  :: (MonadIO m, HasGetter ref ImVec2)
+  => ref
+  -> ImGuiCond
+  -> Maybe ref -- XXX: the type should be distinct, but using `setNextWindowPos .. Nothing` is ambiguous resulting in bad UX.
+  -> m ()
 setNextWindowPos posRef cond pivotMaybe = liftIO do
   pos <- get posRef
   with pos $ \posPtr ->
