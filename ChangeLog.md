@@ -1,5 +1,10 @@
 # Changelog for dear-imgui
 
+## [2.0.0]
+
+- `String` arguments replaced with `Text`.
+  * Upgrading to `text-2` recommended to reap the UTF-8 benefits.
+
 ## [1.5.0]
 
 - Added table wrappers.
@@ -76,6 +81,7 @@ Initial Hackage release based on [1.83].
 [1.3.1]: https://github.com/haskell-game/dear-imgui.hs/tree/v1.3.1
 [1.4.0]: https://github.com/haskell-game/dear-imgui.hs/tree/v1.4.0
 [1.5.0]: https://github.com/haskell-game/dear-imgui.hs/tree/v1.5.0
+[2.0.0]: https://github.com/haskell-game/dear-imgui.hs/tree/v2.0.0
 
 [1.87]: https://github.com/ocornut/imgui/releases/tag/v1.87
 [1.86]: https://github.com/ocornut/imgui/releases/tag/v1.86
