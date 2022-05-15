@@ -10,6 +10,7 @@ import Data.IORef
 import qualified Data.Vector as Vector
 import DearImGui
 import DearImGui.OpenGL3
+import DearImGui.Internal.Text (pack)
 import DearImGui.SDL
 import DearImGui.SDL.OpenGL
 import Control.Exception
@@ -134,18 +135,18 @@ loop window checked color slider r pos size' selected tab1Ref tab2Ref = do
 
   text "ListClipper"
   withChildOpen "##fixed" (ImVec2 0 200) True ImGuiWindowFlags_None do
-    let lotsOfItems = Vector.generate 50 (mappend "Item " . show)
+    let lotsOfItems = Vector.generate 50 (pack . mappend "Item " . show)
     withListClipper Nothing lotsOfItems text
 
   text "ListClipper, Haskell-powered"
   withChildOpen "##infinite" (ImVec2 0 200) True ImGuiWindowFlags_None do
-    let infiniteItems = map (mappend "Item " . show) [0 :: Int ..]
+    let infiniteItems = map (pack . mappend "Item " . show) [0 :: Int ..]
     withListClipper Nothing infiniteItems text
 
   text "Ethereal ListClipper"
   withChildOpen "##ethereal" (ImVec2 0 200) True ImGuiWindowFlags_None do
     withListClipper Nothing (ClipRange (0 :: Int) 1000) $
-      text . mappend "Item " . show
+      text . pack . mappend "Item " . show
 
   plotHistogram "A histogram" [ 10, 10, 20, 30, 90 ]
 

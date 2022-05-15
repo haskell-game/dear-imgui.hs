@@ -6,10 +6,7 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE PatternSynonyms #-}
-{-# LANGUAGE QuasiQuotes #-}
 {-# LANGUAGE RecordWildCards #-}
-{-# LANGUAGE TemplateHaskell #-}
 
 {-|
 Module: DearImGui
@@ -350,13 +347,12 @@ import Data.Foldable
   ( foldl' )
 import Foreign
 import Foreign.C
-import qualified GHC.Foreign as Foreign
-import System.IO
-  ( utf8 )
 
 -- dear-imgui
 import DearImGui.Enums
+import DearImGui.Internal.Text (Text)
 import DearImGui.Structs
+import qualified DearImGui.Internal.Text as Text
 import qualified DearImGui.Raw as Raw
 import qualified DearImGui.Raw.Font as Raw.Font
 import qualified DearImGui.Raw.ListClipper as Raw.ListClipper
@@ -383,10 +379,9 @@ import qualified Data.Vector.Unboxed as VU
 
 -- | Get the compiled version string e.g. "1.80 WIP" (essentially the value for
 -- @IMGUI_VERSION@ from the compiled version of @imgui.cpp@).
-getVersion :: MonadIO m => m String
+getVersion :: MonadIO m => m Text
 getVersion = liftIO do
-  peekCString =<< Raw.getVersion
-
+  Raw.getVersion >>= Text.peekCString
 
 -- | Push window to the stack and start appending to it.
 --
@@ -395,9 +390,9 @@ getVersion = liftIO do
 -- matching 'end' for each 'begin' call, regardless of its return value!
 --
 -- Wraps @ImGui::Begin()@ with default options.
-begin :: MonadIO m => String -> m Bool
+begin :: MonadIO m => Text -> m Bool
 begin name = liftIO do
-  withCString name \namePtr ->
+  Text.withCString name \namePtr ->
     Raw.begin namePtr Nothing Nothing
 
 -- | Append items to a window.
@@ -406,14 +401,14 @@ begin name = liftIO do
 --
 -- You may append multiple times to the same window during the same frame
 -- by calling 'withWindow' in multiple places.
-withWindow :: MonadUnliftIO m => String -> (Bool -> m a) -> m a
+withWindow :: MonadUnliftIO m => Text -> (Bool -> m a) -> m a
 withWindow name = bracket (begin name) (const Raw.end)
 
 -- | Append items to a window unless it is collapsed or fully clipped.
 --
 -- You may append multiple times to the same window during the same frame
 -- by calling 'withWindowOpen' in multiple places.
-withWindowOpen :: MonadUnliftIO m => String -> m () -> m ()
+withWindowOpen :: MonadUnliftIO m => Text -> m () -> m ()
 withWindowOpen name action =
   withWindow name (`when` action)
 
@@ -429,7 +424,7 @@ withFullscreen action = bracket open close (`when` action)
   where
     open = liftIO do
       Raw.setNextWindowFullscreen
-      withCString "FullScreen" \namePtr ->
+      Text.withCString "FullScreen" \namePtr ->
         Raw.begin namePtr (Just nullPtr) (Just fullscreenFlags)
 
     close = liftIO . const Raw.end
@@ -465,88 +460,88 @@ fullscreenFlags = foldl' (.|.) zeroBits
 -- Always call a matching `endChild` for each `beginChild` call, regardless of its return value.
 --
 -- Wraps @ImGui::BeginChild()@.
-beginChild :: MonadIO m => String -> ImVec2 -> Bool -> ImGuiWindowFlags -> m Bool
+beginChild :: MonadIO m => Text -> ImVec2 -> Bool -> ImGuiWindowFlags -> m Bool
 beginChild name size border flags = liftIO do
-  withCString name \namePtr ->
+  Text.withCString name \namePtr ->
     with size \sizePtr ->
       Raw.beginChild namePtr sizePtr (bool 0 1 border) flags
 
 -- | Action wrapper for child windows.
 --
 -- Action will get 'False' if the child region is collapsed or fully clipped.
-withChild :: MonadUnliftIO m => String -> ImVec2 -> Bool -> ImGuiWindowFlags -> (Bool -> m a) -> m a
+withChild :: MonadUnliftIO m => Text -> ImVec2 -> Bool -> ImGuiWindowFlags -> (Bool -> m a) -> m a
 withChild name size border flags = bracket (beginChild name size border flags) (const Raw.endChild)
 
 -- | Action-skipping wrapper for child windows.
 --
 -- Action will be skipped if the child region is collapsed or fully clipped.
-withChildOpen :: MonadUnliftIO m => String -> ImVec2 -> Bool -> ImGuiWindowFlags -> m () -> m ()
+withChildOpen :: MonadUnliftIO m => Text -> ImVec2 -> Bool -> ImGuiWindowFlags -> m () -> m ()
 withChildOpen name size border flags action =
   withChild name size border flags (`when` action)
 
 -- | Action wrapper to run in a context of another child window addressed by its name.
 --
 -- Action will get 'False' if the child region is collapsed or fully clipped.
-withChildContext :: MonadUnliftIO m => String -> (Bool -> m a) -> m a
+withChildContext :: MonadUnliftIO m => Text -> (Bool -> m a) -> m a
 withChildContext name action =
   bracket
-    (liftIO $ withCString name Raw.beginChildContext)
+    (liftIO $ Text.withCString name Raw.beginChildContext)
     (const Raw.endChild)
     action
 
 
 -- | Plain text.
-text :: MonadIO m => String -> m ()
+text :: MonadIO m => Text -> m ()
 text t = liftIO do
-  withCString t \textPtr ->
+  Text.withCString t \textPtr ->
     Raw.textUnformatted textPtr Nothing
 
 -- | Colored text.
-textColored :: (HasGetter ref ImVec4, MonadIO m) => ref -> String -> m ()
+textColored :: (HasGetter ref ImVec4, MonadIO m) => ref -> Text -> m ()
 textColored ref t = liftIO do
   currentValue <- get ref
   with currentValue \refPtr ->
-    withCString t $ Raw.textColored refPtr
+    Text.withCString t $ Raw.textColored refPtr
 
 -- | Plain text in a "disabled" color according to current style.
-textDisabled :: MonadIO m => String -> m ()
+textDisabled :: MonadIO m => Text -> m ()
 textDisabled t = liftIO do
-  withCString t Raw.textDisabled
+  Text.withCString t Raw.textDisabled
 
 -- | Plain text with a word-wrap capability.
 --
 -- Note that this won't work on an auto-resizing window if there's no other widgets to extend the window width,
 -- you may need to set a size using 'setNextWindowSize'.
-textWrapped :: MonadIO m => String -> m ()
+textWrapped :: MonadIO m => Text -> m ()
 textWrapped t = liftIO do
-  withCString t Raw.textWrapped
+  Text.withCString t Raw.textWrapped
 
 -- | Label+text combo aligned to other label+value widgets.
-labelText :: MonadIO m => String -> String -> m ()
+labelText :: MonadIO m => Text -> Text -> m ()
 labelText label t = liftIO do
-  withCString label \labelPtr ->
-    withCString t \textPtr ->
+  Text.withCString label \labelPtr ->
+    Text.withCString t \textPtr ->
       Raw.labelText labelPtr textPtr
 
 -- | Text with a little bullet aligned to the typical tree node.
-bulletText :: MonadIO m => String -> m ()
+bulletText :: MonadIO m => Text -> m ()
 bulletText t = liftIO do
-  withCString t Raw.bulletText
+  Text.withCString t Raw.bulletText
 
 -- | A button. Returns 'True' when clicked.
 --
 -- Wraps @ImGui::Button()@.
-button :: MonadIO m => String -> m Bool
+button :: MonadIO m => Text -> m Bool
 button label = liftIO do
-  withCString label Raw.button
+  Text.withCString label Raw.button
 
 
 -- | Button with @FramePadding=(0,0)@ to easily embed within text.
 --
 -- Wraps @ImGui::SmallButton()@.
-smallButton :: MonadIO m => String -> m Bool
+smallButton :: MonadIO m => Text -> m Bool
 smallButton label = liftIO do
-  withCString label Raw.smallButton
+  Text.withCString label Raw.smallButton
 
 
 -- | Flexible button behavior without the visuals.
@@ -555,9 +550,9 @@ smallButton label = liftIO do
 -- (along with IsItemActive, IsItemHovered, etc).
 --
 -- Wraps @ImGui::InvisibleButton()@.
-invisibleButton :: MonadIO m => String -> ImVec2 -> ImGuiButtonFlags -> m Bool
+invisibleButton :: MonadIO m => Text -> ImVec2 -> ImGuiButtonFlags -> m Bool
 invisibleButton label size flags = liftIO do
-  withCString label \labelPtr ->
+  Text.withCString label \labelPtr ->
     with size \sizePtr ->
       Raw.invisibleButton labelPtr sizePtr flags
 
@@ -565,18 +560,18 @@ invisibleButton label size flags = liftIO do
 -- | Square button with an arrow shape.
 --
 -- Wraps @ImGui::ArrowButton()@.
-arrowButton :: MonadIO m => String -> ImGuiDir -> m Bool
+arrowButton :: MonadIO m => Text -> ImGuiDir -> m Bool
 arrowButton strId dir = liftIO do
-  withCString strId \strIdPtr ->
+  Text.withCString strId \strIdPtr ->
     Raw.arrowButton strIdPtr dir
 
 
 -- | Wraps @ImGui::Checkbox()@.
-checkbox :: (HasSetter ref Bool, HasGetter ref Bool, MonadIO m) => String -> ref -> m Bool
+checkbox :: (HasSetter ref Bool, HasGetter ref Bool, MonadIO m) => Text -> ref -> m Bool
 checkbox label ref = liftIO do
   currentValue <- get ref
   with (bool 0 1 currentValue) \boolPtr -> do
-    changed <- withCString label \labelPtr ->
+    changed <- Text.withCString label \labelPtr ->
       Raw.checkbox labelPtr boolPtr
 
     when changed do
@@ -586,9 +581,9 @@ checkbox label ref = liftIO do
     return changed
 
 
-progressBar :: MonadIO m => Float -> Maybe String -> m ()
+progressBar :: MonadIO m => Float -> Maybe Text -> m ()
 progressBar progress overlay = liftIO do
-  withCStringOrNull overlay \overlayPtr ->
+  Text.withCStringOrNull overlay \overlayPtr ->
     Raw.progressBar (CFloat progress) overlayPtr
 
 
@@ -600,17 +595,17 @@ progressBar progress overlay = liftIO do
 -- Only call 'endCombo' if 'beginCombo' returns 'True'!
 --
 -- Wraps @ImGui::BeginCombo()@.
-beginCombo :: MonadIO m => String -> String -> m Bool
+beginCombo :: MonadIO m => Text -> Text -> m Bool
 beginCombo label previewValue = liftIO $
-  withCString label        \labelPtr ->
-  withCString previewValue \previewValuePtr ->
+  Text.withCString label        \labelPtr ->
+  Text.withCString previewValue \previewValuePtr ->
   Raw.beginCombo labelPtr previewValuePtr
 
 -- | Create a combo box with a given label and preview value.
 --
 -- Action will get 'True' if the combo box is open.
 -- In this state, you should populate the contents of the combo box - for example, by calling 'selectable'.
-withCombo :: MonadUnliftIO m => String -> String -> (Bool -> m a) -> m a
+withCombo :: MonadUnliftIO m => Text -> Text -> (Bool -> m a) -> m a
 withCombo label previewValue =
   bracket (beginCombo label previewValue) (`when` Raw.endCombo)
 
@@ -618,19 +613,19 @@ withCombo label previewValue =
 --
 -- Action will be called if the combo box is open to populate the contents
 -- of the combo box - for example, by calling 'selectable'.
-withComboOpen :: MonadUnliftIO m => String -> String -> m () -> m ()
+withComboOpen :: MonadUnliftIO m => Text -> Text -> m () -> m ()
 withComboOpen label previewValue action =
   withCombo label previewValue (`when` action)
 
 -- | Wraps @ImGui::Combo()@.
-combo :: (MonadIO m, HasGetter ref Int, HasSetter ref Int) => String -> ref -> [String] -> m Bool
+combo :: (MonadIO m, HasGetter ref Int, HasSetter ref Int) => Text -> ref -> [Text] -> m Bool
 combo label selectedIndex items = liftIO $ Managed.with m return
   where
     m = do
       i <- get selectedIndex
 
-      cStrings <- traverse (\str -> Managed.managed (withCString str)) items
-      labelPtr <- Managed.managed $ withCString label
+      cStrings <- traverse (\str -> Managed.managed (Text.withCString str)) items
+      labelPtr <- Managed.managed $ Text.withCString label
       iPtr     <- Managed.managed $ with (fromIntegral i)
 
       liftIO $ withArrayLen cStrings \len itemsPtr -> do
@@ -644,11 +639,11 @@ combo label selectedIndex items = liftIO $ Managed.with m return
 
 
 -- | Wraps @ImGui::DragFloat()@
-dragFloat :: (MonadIO m, HasSetter ref Float, HasGetter ref Float) => String -> ref -> Float -> Float -> Float -> m Bool
+dragFloat :: (MonadIO m, HasSetter ref Float, HasGetter ref Float) => Text -> ref -> Float -> Float -> Float -> m Bool
 dragFloat desc ref speed minValue maxValue = liftIO do
   currentValue <- get ref
   with (realToFrac currentValue) \floatPtr -> do
-    changed <- withCString desc \descPtr ->
+    changed <- Text.withCString desc \descPtr ->
       Raw.dragFloat descPtr floatPtr (CFloat speed) (CFloat minValue) (CFloat maxValue)
 
     when changed do
@@ -659,11 +654,11 @@ dragFloat desc ref speed minValue maxValue = liftIO do
 
 
 -- | Wraps @ImGui::DragFloat2()@
-dragFloat2 :: (MonadIO m, HasSetter ref (Float, Float), HasGetter ref (Float, Float)) => String -> ref -> Float -> Float -> Float -> m Bool
+dragFloat2 :: (MonadIO m, HasSetter ref (Float, Float), HasGetter ref (Float, Float)) => Text -> ref -> Float -> Float -> Float -> m Bool
 dragFloat2 desc ref speed minValue maxValue = liftIO do
   (x, y) <- get ref
   withArray [ realToFrac x, realToFrac y ] \floatPtr -> do
-    changed <- withCString desc \descPtr ->
+    changed <- Text.withCString desc \descPtr ->
       Raw.dragFloat2 descPtr floatPtr (CFloat speed) (CFloat minValue) (CFloat maxValue)
 
     when changed do
@@ -673,11 +668,11 @@ dragFloat2 desc ref speed minValue maxValue = liftIO do
     return changed
 
 -- | Wraps @ImGui::DragFloat3()@
-dragFloat3 :: (MonadIO m, HasSetter ref (Float, Float, Float), HasGetter ref (Float, Float, Float)) => String -> ref -> Float -> Float -> Float -> m Bool
+dragFloat3 :: (MonadIO m, HasSetter ref (Float, Float, Float), HasGetter ref (Float, Float, Float)) => Text -> ref -> Float -> Float -> Float -> m Bool
 dragFloat3 desc ref speed minValue maxValue = liftIO do
   (x, y, z) <- get ref
   withArray [ realToFrac x, realToFrac y, realToFrac z ] \floatPtr -> do
-    changed <- withCString desc \descPtr ->
+    changed <- Text.withCString desc \descPtr ->
       Raw.dragFloat3 descPtr floatPtr (CFloat speed) (CFloat minValue) (CFloat maxValue)
 
     when changed do
@@ -688,11 +683,11 @@ dragFloat3 desc ref speed minValue maxValue = liftIO do
 
 
 -- | Wraps @ImGui::DragFloat4()@
-dragFloat4 :: (MonadIO m, HasSetter ref (Float, Float, Float, Float), HasGetter ref (Float, Float, Float, Float)) => String -> ref -> Float -> Float -> Float -> m Bool
+dragFloat4 :: (MonadIO m, HasSetter ref (Float, Float, Float, Float), HasGetter ref (Float, Float, Float, Float)) => Text -> ref -> Float -> Float -> Float -> m Bool
 dragFloat4 desc ref speed minValue maxValue = liftIO do
   (x, y, z, u) <- get ref
   withArray [ realToFrac x, realToFrac y, realToFrac z, realToFrac u ] \floatPtr -> do
-    changed <- withCString desc \descPtr ->
+    changed <- Text.withCString desc \descPtr ->
       Raw.dragFloat4 descPtr floatPtr (CFloat speed) (CFloat minValue) (CFloat maxValue)
 
     when changed do
@@ -701,16 +696,16 @@ dragFloat4 desc ref speed minValue maxValue = liftIO do
 
     return changed
 
-dragFloatRange2 :: (MonadIO m, HasSetter ref Float, HasGetter ref Float) => String -> ref -> ref -> Float -> Float -> Float -> String -> String -> m Bool
+dragFloatRange2 :: (MonadIO m, HasSetter ref Float, HasGetter ref Float) => Text -> ref -> ref -> Float -> Float -> Float -> Text -> Text -> m Bool
 dragFloatRange2 desc refMin refMax speed minValue maxValue minFmt maxFmt = liftIO do
   curMin <- get refMin
   curMax <- get refMax
   with (CFloat curMin) \minPtr ->
     with (CFloat curMax) \maxPtr -> do
       changed <-
-        withCString desc \descPtr ->
-          withCString minFmt \minFmtPtr ->
-            withCString maxFmt \maxFmtPtr ->
+        Text.withCString desc \descPtr ->
+          Text.withCString minFmt \minFmtPtr ->
+            Text.withCString maxFmt \maxFmtPtr ->
               Raw.dragFloatRange2
                 descPtr
                 minPtr maxPtr
@@ -727,13 +722,13 @@ dragFloatRange2 desc refMin refMax speed minValue maxValue minFmt maxFmt = liftI
       return changed
 
 -- | Wraps @ImGui::DragFloat()@
-dragInt :: (MonadIO m, HasSetter ref Int, HasGetter ref Int) => String -> ref -> Float -> Int -> Int -> m Bool
+dragInt :: (MonadIO m, HasSetter ref Int, HasGetter ref Int) => Text -> ref -> Float -> Int -> Int -> m Bool
 dragInt label ref speed minValue maxValue = liftIO do
   currentValue <- get ref
   with (fromIntegral currentValue) \vPtr -> do
     changed <-
-      withCString label \labelPtr ->
-        withCString "%d" \formatPtr ->
+      Text.withCString label \labelPtr ->
+        Text.withCString "%d" \formatPtr ->
           Raw.dragInt
             labelPtr
             vPtr
@@ -750,13 +745,13 @@ dragInt label ref speed minValue maxValue = liftIO do
     return changed
 
 -- | Wraps @ImGui::DragInt2()@
-dragInt2 :: (MonadIO m, HasSetter ref (Int, Int), HasGetter ref (Int, Int)) => String -> ref -> Float -> Int -> Int -> m Bool
+dragInt2 :: (MonadIO m, HasSetter ref (Int, Int), HasGetter ref (Int, Int)) => Text -> ref -> Float -> Int -> Int -> m Bool
 dragInt2 label ref speed minValue maxValue = liftIO do
   (x, y) <- get ref
   withArray [ fromIntegral x, fromIntegral y ] \vPtr -> do
     changed <-
-      withCString label \labelPtr ->
-        withCString "%d" \formatPtr ->
+      Text.withCString label \labelPtr ->
+        Text.withCString "%d" \formatPtr ->
           Raw.dragInt2
             labelPtr
             vPtr
@@ -773,13 +768,13 @@ dragInt2 label ref speed minValue maxValue = liftIO do
     return changed
 
 -- | Wraps @ImGui::DragInt3()@
-dragInt3 :: (MonadIO m, HasSetter ref (Int, Int, Int), HasGetter ref (Int, Int, Int)) => String -> ref -> Float -> Int -> Int -> m Bool
+dragInt3 :: (MonadIO m, HasSetter ref (Int, Int, Int), HasGetter ref (Int, Int, Int)) => Text -> ref -> Float -> Int -> Int -> m Bool
 dragInt3 label ref speed minValue maxValue = liftIO do
   (x, y, z) <- get ref
   withArray [ fromIntegral x, fromIntegral y, fromIntegral z ] \vPtr -> do
     changed <-
-      withCString label \labelPtr ->
-        withCString "%d" \formatPtr ->
+      Text.withCString label \labelPtr ->
+        Text.withCString "%d" \formatPtr ->
           Raw.dragInt3
             labelPtr
             vPtr
@@ -796,13 +791,13 @@ dragInt3 label ref speed minValue maxValue = liftIO do
     return changed
 
 -- | Wraps @ImGui::DragInt4()@
-dragInt4 :: (MonadIO m, HasSetter ref (Int, Int, Int, Int), HasGetter ref (Int, Int, Int, Int)) => String -> ref -> Float -> Int -> Int -> m Bool
+dragInt4 :: (MonadIO m, HasSetter ref (Int, Int, Int, Int), HasGetter ref (Int, Int, Int, Int)) => Text -> ref -> Float -> Int -> Int -> m Bool
 dragInt4 label ref speed minValue maxValue = liftIO do
   (x, y, z, w) <- get ref
   withArray [ fromIntegral x, fromIntegral y, fromIntegral z, fromIntegral w ] \vPtr -> do
     changed <-
-      withCString label \labelPtr ->
-        withCString "%d" \formatPtr ->
+      Text.withCString label \labelPtr ->
+        Text.withCString "%d" \formatPtr ->
           Raw.dragInt4
             labelPtr
             vPtr
@@ -818,16 +813,16 @@ dragInt4 label ref speed minValue maxValue = liftIO do
 
     return changed
 
-dragIntRange2 :: (MonadIO m, HasSetter ref Int, HasGetter ref Int) => String -> ref -> ref -> Float -> Int -> Int -> String -> String -> m Bool
+dragIntRange2 :: (MonadIO m, HasSetter ref Int, HasGetter ref Int) => Text -> ref -> ref -> Float -> Int -> Int -> Text -> Text -> m Bool
 dragIntRange2 desc refMin refMax speed minValue maxValue minFmt maxFmt = liftIO do
   curMin <- get refMin
   curMax <- get refMax
   with (fromIntegral curMin) \minPtr ->
     with (fromIntegral curMax) \maxPtr -> do
       changed <-
-        withCString desc \descPtr ->
-          withCString minFmt \minFmtPtr ->
-            withCString maxFmt \maxFmtPtr ->
+        Text.withCString desc \descPtr ->
+          Text.withCString minFmt \minFmtPtr ->
+            Text.withCString maxFmt \maxFmtPtr ->
               Raw.dragIntRange2
                 descPtr
                 minPtr
@@ -848,7 +843,7 @@ dragIntRange2 desc refMin refMax speed minValue maxValue minFmt maxFmt = liftIO 
 
 dragScalar
   :: (HasSetter ref a, HasGetter ref a, HasGetter range a, Storable a, MonadIO m)
-  => String -> ImGuiDataType -> ref -> Float -> range -> range -> String -> ImGuiSliderFlags -> m Bool
+  => Text -> ImGuiDataType -> ref -> Float -> range -> range -> Text -> ImGuiSliderFlags -> m Bool
 dragScalar label dataType ref vSpeed refMin refMax format flags = liftIO do
   currentValue <- get ref
   minValue <- get refMin
@@ -858,8 +853,8 @@ dragScalar label dataType ref vSpeed refMin refMax format flags = liftIO do
     with minValue \minPtr ->
       with maxValue \maxPtr -> do
         changed <-
-          withCString label \labelPtr ->
-            withCString format \formatPtr ->
+          Text.withCString label \labelPtr ->
+            Text.withCString format \formatPtr ->
               Raw.dragScalar
                 labelPtr
                 dataType
@@ -878,7 +873,7 @@ dragScalar label dataType ref vSpeed refMin refMax format flags = liftIO do
 
 dragScalarN
   :: (HasSetter ref [a], HasGetter ref [a], HasGetter range a, Storable a, MonadIO m)
-  => String -> ImGuiDataType -> ref -> Float -> range -> range -> String -> ImGuiSliderFlags -> m Bool
+  => Text -> ImGuiDataType -> ref -> Float -> range -> range -> Text -> ImGuiSliderFlags -> m Bool
 dragScalarN label dataType ref vSpeed refMin refMax format flags = liftIO do
   currentValues <- get ref
   minValue <- get refMin
@@ -888,8 +883,8 @@ dragScalarN label dataType ref vSpeed refMin refMax format flags = liftIO do
     with minValue \minPtr ->
       with maxValue \maxPtr -> do
         changed <-
-          withCString label \labelPtr ->
-            withCString format \formatPtr ->
+          Text.withCString label \labelPtr ->
+            Text.withCString format \formatPtr ->
               Raw.dragScalarN
                 labelPtr
                 dataType
@@ -909,7 +904,7 @@ dragScalarN label dataType ref vSpeed refMin refMax format flags = liftIO do
 
 sliderScalar
   :: (HasGetter ref a, HasSetter ref a, HasGetter range a, Storable a, MonadIO m)
-  => String -> ImGuiDataType -> ref -> range -> range -> String -> ImGuiSliderFlags -> m Bool
+  => Text -> ImGuiDataType -> ref -> range -> range -> Text -> ImGuiSliderFlags -> m Bool
 sliderScalar label dataType ref refMin refMax format flags = liftIO do
   currentValue <- get ref
   minValue <- get refMin
@@ -919,8 +914,8 @@ sliderScalar label dataType ref refMin refMax format flags = liftIO do
     with minValue \minPtr ->
       with maxValue \maxPtr -> do
         changed <-
-          withCString label \labelPtr ->
-            withCString format \formatPtr ->
+          Text.withCString label \labelPtr ->
+            Text.withCString format \formatPtr ->
               Raw.sliderScalar
                 labelPtr
                 dataType
@@ -938,7 +933,7 @@ sliderScalar label dataType ref refMin refMax format flags = liftIO do
 
 sliderScalarN
   :: (HasSetter value [a], HasGetter value [a], HasGetter range a, Storable a, MonadIO m)
-  => String -> ImGuiDataType -> value -> range -> range -> String -> ImGuiSliderFlags -> m Bool
+  => Text -> ImGuiDataType -> value -> range -> range -> Text -> ImGuiSliderFlags -> m Bool
 sliderScalarN label dataType ref refMin refMax format flags = liftIO do
   currentValues <- get ref
   minValue <- get refMin
@@ -948,8 +943,8 @@ sliderScalarN label dataType ref refMin refMax format flags = liftIO do
     with minValue \minPtr ->
       with maxValue \maxPtr -> do
         changed <-
-          withCString label \labelPtr ->
-            withCString format \formatPtr ->
+          Text.withCString label \labelPtr ->
+            Text.withCString format \formatPtr ->
               Raw.sliderScalarN
                 labelPtr
                 dataType
@@ -967,11 +962,11 @@ sliderScalarN label dataType ref refMin refMax format flags = liftIO do
         return changed
 
 -- | Wraps @ImGui::SliderFloat()@
-sliderFloat :: (MonadIO m, HasSetter ref Float, HasGetter ref Float) => String -> ref -> Float -> Float -> m Bool
+sliderFloat :: (MonadIO m, HasSetter ref Float, HasGetter ref Float) => Text -> ref -> Float -> Float -> m Bool
 sliderFloat desc ref minValue maxValue = liftIO do
   currentValue <- get ref
   with (realToFrac currentValue) \floatPtr -> do
-    changed <- withCString desc \descPtr ->
+    changed <- Text.withCString desc \descPtr ->
       Raw.sliderFloat descPtr floatPtr (CFloat minValue) (CFloat maxValue)
 
     when changed do
@@ -981,11 +976,11 @@ sliderFloat desc ref minValue maxValue = liftIO do
     return changed
 
 -- | Wraps @ImGui::SliderFloat2()@
-sliderFloat2 :: (MonadIO m, HasSetter ref (Float, Float), HasGetter ref (Float, Float)) => String -> ref -> Float -> Float -> m Bool
+sliderFloat2 :: (MonadIO m, HasSetter ref (Float, Float), HasGetter ref (Float, Float)) => Text -> ref -> Float -> Float -> m Bool
 sliderFloat2 desc ref minValue maxValue = liftIO do
   (x, y) <- get ref
   withArray [ realToFrac x, realToFrac y ] \floatPtr -> do
-    changed <- withCString desc \descPtr ->
+    changed <- Text.withCString desc \descPtr ->
       Raw.sliderFloat descPtr floatPtr (CFloat minValue) (CFloat maxValue)
 
     when changed do
@@ -995,11 +990,11 @@ sliderFloat2 desc ref minValue maxValue = liftIO do
     return changed
 
 -- | Wraps @ImGui::SliderFloat3()@
-sliderFloat3 :: (MonadIO m, HasSetter ref (Float, Float, Float), HasGetter ref (Float, Float, Float)) => String -> ref -> Float -> Float -> m Bool
+sliderFloat3 :: (MonadIO m, HasSetter ref (Float, Float, Float), HasGetter ref (Float, Float, Float)) => Text -> ref -> Float -> Float -> m Bool
 sliderFloat3 desc ref minValue maxValue = liftIO do
   (x, y, z) <- get ref
   withArray [ realToFrac x, realToFrac y, realToFrac z ] \floatPtr -> do
-    changed <- withCString desc \descPtr ->
+    changed <- Text.withCString desc \descPtr ->
       Raw.sliderFloat descPtr floatPtr (CFloat minValue) (CFloat maxValue)
 
     when changed do
@@ -1009,11 +1004,11 @@ sliderFloat3 desc ref minValue maxValue = liftIO do
     return changed
 
 -- | Wraps @ImGui::SliderFloat4()@
-sliderFloat4 :: (MonadIO m, HasSetter ref (Float, Float, Float, Float), HasGetter ref (Float, Float, Float, Float)) => String -> ref -> Float -> Float -> m Bool
+sliderFloat4 :: (MonadIO m, HasSetter ref (Float, Float, Float, Float), HasGetter ref (Float, Float, Float, Float)) => Text -> ref -> Float -> Float -> m Bool
 sliderFloat4 desc ref minValue maxValue = liftIO do
   (x, y, z, u) <- get ref
   withArray [ realToFrac x, realToFrac y, realToFrac z, realToFrac u ] \floatPtr -> do
-    changed <- withCString desc \descPtr ->
+    changed <- Text.withCString desc \descPtr ->
       Raw.sliderFloat descPtr floatPtr (CFloat minValue) (CFloat maxValue)
 
     when changed do
@@ -1023,13 +1018,13 @@ sliderFloat4 desc ref minValue maxValue = liftIO do
     return changed
 
 -- | Slider widget to select an angle in radians, while displaying degrees.
-sliderAngle :: (MonadIO m, HasSetter ref Float, HasGetter ref Float) => String -> ref -> Float -> Float -> m Bool
+sliderAngle :: (MonadIO m, HasSetter ref Float, HasGetter ref Float) => Text -> ref -> Float -> Float -> m Bool
 sliderAngle desc refRads minDegs maxDegs = liftIO do
   currentRads <- get refRads
   with (CFloat currentRads) \currentRadsPtr -> do
     changed <-
-      withCString desc \descPtr ->
-        withCString "%.0f deg" \formatPtr ->
+      Text.withCString desc \descPtr ->
+        Text.withCString "%.0f deg" \formatPtr ->
           Raw.sliderAngle descPtr currentRadsPtr (CFloat minDegs) (CFloat maxDegs) formatPtr ImGuiSliderFlags_AlwaysClamp
 
     when changed do
@@ -1041,13 +1036,13 @@ sliderAngle desc refRads minDegs maxDegs = liftIO do
 -- | Wraps @ImGui::SliderInt()@
 sliderInt
   :: (MonadIO m, HasSetter ref Int, HasGetter ref Int)
-  => String -> ref -> Int -> Int -> m Bool
+  => Text -> ref -> Int -> Int -> m Bool
 sliderInt label ref minValue maxValue = liftIO do
   currentValue <- get ref
   with (fromIntegral currentValue) \vPtr -> do
     changed <-
-      withCString label \labelPtr ->
-        withCString "%d" \formatPtr ->
+      Text.withCString label \labelPtr ->
+        Text.withCString "%d" \formatPtr ->
           Raw.sliderInt
             labelPtr
             vPtr
@@ -1065,13 +1060,13 @@ sliderInt label ref minValue maxValue = liftIO do
 -- | Wraps @ImGui::SliderInt2()@
 sliderInt2
   :: (MonadIO m, HasSetter ref (Int, Int), HasGetter ref (Int, Int))
-  => String -> ref -> Int -> Int -> m Bool
+  => Text -> ref -> Int -> Int -> m Bool
 sliderInt2 label ref minValue maxValue = liftIO do
   (x, y) <- get ref
   withArray [ fromIntegral x, fromIntegral y ] \vPtr -> do
     changed <-
-      withCString label \labelPtr ->
-        withCString "%d" \formatPtr ->
+      Text.withCString label \labelPtr ->
+        Text.withCString "%d" \formatPtr ->
           Raw.sliderInt2
             labelPtr
             vPtr
@@ -1089,13 +1084,13 @@ sliderInt2 label ref minValue maxValue = liftIO do
 -- | Wraps @ImGui::SliderInt3()@
 sliderInt3
   :: (MonadIO m, HasSetter ref (Int, Int, Int), HasGetter ref (Int, Int, Int))
-  => String -> ref -> Int -> Int -> m Bool
+  => Text -> ref -> Int -> Int -> m Bool
 sliderInt3 label ref minValue maxValue = liftIO do
   (x, y, z) <- get ref
   withArray [ fromIntegral x, fromIntegral y, fromIntegral z ] \vPtr -> do
     changed <-
-      withCString label \labelPtr ->
-        withCString "%d" \formatPtr ->
+      Text.withCString label \labelPtr ->
+        Text.withCString "%d" \formatPtr ->
           Raw.sliderInt3
             labelPtr
             vPtr
@@ -1113,13 +1108,13 @@ sliderInt3 label ref minValue maxValue = liftIO do
 -- | Wraps @ImGui::SliderInt4()@
 sliderInt4
   :: (MonadIO m, HasSetter ref (Int, Int, Int, Int), HasGetter ref (Int, Int, Int, Int))
-  => String -> ref -> Int -> Int -> m Bool
+  => Text -> ref -> Int -> Int -> m Bool
 sliderInt4 label ref minValue maxValue = liftIO do
   (x, y, z, w) <- get ref
   withArray [ fromIntegral x, fromIntegral y, fromIntegral z, fromIntegral w] \vPtr -> do
     changed <-
-      withCString label \labelPtr ->
-        withCString "%d" \formatPtr ->
+      Text.withCString label \labelPtr ->
+        Text.withCString "%d" \formatPtr ->
           Raw.sliderInt4
             labelPtr
             vPtr
@@ -1136,15 +1131,15 @@ sliderInt4 label ref minValue maxValue = liftIO do
 
 vSliderFloat
   :: (HasSetter ref Float, HasGetter ref Float, MonadIO m)
-  => String -> ImVec2 -> ref -> Float -> Float -> m Bool
+  => Text -> ImVec2 -> ref -> Float -> Float -> m Bool
 vSliderFloat label size ref minValue maxValue = liftIO do
   currentValue <- get ref
 
   with size \sizePtr ->
     with (CFloat currentValue) \dataPtr -> do
       changed <-
-        withCString label \labelPtr ->
-          withCString "%.3f" \formatPtr ->
+        Text.withCString label \labelPtr ->
+          Text.withCString "%.3f" \formatPtr ->
             Raw.vSliderFloat
               labelPtr
               sizePtr
@@ -1162,15 +1157,15 @@ vSliderFloat label size ref minValue maxValue = liftIO do
 
 vSliderInt
   :: (HasSetter ref Int, HasGetter ref Int, MonadIO m)
-  => String -> ImVec2 -> ref -> Int -> Int -> m Bool
+  => Text -> ImVec2 -> ref -> Int -> Int -> m Bool
 vSliderInt label size ref minValue maxValue = liftIO do
   currentValue <- get ref
 
   with size \sizePtr ->
     with (fromIntegral currentValue) \dataPtr -> do
       changed <-
-        withCString label \labelPtr ->
-          withCString "%d" \formatPtr ->
+        Text.withCString label \labelPtr ->
+          Text.withCString "%d" \formatPtr ->
             Raw.vSliderInt
               labelPtr
               sizePtr
@@ -1188,7 +1183,7 @@ vSliderInt label size ref minValue maxValue = liftIO do
 
 vSliderScalar
   :: (HasSetter ref a, HasGetter ref a, HasGetter range a, Storable a, MonadIO m)
-  => String -> ImVec2 -> ImGuiDataType -> ref -> range -> range -> String -> ImGuiSliderFlags -> m Bool
+  => Text -> ImVec2 -> ImGuiDataType -> ref -> range -> range -> Text -> ImGuiSliderFlags -> m Bool
 vSliderScalar label size dataType ref refMin refMax format flags = liftIO do
   currentValue <- get ref
   minValue <- get refMin
@@ -1199,8 +1194,8 @@ vSliderScalar label size dataType ref refMin refMax format flags = liftIO do
       with minValue \minPtr ->
         with maxValue \maxPtr -> do
           changed <-
-            withCString label \labelPtr ->
-              withCString format \formatPtr ->
+            Text.withCString label \labelPtr ->
+              Text.withCString format \formatPtr ->
                 Raw.vSliderScalar
                   labelPtr
                   sizePtr
@@ -1219,10 +1214,10 @@ vSliderScalar label size dataType ref refMin refMax format flags = liftIO do
 
 
 -- | Wraps @ImGui::InputText()@.
-inputText :: (MonadIO m, HasSetter ref String, HasGetter ref String) => String -> ref -> Int -> m Bool
+inputText :: (MonadIO m, HasSetter ref Text, HasGetter ref Text) => Text -> ref -> Int -> m Bool
 inputText label ref bufSize =
   withInputString ref bufSize \bufPtrLen ->
-      Foreign.withCString utf8 label \labelPtr ->
+      Text.withCString label \labelPtr ->
         Raw.inputText
           labelPtr
           bufPtrLen
@@ -1230,10 +1225,10 @@ inputText label ref bufSize =
 
 
 -- | Wraps @ImGui::InputTextMultiline()@.
-inputTextMultiline :: (MonadIO m, HasSetter ref String, HasGetter ref String) => String -> ref -> Int -> ImVec2 -> m Bool
+inputTextMultiline :: (MonadIO m, HasSetter ref Text, HasGetter ref Text) => Text -> ref -> Int -> ImVec2 -> m Bool
 inputTextMultiline label ref bufSize size =
   withInputString ref bufSize \bufPtrLen ->
-    Foreign.withCString utf8 label \labelPtr ->
+    Text.withCString label \labelPtr ->
       with size \sizePtr ->
         Raw.inputTextMultiline
           labelPtr
@@ -1243,11 +1238,11 @@ inputTextMultiline label ref bufSize size =
 
 
 -- | Wraps @ImGui::InputTextWithHint()@.
-inputTextWithHint :: (MonadIO m, HasSetter ref String, HasGetter ref String) => String -> String -> ref -> Int -> m Bool
+inputTextWithHint :: (MonadIO m, HasSetter ref Text, HasGetter ref Text) => Text -> Text -> ref -> Int -> m Bool
 inputTextWithHint label hint ref bufSize =
   withInputString ref bufSize \bufPtrLen ->
-    Foreign.withCString utf8 label \labelPtr ->
-      Foreign.withCString utf8 hint \hintPtr ->
+    Text.withCString label \labelPtr ->
+      Text.withCString hint \hintPtr ->
         Raw.inputTextWithHint
           labelPtr
           hintPtr
@@ -1257,14 +1252,14 @@ inputTextWithHint label hint ref bufSize =
 
 -- | Internal helper to prepare appropriately sized and encoded input buffer.
 withInputString
-  :: (MonadIO m, HasSetter ref String, HasGetter ref String)
+  :: (MonadIO m, HasSetter ref Text, HasGetter ref Text)
   => ref
   -> Int
   -> (CStringLen -> IO Bool)
   -> m Bool
 withInputString ref bufSize action = liftIO do
   input <- get ref
-  Foreign.withCStringLen utf8 input \(refPtr, refSize) ->
+  Text.withCStringLen input \(refPtr, refSize) ->
     -- XXX: Allocate and zero buffer to receive imgui updates.
     bracket (mkBuf refSize) free \bufPtr -> do
       -- XXX: Copy the original input.
@@ -1274,7 +1269,7 @@ withInputString ref bufSize action = liftIO do
 
       when changed do
         -- XXX: Assuming Imgui wouldn't write over the bump stop so peekCString would finish.
-        newValue <- Foreign.peekCString utf8 bufPtr
+        newValue <- Text.peekCString bufPtr
         ref $=! newValue
 
       return changed
@@ -1286,11 +1281,11 @@ withInputString ref bufSize action = liftIO do
 
 
 -- | Wraps @ImGui::ColorPicker3()@.
-colorPicker3 :: (MonadIO m, HasSetter ref ImVec3, HasGetter ref ImVec3) => String -> ref -> m Bool
+colorPicker3 :: (MonadIO m, HasSetter ref ImVec3, HasGetter ref ImVec3) => Text -> ref -> m Bool
 colorPicker3 desc ref = liftIO do
   ImVec3{x, y, z} <- get ref
   withArray (realToFrac <$> [x, y, z]) \refPtr -> do
-    changed <- withCString desc \descPtr ->
+    changed <- Text.withCString desc \descPtr ->
       Raw.colorPicker3 descPtr refPtr
 
     when changed do
@@ -1303,11 +1298,11 @@ colorPicker3 desc ref = liftIO do
 -- | Display a color square/button, hover for details, return true when pressed.
 --
 -- Wraps @ImGui::ColorButton()@.
-colorButton :: (MonadIO m, HasSetter ref ImVec4, HasGetter ref ImVec4) => String -> ref -> m Bool
+colorButton :: (MonadIO m, HasSetter ref ImVec4, HasGetter ref ImVec4) => Text -> ref -> m Bool
 colorButton desc ref = liftIO do
   currentValue <- get ref
   with currentValue \refPtr -> do
-    changed <- withCString desc \descPtr ->
+    changed <- Text.withCString desc \descPtr ->
       Raw.colorButton descPtr refPtr
 
     when changed do
@@ -1329,9 +1324,9 @@ defTableOptions = TableOptions
   , tableInnerWidth = 0
   }
 -- | Wraps @ImGui::BeginTable()@.
-beginTable :: MonadIO m => TableOptions -> String -> Int -> m Bool
+beginTable :: MonadIO m => TableOptions -> Text -> Int -> m Bool
 beginTable TableOptions{..} label columns = liftIO do
-  withCString label \labelPtr ->
+  Text.withCString label \labelPtr ->
     with tableOuterSize \outerSizePtr ->
       Raw.beginTable labelPtr (fromIntegral columns) tableFlags outerSizePtr (CFloat tableInnerWidth)
 
@@ -1360,11 +1355,11 @@ beginTable TableOptions{..} label columns = liftIO do
 -- | b     | 2     |
 -- @
 --
-withTable :: MonadUnliftIO m => TableOptions -> String -> Int -> (Bool -> m a) -> m a
+withTable :: MonadUnliftIO m => TableOptions -> Text -> Int -> (Bool -> m a) -> m a
 withTable options label columns =
   bracket (beginTable options label columns) (`when` Raw.endTable)
 
-withTableOpen :: MonadUnliftIO m => TableOptions -> String -> Int -> m () -> m ()
+withTableOpen :: MonadUnliftIO m => TableOptions -> Text -> Int -> m () -> m ()
 withTableOpen options label columns action =
   withTable options label columns (`when` action)
 
@@ -1412,13 +1407,13 @@ defTableColumnOptions = TableColumnOptions
   }
 
 -- | Wraps @ImGui::TableSetupColumn()@ using 'defTableColumnOptions'.
-tableSetupColumn :: MonadIO m => String -> m ()
+tableSetupColumn :: MonadIO m => Text -> m ()
 tableSetupColumn = tableSetupColumnWith defTableColumnOptions
 
 -- | Wraps @ImGui::TableSetupColumn() with explicit options@.
-tableSetupColumnWith :: MonadIO m => TableColumnOptions -> String -> m ()
+tableSetupColumnWith :: MonadIO m => TableColumnOptions -> Text -> m ()
 tableSetupColumnWith TableColumnOptions{..} label = liftIO do
-  withCString label \labelPtr ->
+  Text.withCString label \labelPtr ->
     Raw.tableSetupColumn labelPtr tableColumnFlags (CFloat tableColumnInitWidthOrWeight) tableColumnUserId
 
 -- | Wraps @ImGui::TableSetupScrollFreeze()@.
@@ -1510,9 +1505,9 @@ tableGetRowIndex =
 -- | Wraps @ImGui::TableGetColumnName
 --   returns "" if column didn't have a name declared by TableSetupColumn
 --   'Nothing' returns the current column name
-tableGetColumnName :: MonadIO m => Maybe Int -> m String
+tableGetColumnName :: MonadIO m => Maybe Int -> m Text
 tableGetColumnName c = liftIO do
-  Raw.tableGetColumnName (fromIntegral <$> c) >>= peekCString
+  Raw.tableGetColumnName (fromIntegral <$> c) >>= Text.peekCString
 
 -- | Wraps @ImGui::TableGetRowIndex()@.
 --    return column flags so you can query their Enabled/Visible/Sorted/Hovered
@@ -1540,19 +1535,19 @@ tableSetBgColor target color column_n =
  Raw.tableSetBgColor target color (fromIntegral <$> column_n)
 
 -- | Wraps @ImGui::TreeNode()@.
-treeNode :: MonadIO m => String -> m Bool
+treeNode :: MonadIO m => Text -> m Bool
 treeNode label = liftIO do
-  withCString label Raw.treeNode
+  Text.withCString label Raw.treeNode
 
 
 -- | Wraps @ImGui::TreePush()@.
-treePush :: MonadIO m => String -> m ()
+treePush :: MonadIO m => Text -> m ()
 treePush label = liftIO do
-  withCString label Raw.treePush
+  Text.withCString label Raw.treePush
 
 
 -- | Wraps @ImGui::Selectable()@ with default options.
-selectable :: MonadIO m => String -> m Bool
+selectable :: MonadIO m => Text -> m Bool
 selectable = selectableWith defSelectableOptions
 
 data SelectableOptions = SelectableOptions
@@ -1569,21 +1564,21 @@ defSelectableOptions = SelectableOptions
   }
 
 -- | Wraps @ImGui::Selectable()@ with explicit options.
-selectableWith :: MonadIO m => SelectableOptions -> String -> m Bool
+selectableWith :: MonadIO m => SelectableOptions -> Text -> m Bool
 selectableWith (SelectableOptions selected flags size) label = liftIO do
   with size \sizePtr ->
-    withCString label \labelPtr ->
+    Text.withCString label \labelPtr ->
       Raw.selectable labelPtr (bool 0 1 selected) flags sizePtr
 
 
-listBox :: (MonadIO m, HasGetter ref Int, HasSetter ref Int) => String -> ref -> [String] -> m Bool
+listBox :: (MonadIO m, HasGetter ref Int, HasSetter ref Int) => Text -> ref -> [Text] -> m Bool
 listBox label selectedIndex items = liftIO $ Managed.with m return
   where
     m = do
       i <- get selectedIndex
 
-      cStrings <- traverse (\str -> Managed.managed (withCString str)) items
-      labelPtr <- Managed.managed $ withCString label
+      cStrings <- traverse (\str -> Managed.managed (Text.withCString str)) items
+      labelPtr <- Managed.managed $ Text.withCString label
       iPtr     <- Managed.managed $ with (fromIntegral i)
 
       liftIO $ withArrayLen cStrings \len itemsPtr -> do
@@ -1597,10 +1592,10 @@ listBox label selectedIndex items = liftIO $ Managed.with m return
 
 
 -- | Wraps @ImGui::PlotHistogram()@.
-plotHistogram :: MonadIO m => String -> [CFloat] -> m ()
+plotHistogram :: MonadIO m => Text -> [CFloat] -> m ()
 plotHistogram label values = liftIO $
   withArrayLen values \len valuesPtr ->
-    withCString label \labelPtr ->
+    Text.withCString label \labelPtr ->
       Raw.plotHistogram labelPtr valuesPtr (fromIntegral len)
 
 -- | Create a menu bar at the top of the screen and append to it.
@@ -1632,20 +1627,20 @@ withMenuBarOpen action =
 -- | Create a sub-menu entry.
 --
 -- Wraps @ImGui::BeginMenu()@.
-beginMenu :: MonadIO m => String -> m Bool
+beginMenu :: MonadIO m => Text -> m Bool
 beginMenu label = liftIO do
-  withCString label Raw.beginMenu
+  Text.withCString label Raw.beginMenu
 
 -- | Create a sub-menu entry.
 --
 -- The action will get 'False' if the entry is not visible.
-withMenu :: MonadUnliftIO m => String -> (Bool -> m a) -> m a
+withMenu :: MonadUnliftIO m => Text -> (Bool -> m a) -> m a
 withMenu label = bracket (beginMenu label) (`when` Raw.endMenu)
 
 -- | Create a sub-menu entry.
 --
 -- The action will be skipped if the entry is not visible.
-withMenuOpen :: MonadUnliftIO m => String -> m () -> m ()
+withMenuOpen :: MonadUnliftIO m => Text -> m () -> m ()
 withMenuOpen label action =
   withMenu label (`when` action)
 
@@ -1653,41 +1648,41 @@ withMenuOpen label action =
 -- processed by ImGui at the moment
 --
 -- Wraps @ImGui::MenuItem()@
-menuItem :: MonadIO m => String -> m Bool
+menuItem :: MonadIO m => Text -> m Bool
 menuItem label = liftIO do
-  withCString label Raw.menuItem
+  Text.withCString label Raw.menuItem
 
 
 -- | Create a @TabBar@ and start appending to it.
 --
 -- Wraps @ImGui::BeginTabBar@.
-beginTabBar :: MonadIO m => String -> ImGuiTabBarFlags -> m Bool
+beginTabBar :: MonadIO m => Text -> ImGuiTabBarFlags -> m Bool
 beginTabBar tabBarID flags = liftIO do
-  withCString tabBarID \ptr ->
+  Text.withCString tabBarID \ptr ->
     Raw.beginTabBar ptr flags
 
 -- | Create a @TabBar@ and start appending to it.
 --
 -- The action will get 'False' if the Tab bar is not visible.
-withTabBar :: MonadUnliftIO m => String -> ImGuiTabBarFlags -> (Bool -> m a) -> m a
+withTabBar :: MonadUnliftIO m => Text -> ImGuiTabBarFlags -> (Bool -> m a) -> m a
 withTabBar tabBarID flags =
   bracket (beginTabBar tabBarID flags) (`when` Raw.endTabBar)
 
 -- | Create a @TabBar@ and start appending to it.
 --
 -- The action will be skipped if the Tab bar is not visible.
-withTabBarOpen :: MonadUnliftIO m => String -> ImGuiTabBarFlags -> m () -> m ()
+withTabBarOpen :: MonadUnliftIO m => Text -> ImGuiTabBarFlags -> m () -> m ()
 withTabBarOpen tabBarID flags action =
   withTabBar tabBarID flags (`when` action)
 
 -- | Create a new tab. Returns @True@ if the tab is selected.
 --
 -- Wraps @ImGui::BeginTabItem@.
-beginTabItem :: (MonadIO m, HasGetter ref Bool, HasSetter ref Bool) => String -> ref -> ImGuiTabBarFlags -> m Bool
+beginTabItem :: (MonadIO m, HasGetter ref Bool, HasSetter ref Bool) => Text -> ref -> ImGuiTabBarFlags -> m Bool
 beginTabItem tabName ref flags = liftIO do
   currentValue <- get ref
   with (bool 0 1 currentValue) \refPtr -> do
-    open <- withCString tabName \ptrName ->
+    open <- Text.withCString tabName \ptrName ->
       Raw.beginTabItem ptrName refPtr flags
 
     newValue <- (0 /=) <$> peek refPtr
@@ -1699,23 +1694,23 @@ beginTabItem tabName ref flags = liftIO do
 -- | Create a new tab.
 --
 -- The action will get 'True' if the tab is selected.
-withTabItem :: (MonadUnliftIO m, HasGetter ref Bool, HasSetter ref Bool) => String -> ref -> ImGuiTabBarFlags -> (Bool -> m a) -> m a
+withTabItem :: (MonadUnliftIO m, HasGetter ref Bool, HasSetter ref Bool) => Text -> ref -> ImGuiTabBarFlags -> (Bool -> m a) -> m a
 withTabItem tabName ref flags =
   bracket (beginTabItem tabName ref flags) (`when` Raw.endTabItem)
 
 -- | Create a new tab.
 --
 -- The action will be skipped unless the tab is selected.
-withTabItemOpen :: (MonadUnliftIO m, HasGetter ref Bool, HasSetter ref Bool) => String -> ref -> ImGuiTabBarFlags -> m () -> m ()
+withTabItemOpen :: (MonadUnliftIO m, HasGetter ref Bool, HasSetter ref Bool) => Text -> ref -> ImGuiTabBarFlags -> m () -> m ()
 withTabItemOpen tabName ref flags action =
   withTabItem tabName ref flags (`when` action)
 
 -- | Create a tab that behaves like a button. Returns @True@ when clicked. Cannot be selected in the tab bar.
 --
 -- Wraps @ImGui.TabItemButton@.
-tabItemButton :: MonadIO m => String -> ImGuiTabItemFlags -> m Bool
+tabItemButton :: MonadIO m => Text -> ImGuiTabItemFlags -> m Bool
 tabItemButton tabName flags = liftIO do
-  withCString tabName \namePtr ->
+  Text.withCString tabName \namePtr ->
     Raw.tabItemButton namePtr flags
 
 
@@ -1723,9 +1718,9 @@ tabItemButton tabName flags = liftIO do
 -- Useful to reduce visual flicker on reorderable tab bars.
 --
 -- __For tab-bar__: call after 'beginTabBar' and before tab submission. Otherwise, call with a window name.
-setTabItemClosed :: MonadIO m => String -> m ()
+setTabItemClosed :: MonadIO m => Text -> m ()
 setTabItemClosed tabName = liftIO do
-  withCString tabName Raw.setTabItemClosed
+  Text.withCString tabName Raw.setTabItemClosed
 
 -- | Create a tooltip.
 --
@@ -1737,9 +1732,9 @@ withTooltip = bracket_ Raw.beginTooltip Raw.endTooltip
 -- | Returns 'True' if the popup is open, and you can start outputting to it.
 --
 -- Wraps @ImGui::BeginPopup()@
-beginPopup :: MonadIO m => String -> m Bool
+beginPopup :: MonadIO m => Text -> m Bool
 beginPopup popupId = liftIO do
-  withCString popupId Raw.beginPopup
+  Text.withCString popupId Raw.beginPopup
 
 -- | Append intems to a non-modal Popup.
 --
@@ -1749,7 +1744,7 @@ beginPopup popupId = liftIO do
 -- Visibility state is held internally instead of being held by the programmer.
 --
 -- The action will get 'True' if the popup is open.
-withPopup :: MonadUnliftIO m => String -> (Bool -> m a) -> m a
+withPopup :: MonadUnliftIO m => Text -> (Bool -> m a) -> m a
 withPopup popupId = bracket (beginPopup popupId) (`when` Raw.endPopup)
 
 -- | Append intems to a non-modal Popup.
@@ -1760,16 +1755,16 @@ withPopup popupId = bracket (beginPopup popupId) (`when` Raw.endPopup)
 -- Visibility state is held internally instead of being held by the programmer.
 --
 -- The action will be called only if the popup is open.
-withPopupOpen :: MonadUnliftIO m => String -> m () -> m ()
+withPopupOpen :: MonadUnliftIO m => Text -> m () -> m ()
 withPopupOpen popupId action =
   withPopup popupId (`when` action)
 
 -- | Returns 'True' if the modal is open, and you can start outputting to it.
 --
 -- Wraps @ImGui::BeginPopupModal()@
-beginPopupModal :: MonadIO m => String -> m Bool
+beginPopupModal :: MonadIO m => Text -> m Bool
 beginPopupModal popupId = liftIO do
-  withCString popupId Raw.beginPopupModal
+  Text.withCString popupId Raw.beginPopupModal
 
 -- | Append intems to a modal Popup.
 --
@@ -1778,7 +1773,7 @@ beginPopupModal popupId = liftIO do
 -- Visibility state is held internally instead of being held by the programmer.
 --
 -- The action will get 'True' if the popup is open.
-withPopupModal :: MonadUnliftIO m => String -> (Bool -> m a) -> m a
+withPopupModal :: MonadUnliftIO m => Text -> (Bool -> m a) -> m a
 withPopupModal popupId = bracket (beginPopupModal popupId) (`when` Raw.endPopup)
 
 -- | Append intems to a modal Popup.
@@ -1788,49 +1783,49 @@ withPopupModal popupId = bracket (beginPopupModal popupId) (`when` Raw.endPopup)
 -- Visibility state is held internally instead of being held by the programmer.
 --
 -- The action will be called only if the popup is open.
-withPopupModalOpen :: MonadUnliftIO m => String -> m () -> m ()
+withPopupModalOpen :: MonadUnliftIO m => Text -> m () -> m ()
 withPopupModalOpen popupId action =
   withPopupModal popupId (`when` action)
 
-beginPopupContextItem :: MonadIO m => Maybe String -> ImGuiPopupFlags -> m Bool
+beginPopupContextItem :: MonadIO m => Maybe Text -> ImGuiPopupFlags -> m Bool
 beginPopupContextItem itemId flags = liftIO do
-  withCStringOrNull itemId \popupIdPtr ->
+  Text.withCStringOrNull itemId \popupIdPtr ->
     Raw.beginPopupContextItem popupIdPtr flags
 
-withPopupContextItem :: MonadUnliftIO m => Maybe String -> ImGuiPopupFlags -> (Bool -> m a) -> m a
+withPopupContextItem :: MonadUnliftIO m => Maybe Text -> ImGuiPopupFlags -> (Bool -> m a) -> m a
 withPopupContextItem popupId flags = bracket (beginPopupContextItem popupId flags) (`when` Raw.endPopup)
 
-withPopupContextItemOpen :: MonadUnliftIO m => Maybe String -> ImGuiPopupFlags -> m () -> m ()
+withPopupContextItemOpen :: MonadUnliftIO m => Maybe Text -> ImGuiPopupFlags -> m () -> m ()
 withPopupContextItemOpen popupId flags action = withPopupContextItem popupId flags (`when` action)
 
 -- | Attach item context popup to right mouse button click on a last item.
 itemContextPopup :: MonadUnliftIO m => m () -> m ()
 itemContextPopup = withPopupContextItemOpen Nothing ImGuiPopupFlags_MouseButtonRight
 
-beginPopupContextWindow :: MonadIO m => Maybe String -> ImGuiPopupFlags -> m Bool
+beginPopupContextWindow :: MonadIO m => Maybe Text -> ImGuiPopupFlags -> m Bool
 beginPopupContextWindow popupId flags = liftIO do
-  withCStringOrNull popupId \popupIdPtr ->
+  Text.withCStringOrNull popupId \popupIdPtr ->
     Raw.beginPopupContextWindow popupIdPtr flags
 
-withPopupContextWindow :: MonadUnliftIO m => Maybe String -> ImGuiPopupFlags -> (Bool -> m a) -> m a
+withPopupContextWindow :: MonadUnliftIO m => Maybe Text -> ImGuiPopupFlags -> (Bool -> m a) -> m a
 withPopupContextWindow popupId flags = bracket (beginPopupContextWindow popupId flags) (`when` Raw.endPopup)
 
-withPopupContextWindowOpen :: MonadUnliftIO m => Maybe String -> ImGuiPopupFlags -> m () -> m ()
+withPopupContextWindowOpen :: MonadUnliftIO m => Maybe Text -> ImGuiPopupFlags -> m () -> m ()
 withPopupContextWindowOpen popupId flags action = withPopupContextWindow popupId flags (`when` action)
 
 -- | Attach item context popup to right mouse button click on a current window.
 windowContextPopup :: MonadUnliftIO m => m () -> m ()
 windowContextPopup = withPopupContextWindowOpen Nothing ImGuiPopupFlags_MouseButtonRight
 
-beginPopupContextVoid :: MonadIO m => Maybe String -> ImGuiPopupFlags -> m Bool
+beginPopupContextVoid :: MonadIO m => Maybe Text -> ImGuiPopupFlags -> m Bool
 beginPopupContextVoid popupId flags = liftIO do
-  withCStringOrNull popupId \popupIdPtr ->
+  Text.withCStringOrNull popupId \popupIdPtr ->
     Raw.beginPopupContextVoid popupIdPtr flags
 
-withPopupContextVoid :: MonadUnliftIO m => Maybe String -> ImGuiPopupFlags -> (Bool -> m a) -> m a
+withPopupContextVoid :: MonadUnliftIO m => Maybe Text -> ImGuiPopupFlags -> (Bool -> m a) -> m a
 withPopupContextVoid popupId flags = bracket (beginPopupContextVoid popupId flags) (`when` Raw.endPopup)
 
-withPopupContextVoidOpen :: MonadUnliftIO m => Maybe String -> ImGuiPopupFlags -> m () -> m ()
+withPopupContextVoidOpen :: MonadUnliftIO m => Maybe Text -> ImGuiPopupFlags -> m () -> m ()
 withPopupContextVoidOpen popupId flags action = withPopupContextVoid popupId flags (`when` action)
 
 -- | Attach item context popup to right mouse button click outside of any windows.
@@ -1841,9 +1836,9 @@ voidContextPopup = withPopupContextWindowOpen Nothing ImGuiPopupFlags_MouseButto
 -- | Call to mark popup as open (don't call every frame!).
 --
 -- Wraps @ImGui::OpenPopup()@
-openPopup :: MonadIO m => String -> m ()
+openPopup :: MonadIO m => Text -> m ()
 openPopup popupId = liftIO do
-  withCString popupId Raw.openPopup
+  Text.withCString popupId Raw.openPopup
 
 -- | Opens a defined popup (i.e. defined with 'withPopup') on defined action.
 --
@@ -1852,34 +1847,29 @@ openPopup popupId = liftIO do
 -- > openPopupOnItemClick "myPopup" ImGuiPopupFlags_MouseButtonRight
 --
 -- Wraps @ImGui::OpenPopup()@
-openPopupOnItemClick :: MonadIO m => String -> ImGuiPopupFlags -> m ()
+openPopupOnItemClick :: MonadIO m => Text -> ImGuiPopupFlags -> m ()
 openPopupOnItemClick popupId flags = liftIO do
-  withCString popupId $ \idPtr ->
+  Text.withCString popupId $ \idPtr ->
     Raw.openPopupOnItemClick idPtr flags
 
 -- | Check if the popup is open at the current 'beginPopup' level of the popup stack.
-isCurrentPopupOpen :: MonadIO m => String -> m Bool
+isCurrentPopupOpen :: MonadIO m => Text -> m Bool
 isCurrentPopupOpen popupId = liftIO do
-  withCString popupId $ \idPtr ->
+  Text.withCString popupId $ \idPtr ->
     Raw.isPopupOpen idPtr ImGuiPopupFlags_None
 
 -- | Check if *any* popup is open at the current 'beginPopup' level of the popup stack.
-isAnyPopupOpen :: MonadIO m => String -> m Bool
+isAnyPopupOpen :: MonadIO m => Text -> m Bool
 isAnyPopupOpen popupId = liftIO do
-  withCString popupId $ \idPtr ->
+  Text.withCString popupId $ \idPtr ->
     Raw.isPopupOpen idPtr ImGuiPopupFlags_AnyPopupId
 
 -- | Check if *any* popup is open at any level of the popup stack.
-isAnyLevelPopupOpen :: MonadIO m => String -> m Bool
+isAnyLevelPopupOpen :: MonadIO m => Text -> m Bool
 isAnyLevelPopupOpen popupId = liftIO do
-  withCString popupId $ \idPtr ->
+  Text.withCString popupId $ \idPtr ->
     Raw.isPopupOpen idPtr $
       ImGuiPopupFlags_AnyPopupId .|. ImGuiPopupFlags_AnyPopupLevel
-
-
-withCStringOrNull :: Maybe String -> (Ptr CChar -> IO a) -> IO a
-withCStringOrNull Nothing k  = k nullPtr
-withCStringOrNull (Just s) k = withCString s k
 
 
 -- | Set next window position. Call before `begin` Use pivot=(0.5,0.5) to center on given point, etc.
@@ -2044,8 +2034,8 @@ instance {-# OVERLAPPING #-} ToID (Ptr CChar) where
 instance ToID (Ptr CChar, Int) where
   pushID = Raw.pushIDStrLen
 
-instance ToID String where
-  pushID s = liftIO $ withCStringLen s pushID
+instance ToID Text where
+  pushID t = liftIO $ Text.withCStringLen t pushID
 
 withStyleColor :: (MonadUnliftIO m, HasGetter ref ImVec4) => ImGuiCol -> ref -> m a -> m a
 withStyleColor color ref =

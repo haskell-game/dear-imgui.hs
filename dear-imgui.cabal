@@ -1,7 +1,7 @@
 cabal-version: 3.0
 
 name: dear-imgui
-version: 1.5.0
+version: 2.0.0
 author: Oliver Charles
 maintainer: ollie@ocharles.org.uk, aenor.realm@gmail.com
 license: BSD-3-Clause
@@ -140,13 +140,14 @@ library
   exposed-modules:
     DearImGui
     DearImGui.FontAtlas
+    DearImGui.Internal.Text
     DearImGui.Raw
     DearImGui.Raw.DrawList
     DearImGui.Raw.Font
     DearImGui.Raw.Font.Config
     DearImGui.Raw.Font.GlyphRanges
-    DearImGui.Raw.ListClipper
     DearImGui.Raw.IO
+    DearImGui.Raw.ListClipper
   other-modules:
     DearImGui.Context
     DearImGui.Enums
@@ -171,6 +172,7 @@ library
     , StateVar
     , unliftio
     , vector
+    , text
 
   if flag(disable-obsolete)
     cxx-options: -DIMGUI_DISABLE_OBSOLETE_FUNCTIONS
@@ -286,7 +288,7 @@ library dear-imgui-generator
     , scientific
         >= 0.3.6.2 && < 0.3.8
     , text
-        >= 1.2.4 && < 1.3
+        >= 1.2.4 && < 2.1
     , th-lift
         >= 0.7 && < 0.9
     , transformers
@@ -308,10 +310,10 @@ executable glfw
   main-is: Main.hs
   hs-source-dirs: examples/glfw
   default-language: Haskell2010
-  if (!flag(examples) || !flag(glfw) || !flag(opengl2))
+  if (!flag(examples) || !flag(glfw) || !flag(opengl3))
     buildable: False
   else
-    build-depends: base, GLFW-b, gl, dear-imgui, managed
+    build-depends: base, GLFW-b, gl, dear-imgui, managed, text
 
 executable readme
   import: common, exe-flags
