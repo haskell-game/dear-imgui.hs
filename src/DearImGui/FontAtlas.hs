@@ -119,6 +119,8 @@ import DearImGui.Raw.Font.Config (FontConfig(..))
 import qualified DearImGui.Raw.Font.Config as FontConfig
 import DearImGui.Raw.Font.GlyphRanges (GlyphRanges(..), GlyphRangesBuilder(..))
 import qualified DearImGui.Raw.Font.GlyphRanges as GlyphRanges
+import DearImGui.Internal.Text (Text)
+import qualified DearImGui.Internal.Text as Text
 
 import DearImGui.Structs (ImVec2(..), ImWchar)
 
@@ -332,10 +334,10 @@ addChar char =
     GlyphRanges.addChar builder char
 
 -- | UTF-8 string
-addText :: String -> RangesBuilderSetup
+addText :: Text -> RangesBuilderSetup
 addText str =
   RangesBuilderSetup \builder ->
-    withCString str (GlyphRanges.addText builder)
+    Text.withCString str (GlyphRanges.addText builder)
 
 -- | Existing ranges (as is)
 addRangesRaw :: GlyphRanges -> RangesBuilderSetup
