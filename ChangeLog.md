@@ -1,5 +1,10 @@
 # Changelog for dear-imgui
 
+## [2.1.0]
+
+- `imgui` updated to [1.88].
+    * Breaking: `ImGuiKeyModFlags` renamed to `ImGuiModFlags`.
+
 ## [2.0.0]
 
 - `String` arguments replaced with `Text`.
