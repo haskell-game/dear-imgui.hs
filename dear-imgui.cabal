@@ -185,6 +185,10 @@ library
     , vector
     , text
 
+  if os(darwin)
+    ghc-options:
+      -optcxx-std=c++11
+
   if flag(disable-obsolete)
     cxx-options: -DIMGUI_DISABLE_OBSOLETE_FUNCTIONS
 
