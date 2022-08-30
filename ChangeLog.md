@@ -1,5 +1,9 @@
 # Changelog for dear-imgui
 
+## [2.1.1]
+
+- Build flag fix for MacOS.
+
 ## [2.1.0]
 
 - `imgui` updated to [1.88].
@@ -87,6 +91,8 @@ Initial Hackage release based on [1.83].
 [1.4.0]: https://github.com/haskell-game/dear-imgui.hs/tree/v1.4.0
 [1.5.0]: https://github.com/haskell-game/dear-imgui.hs/tree/v1.5.0
 [2.0.0]: https://github.com/haskell-game/dear-imgui.hs/tree/v2.0.0
+[2.1.0]: https://github.com/haskell-game/dear-imgui.hs/tree/v2.1.0
+[2.1.1]: https://github.com/haskell-game/dear-imgui.hs/tree/v2.1.1
 
 [1.87]: https://github.com/ocornut/imgui/releases/tag/v1.87
 [1.86]: https://github.com/ocornut/imgui/releases/tag/v1.86
