@@ -193,6 +193,7 @@ module DearImGui.Raw
   , listBox
 
     -- * Data Plotting
+  , plotLines
   , plotHistogram
 
     -- ** Menus
@@ -1250,6 +1251,10 @@ listBox :: (MonadIO m) => CString -> Ptr CInt -> Ptr CString -> CInt -> m Bool
 listBox labelPtr iPtr itemsPtr itemsLen = liftIO do
   (0 /=) <$> [C.exp| bool { ListBox($(char* labelPtr), $(int* iPtr), $(char** itemsPtr), $(int itemsLen)) }|]
 
+-- | Wraps @ImGui::PlotLines()@.
+plotLines :: (MonadIO m) => CString -> Ptr CFloat -> CInt -> m ()
+plotLines labelPtr valuesPtr valuesLen = liftIO do
+  [C.exp| void { PlotLines($(char* labelPtr), $(float* valuesPtr), $(int valuesLen)) } |]
 
 -- | Wraps @ImGui::PlotHistogram()@.
 plotHistogram :: (MonadIO m) => CString -> Ptr CFloat -> CInt -> m ()

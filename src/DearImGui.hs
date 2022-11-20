@@ -237,6 +237,7 @@ module DearImGui
   , listBox
 
     -- ** Data Plotting
+  , plotLines
   , plotHistogram
 
     -- ** Menus
@@ -1590,6 +1591,12 @@ listBox label selectedIndex items = liftIO $ Managed.with m return
 
         return changed
 
+-- | Wraps @ImGui::PlotLines()@.
+plotLines :: MonadIO m => Text -> [CFloat] -> m ()
+plotLines label values = liftIO $
+  withArrayLen values \len valuesPtr ->
+    Text.withCString label \labelPtr ->
+      Raw.plotLines labelPtr valuesPtr (fromIntegral len)
 
 -- | Wraps @ImGui::PlotHistogram()@.
 plotHistogram :: MonadIO m => Text -> [CFloat] -> m ()
