@@ -329,7 +329,7 @@ executable glfw
   main-is: Main.hs
   hs-source-dirs: examples/glfw
   default-language: Haskell2010
-  if (!flag(examples) || !flag(glfw) || !flag(opengl3))
+  if (!flag(examples) || !flag(glfw) || !flag(opengl2))
     buildable: False
   else
     build-depends: base, GLFW-b, gl, dear-imgui, managed, text
