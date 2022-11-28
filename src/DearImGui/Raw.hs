@@ -185,6 +185,7 @@ module DearImGui.Raw
   , treeNode
   , treePush
   , treePop
+  , setNextItemOpen
 
     -- ** Selectables
   , selectable
@@ -1232,6 +1233,11 @@ treePop :: (MonadIO m) => m ()
 treePop = liftIO do
   [C.exp| void { TreePop() } |]
 
+
+-- | Wraps @ImGui::SetNextItemOpen()@.
+setNextItemOpen :: (MonadIO m) => CBool -> m ()
+setNextItemOpen is_open = liftIO do
+  [C.exp| void { SetNextItemOpen($(bool is_open)) } |]
 
 -- -- | Wraps @ImGui::Selectable()@.
 -- selectable :: (MonadIO m) => CString -> m Bool
