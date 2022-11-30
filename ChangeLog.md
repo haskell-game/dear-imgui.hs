@@ -1,5 +1,11 @@
 # Changelog for dear-imgui
 
+## [2.1.2]
+
+- Fixed glfw example build flags.
+- Added `plotLines`.
+- Added `setNextItemOpen`.
+
 ## [2.1.1]
 
 - Build flag fix for MacOS.
@@ -93,6 +99,7 @@ Initial Hackage release based on [1.83].
 [2.0.0]: https://github.com/haskell-game/dear-imgui.hs/tree/v2.0.0
 [2.1.0]: https://github.com/haskell-game/dear-imgui.hs/tree/v2.1.0
 [2.1.1]: https://github.com/haskell-game/dear-imgui.hs/tree/v2.1.1
+[2.1.2]: https://github.com/haskell-game/dear-imgui.hs/tree/v2.1.2
 
 [1.87]: https://github.com/ocornut/imgui/releases/tag/v1.87
 [1.86]: https://github.com/ocornut/imgui/releases/tag/v1.86
