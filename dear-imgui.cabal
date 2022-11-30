@@ -1,7 +1,7 @@
 cabal-version: 3.0
 
 name: dear-imgui
-version: 2.1.0
+version: 2.1.1
 author: Oliver Charles
 maintainer: ollie@ocharles.org.uk, aenor.realm@gmail.com
 license: BSD-3-Clause
@@ -219,6 +219,10 @@ library
     , unordered-containers
         >= 0.2.11 && < 0.3
 
+  if os(darwin)
+    ghc-options:
+      -optcxx-std=c++11
+
   if flag(disable-obsolete)
     cxx-options: -DIMGUI_DISABLE_OBSOLETE_FUNCTIONS
 
@@ -325,7 +329,7 @@ executable glfw
   main-is: Main.hs
   hs-source-dirs: examples/glfw
   default-language: Haskell2010
-  if (!flag(examples) || !flag(glfw) || !flag(opengl3))
+  if (!flag(examples) || !flag(glfw) || !flag(opengl2))
     buildable: False
   else
     build-depends: base, GLFW-b, gl, dear-imgui, managed, text

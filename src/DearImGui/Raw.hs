@@ -185,6 +185,7 @@ module DearImGui.Raw
   , treeNode
   , treePush
   , treePop
+  , setNextItemOpen
 
     -- ** Selectables
   , selectable
@@ -193,6 +194,7 @@ module DearImGui.Raw
   , listBox
 
     -- * Data Plotting
+  , plotLines
   , plotHistogram
 
     -- ** Menus
@@ -1232,6 +1234,11 @@ treePop = liftIO do
   [C.exp| void { TreePop() } |]
 
 
+-- | Wraps @ImGui::SetNextItemOpen()@.
+setNextItemOpen :: (MonadIO m) => CBool -> m ()
+setNextItemOpen is_open = liftIO do
+  [C.exp| void { SetNextItemOpen($(bool is_open)) } |]
+
 -- -- | Wraps @ImGui::Selectable()@.
 -- selectable :: (MonadIO m) => CString -> m Bool
 -- selectable labelPtr = liftIO do
@@ -1250,6 +1257,10 @@ listBox :: (MonadIO m) => CString -> Ptr CInt -> Ptr CString -> CInt -> m Bool
 listBox labelPtr iPtr itemsPtr itemsLen = liftIO do
   (0 /=) <$> [C.exp| bool { ListBox($(char* labelPtr), $(int* iPtr), $(char** itemsPtr), $(int itemsLen)) }|]
 
+-- | Wraps @ImGui::PlotLines()@.
+plotLines :: (MonadIO m) => CString -> Ptr CFloat -> CInt -> m ()
+plotLines labelPtr valuesPtr valuesLen = liftIO do
+  [C.exp| void { PlotLines($(char* labelPtr), $(float* valuesPtr), $(int valuesLen)) } |]
 
 -- | Wraps @ImGui::PlotHistogram()@.
 plotHistogram :: (MonadIO m) => CString -> Ptr CFloat -> CInt -> m ()
