@@ -693,27 +693,27 @@ combo labelPtr iPtr itemsPtr itemsLen = liftIO do
 
 
 -- | Wraps @ImGui::DragFloat()@
-dragFloat :: (MonadIO m) => CString -> Ptr CFloat -> CFloat -> CFloat -> CFloat -> m Bool
-dragFloat descPtr floatPtr speed minValue maxValue = liftIO do
-  (0 /=) <$> [C.exp| bool { DragFloat( $(char* descPtr), $(float* floatPtr), $(float speed), $(float minValue), $(float maxValue)) } |]
+dragFloat :: (MonadIO m) => CString -> Ptr CFloat -> CFloat -> CFloat -> CFloat -> CString -> m Bool
+dragFloat descPtr floatPtr speed minValue maxValue formatPtr = liftIO do
+  (0 /=) <$> [C.exp| bool { DragFloat( $(char* descPtr), $(float* floatPtr), $(float speed), $(float minValue), $(float maxValue), $(char* formatPtr)) } |]
 
 
 -- | Wraps @ImGui::DragFloat2()@
-dragFloat2 :: (MonadIO m) => CString -> Ptr CFloat -> CFloat -> CFloat -> CFloat -> m Bool
-dragFloat2 descPtr floatPtr speed minValue maxValue = liftIO do
-  (0 /=) <$> [C.exp| bool { DragFloat2( $(char* descPtr), $(float* floatPtr), $(float speed), $(float minValue), $(float maxValue)) } |]
+dragFloat2 :: (MonadIO m) => CString -> Ptr CFloat -> CFloat -> CFloat -> CFloat -> CString -> m Bool
+dragFloat2 descPtr floatPtr speed minValue maxValue formatPtr = liftIO do
+  (0 /=) <$> [C.exp| bool { DragFloat2( $(char* descPtr), $(float* floatPtr), $(float speed), $(float minValue), $(float maxValue), $(char* formatPtr)) } |]
 
 
 -- | Wraps @ImGui::DragFloat3()@
-dragFloat3 :: (MonadIO m) => CString -> Ptr CFloat -> CFloat -> CFloat -> CFloat -> m Bool
-dragFloat3 descPtr floatPtr speed minValue maxValue = liftIO do
-  (0 /=) <$> [C.exp| bool { DragFloat3( $(char* descPtr), $(float* floatPtr), $(float speed), $(float minValue), $(float maxValue)) } |]
+dragFloat3 :: (MonadIO m) => CString -> Ptr CFloat -> CFloat -> CFloat -> CFloat -> CString -> m Bool
+dragFloat3 descPtr floatPtr speed minValue maxValue formatPtr = liftIO do
+  (0 /=) <$> [C.exp| bool { DragFloat3( $(char* descPtr), $(float* floatPtr), $(float speed), $(float minValue), $(float maxValue), $(char* formatPtr)) } |]
 
 
 -- | Wraps @ImGui::DragFloat4()@
-dragFloat4 :: (MonadIO m) => CString -> Ptr CFloat -> CFloat -> CFloat -> CFloat -> m Bool
-dragFloat4 descPtr floatPtr speed minValue maxValue = liftIO do
-  (0 /=) <$> [C.exp| bool { DragFloat4( $(char* descPtr), $(float* floatPtr), $(float speed), $(float minValue), $(float maxValue)) } |]
+dragFloat4 :: (MonadIO m) => CString -> Ptr CFloat -> CFloat -> CFloat -> CFloat -> CString -> m Bool
+dragFloat4 descPtr floatPtr speed minValue maxValue formatPtr = liftIO do
+  (0 /=) <$> [C.exp| bool { DragFloat4( $(char* descPtr), $(float* floatPtr), $(float speed), $(float minValue), $(float maxValue), $(char* formatPtr)) } |]
 
 
 -- | Wraps @ImGui::DragFloatRange2()@
@@ -853,27 +853,27 @@ dragScalarN labelPtr dataType dataPtr components vSpeed minPtr maxPtr formatPtr 
     maxPtr_ = castPtr maxPtr
 
 -- | Wraps @ImGui::SliderFloat()@
-sliderFloat :: (MonadIO m) => CString -> Ptr CFloat -> CFloat -> CFloat -> m Bool
-sliderFloat descPtr floatPtr minValue maxValue = liftIO do
-  (0 /=) <$> [C.exp| bool { SliderFloat( $(char* descPtr), $(float* floatPtr), $(float minValue), $(float maxValue)) } |]
+sliderFloat :: (MonadIO m) => CString -> Ptr CFloat -> CFloat -> CFloat -> CString -> m Bool
+sliderFloat descPtr floatPtr minValue maxValue formatPtr = liftIO do
+  (0 /=) <$> [C.exp| bool { SliderFloat( $(char* descPtr), $(float* floatPtr), $(float minValue), $(float maxValue), $(char* formatPtr)) } |]
 
 
 -- | Wraps @ImGui::SliderFloat2()@
-sliderFloat2 :: (MonadIO m) => CString -> Ptr CFloat -> CFloat -> CFloat -> m Bool
-sliderFloat2 descPtr floatPtr minValue maxValue = liftIO do
-  (0 /=) <$> [C.exp| bool { SliderFloat2( $(char* descPtr), $(float* floatPtr), $(float minValue), $(float maxValue)) } |]
+sliderFloat2 :: (MonadIO m) => CString -> Ptr CFloat -> CFloat -> CFloat -> CString -> m Bool
+sliderFloat2 descPtr floatPtr minValue maxValue formatPtr = liftIO do
+  (0 /=) <$> [C.exp| bool { SliderFloat2( $(char* descPtr), $(float* floatPtr), $(float minValue), $(float maxValue), $(char* formatPtr)) } |]
 
 
 -- | Wraps @ImGui::SliderFloat3()@
-sliderFloat3 :: (MonadIO m) => CString -> Ptr CFloat -> CFloat -> CFloat -> m Bool
-sliderFloat3 descPtr floatPtr minValue maxValue = liftIO do
-  (0 /=) <$> [C.exp| bool { SliderFloat3( $(char* descPtr), $(float* floatPtr), $(float minValue), $(float maxValue)) } |]
+sliderFloat3 :: (MonadIO m) => CString -> Ptr CFloat -> CFloat -> CFloat -> CString -> m Bool
+sliderFloat3 descPtr floatPtr minValue maxValue formatPtr = liftIO do
+  (0 /=) <$> [C.exp| bool { SliderFloat3( $(char* descPtr), $(float* floatPtr), $(float minValue), $(float maxValue), $(char* formatPtr)) } |]
 
 
 -- | Wraps @ImGui::SliderFloat4()@
-sliderFloat4 :: (MonadIO m) => CString -> Ptr CFloat -> CFloat -> CFloat -> m Bool
-sliderFloat4 descPtr floatPtr minValue maxValue = liftIO do
-  (0 /=) <$> [C.exp| bool { SliderFloat4( $(char* descPtr), $(float* floatPtr), $(float minValue), $(float maxValue)) } |]
+sliderFloat4 :: (MonadIO m) => CString -> Ptr CFloat -> CFloat -> CFloat -> CString -> m Bool
+sliderFloat4 descPtr floatPtr minValue maxValue formatPtr = liftIO do
+  (0 /=) <$> [C.exp| bool { SliderFloat4( $(char* descPtr), $(float* floatPtr), $(float minValue), $(float maxValue), $(char* formatPtr)) } |]
 
 -- | Wraps @ImGui::SliderAngle()@
 sliderAngle :: (MonadIO m) => CString -> Ptr CFloat -> CFloat -> CFloat -> CString -> ImGuiSliderFlags -> m Bool
