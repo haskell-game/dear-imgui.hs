@@ -646,7 +646,7 @@ dragFloat desc ref speed minValue maxValue = liftIO do
   currentValue <- get ref
   with (realToFrac currentValue) \floatPtr -> do
     changed <- Text.withCString desc \descPtr ->
-      Raw.dragFloat descPtr floatPtr (CFloat speed) (CFloat minValue) (CFloat maxValue)
+      Raw.dragFloat descPtr floatPtr (CFloat speed) (CFloat minValue) (CFloat maxValue) nullPtr
 
     when changed do
       newValue <- peek floatPtr
@@ -661,7 +661,7 @@ dragFloat2 desc ref speed minValue maxValue = liftIO do
   (x, y) <- get ref
   withArray [ realToFrac x, realToFrac y ] \floatPtr -> do
     changed <- Text.withCString desc \descPtr ->
-      Raw.dragFloat2 descPtr floatPtr (CFloat speed) (CFloat minValue) (CFloat maxValue)
+      Raw.dragFloat2 descPtr floatPtr (CFloat speed) (CFloat minValue) (CFloat maxValue) nullPtr
 
     when changed do
       [x', y'] <- peekArray 2 floatPtr
@@ -675,7 +675,7 @@ dragFloat3 desc ref speed minValue maxValue = liftIO do
   (x, y, z) <- get ref
   withArray [ realToFrac x, realToFrac y, realToFrac z ] \floatPtr -> do
     changed <- Text.withCString desc \descPtr ->
-      Raw.dragFloat3 descPtr floatPtr (CFloat speed) (CFloat minValue) (CFloat maxValue)
+      Raw.dragFloat3 descPtr floatPtr (CFloat speed) (CFloat minValue) (CFloat maxValue) nullPtr
 
     when changed do
       [x', y', z'] <- peekArray 3 floatPtr
@@ -690,7 +690,7 @@ dragFloat4 desc ref speed minValue maxValue = liftIO do
   (x, y, z, u) <- get ref
   withArray [ realToFrac x, realToFrac y, realToFrac z, realToFrac u ] \floatPtr -> do
     changed <- Text.withCString desc \descPtr ->
-      Raw.dragFloat4 descPtr floatPtr (CFloat speed) (CFloat minValue) (CFloat maxValue)
+      Raw.dragFloat4 descPtr floatPtr (CFloat speed) (CFloat minValue) (CFloat maxValue) nullPtr
 
     when changed do
       [x', y', z', u'] <- peekArray 4 floatPtr
@@ -969,7 +969,7 @@ sliderFloat desc ref minValue maxValue = liftIO do
   currentValue <- get ref
   with (realToFrac currentValue) \floatPtr -> do
     changed <- Text.withCString desc \descPtr ->
-      Raw.sliderFloat descPtr floatPtr (CFloat minValue) (CFloat maxValue)
+      Raw.sliderFloat descPtr floatPtr (CFloat minValue) (CFloat maxValue) nullPtr
 
     when changed do
       newValue <- peek floatPtr
@@ -983,7 +983,7 @@ sliderFloat2 desc ref minValue maxValue = liftIO do
   (x, y) <- get ref
   withArray [ realToFrac x, realToFrac y ] \floatPtr -> do
     changed <- Text.withCString desc \descPtr ->
-      Raw.sliderFloat2 descPtr floatPtr (CFloat minValue) (CFloat maxValue)
+      Raw.sliderFloat2 descPtr floatPtr (CFloat minValue) (CFloat maxValue) nullPtr
 
     when changed do
       [x', y'] <- peekArray 2 floatPtr
@@ -997,7 +997,7 @@ sliderFloat3 desc ref minValue maxValue = liftIO do
   (x, y, z) <- get ref
   withArray [ realToFrac x, realToFrac y, realToFrac z ] \floatPtr -> do
     changed <- Text.withCString desc \descPtr ->
-      Raw.sliderFloat3 descPtr floatPtr (CFloat minValue) (CFloat maxValue)
+      Raw.sliderFloat3 descPtr floatPtr (CFloat minValue) (CFloat maxValue) nullPtr
 
     when changed do
       [x', y', z'] <- peekArray 3 floatPtr
@@ -1011,7 +1011,7 @@ sliderFloat4 desc ref minValue maxValue = liftIO do
   (x, y, z, u) <- get ref
   withArray [ realToFrac x, realToFrac y, realToFrac z, realToFrac u ] \floatPtr -> do
     changed <- Text.withCString desc \descPtr ->
-      Raw.sliderFloat4 descPtr floatPtr (CFloat minValue) (CFloat maxValue)
+      Raw.sliderFloat4 descPtr floatPtr (CFloat minValue) (CFloat maxValue) nullPtr
 
     when changed do
       [x', y', z', u'] <- peekArray 4 floatPtr
