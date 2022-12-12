@@ -13,7 +13,6 @@ module DearImGui.Internal.Text
   ) where
 
 -- base
-import Control.Monad.IO.Class (liftIO)
 import Foreign (nullPtr, plusPtr)
 import Foreign.C.String (CString)
 import qualified GHC.Foreign as Foreign
@@ -34,7 +33,8 @@ import qualified Data.Text.Foreign as Text
 withCString :: MonadUnliftIO m => Text -> (CString -> m a) -> m a
 withCString text action =
   withUnliftIO $ \(UnliftIO unlift) ->
-    Text.withCString text (unlift action)
+    Text.withCString text $ \buf ->
+      unlift $ action buf
 
 #elif MIN_VERSION_text(2,0,0)
 -- XXX: the text is UTF-8, alas no withCString is available
@@ -57,9 +57,8 @@ withCString t@(Text _arr _off len) action =
 withCString :: MonadUnliftIO m => Text -> (CString -> m a) -> m a
 withCString t action = do
   withUnliftIO $ \(UnliftIO unlift) ->
-    liftIO $
-      Foreign.withCString utf8 (unpack t) $ \textPtr ->
-        unlift $ action textPtr
+    Foreign.withCString utf8 (unpack t) $ \textPtr ->
+      unlift $ action textPtr
 
 #endif
 
