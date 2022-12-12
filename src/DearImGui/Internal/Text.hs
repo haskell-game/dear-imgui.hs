@@ -41,7 +41,7 @@ withCString t = bracket create destroy
     create = liftIO $ do
       ptr <- mallocBytes size0
       unsafeCopyToPtr t (castPtr ptr)
-      pokeByteOff ptr size0 (0 :: Word8)
+      pokeByteOff ptr (size0-1) (0 :: Word8)
       pure ptr
 
     destroy ptr =
