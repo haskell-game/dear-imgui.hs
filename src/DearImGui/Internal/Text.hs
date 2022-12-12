@@ -26,28 +26,33 @@ import Data.Text.Foreign (withCStringLen)
 -- unliftio-core
 import UnliftIO (MonadUnliftIO, UnliftIO(..), withUnliftIO)
 
-#if MIN_VERSION_text(2,0,0)
+#if MIN_VERSION_text(2,0,1)
+-- XXX: just wrap the provided combinator
+
+import qualified Data.Text.Foreign as Text
+
+withCString :: MonadUnliftIO m => Text -> (CString -> m a) -> m a
+withCString text action =
+  withUnliftIO $ \(UnliftIO unlift) ->
+    Text.withCString text (unlift action)
+
+#elif MIN_VERSION_text(2,0,0)
+-- XXX: the text is UTF-8, alas no withCString is available
 
 import Data.Text.Foreign (lengthWord8, unsafeCopyToPtr)
 import Data.Word (Word8)
-import Foreign (castPtr, free, mallocBytes, pokeByteOff)
-import UnliftIO.Exception (bracket)
+import Foreign (allocaBytes, castPtr, pokeByteOff)
 
 withCString :: MonadUnliftIO m => Text -> (CString -> m a) -> m a
-withCString t = bracket create destroy
-  where
-    size0 = lengthWord8 t + 1
-
-    create = liftIO $ do
-      ptr <- mallocBytes size0
-      unsafeCopyToPtr t (castPtr ptr)
-      pokeByteOff ptr size0 (0 :: Word8)
-      pure ptr
-
-    destroy ptr =
-      liftIO $ free ptr
+withCString t@(Text _arr _off len) action =
+  withUnliftIO $ \(UnliftIO unlift) ->
+    allocaBytes (len + 1) $ \buf -> do
+      unsafeCopyToPtr t buf
+      pokeByteOff buf len (0 :: Word8)
+      unlift $ action (castPtr buf)
 
 #else
+-- XXX: the text is UTF-16, let GHC do it
 
 withCString :: MonadUnliftIO m => Text -> (CString -> m a) -> m a
 withCString t action = do
