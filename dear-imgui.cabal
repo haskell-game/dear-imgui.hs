@@ -390,9 +390,9 @@ executable vulkan
       , vector
          ^>= 0.12.1.2
       , vulkan
-         ^>= 3.23
+         >= 3.12
       , vulkan-utils
-         ^>= 0.5
+         >= 0.5
       , VulkanMemoryAllocator
-         ^>= 0.10.4
+         >= 0.10.4
       , JuicyPixels
