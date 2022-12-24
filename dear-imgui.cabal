@@ -355,7 +355,7 @@ executable image
   main-is: Image.hs
   hs-source-dirs: examples/sdl
   build-depends: sdl2, gl, dear-imgui, managed, vector
-  if (!flag(examples) || !flag(sdl) || !flag(opengl2))
+  if (!flag(examples) || !flag(sdl) || !flag(opengl3))
     buildable: False
 
 executable vulkan
