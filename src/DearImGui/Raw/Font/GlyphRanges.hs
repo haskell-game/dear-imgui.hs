@@ -75,7 +75,7 @@ import Foreign.C
 import System.IO.Unsafe (unsafePerformIO)
 
 -- dear-imgui
-import DearImGui.Context
+import DearImGui.Raw.Context
   ( imguiContext )
 import DearImGui.Structs
 

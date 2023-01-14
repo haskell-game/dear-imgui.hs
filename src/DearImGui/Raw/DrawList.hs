@@ -115,7 +115,7 @@ import Foreign hiding (new)
 import Foreign.C
 
 -- dear-imgui
-import DearImGui.Context
+import DearImGui.Raw.Context
   ( imguiContext )
 import DearImGui.Enums
 import DearImGui.Structs
