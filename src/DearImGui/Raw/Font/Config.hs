@@ -46,7 +46,7 @@ import Foreign ( Ptr )
 import Foreign.C
 
 -- dear-imgui
-import DearImGui.Context
+import DearImGui.Raw.Context
   ( imguiContext )
 import DearImGui.Structs
 import DearImGui.Raw.Font.GlyphRanges

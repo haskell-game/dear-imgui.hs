@@ -6,7 +6,7 @@
 {-# language PatternSynonyms #-}
 {-# language TemplateHaskell #-}
 
-module DearImGui.Context where
+module DearImGui.Raw.Context where
 
 -- containers
 import qualified Data.Map.Strict as Map

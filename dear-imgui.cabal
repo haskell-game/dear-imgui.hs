@@ -159,8 +159,8 @@ library
     DearImGui.Raw.Font.GlyphRanges
     DearImGui.Raw.IO
     DearImGui.Raw.ListClipper
+    DearImGui.Raw.Context
   other-modules:
-    DearImGui.Context
     DearImGui.Enums
     DearImGui.Structs
   cxx-options: -std=c++11
