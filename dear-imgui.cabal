@@ -243,7 +243,7 @@ library
     build-depends:
       sdl2
     cxx-sources:
-      imgui/backends/imgui_impl_sdl.cpp
+      imgui/backends/imgui_impl_sdl2.cpp
 
     if os(windows) || os(darwin)
       extra-libraries:
