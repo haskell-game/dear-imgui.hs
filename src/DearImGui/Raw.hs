@@ -90,6 +90,7 @@ module DearImGui.Raw
   , popItemWidth
   , beginGroup
   , endGroup
+  , getCursorPos
   , setCursorPos
   , getCursorScreenPos
   , alignTextToFramePadding
@@ -1670,6 +1671,20 @@ alignTextToFramePadding = liftIO do
 setCursorPos :: (MonadIO m) => Ptr ImVec2 -> m ()
 setCursorPos posPtr = liftIO do
   [C.exp| void { SetCursorPos(*$(ImVec2* posPtr)) } |]
+
+-- | Get cursor position in window-local coordinates.
+--
+-- Useful to overlap draw using 'setCursorPos'.
+--
+-- Wraps @ImGui::SetCursorPos()@
+getCursorPos :: (MonadIO m) => m ImVec2
+getCursorPos = liftIO do
+  C.withPtr_ \ptr ->
+    [C.block|
+      void {
+        *$(ImVec2 * ptr) = GetCursorPos();
+      }
+    |]
 
 -- | Cursor position in absolute coordinates.
 --
