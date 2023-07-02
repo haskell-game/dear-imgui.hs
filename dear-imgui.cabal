@@ -140,7 +140,7 @@ flag use-ImDrawIdx32
 common common
   build-depends:
       base
-        >= 4.12 && < 4.18
+        >= 4.12 && < 4.19
   default-language:
       Haskell2010
 
