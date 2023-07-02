@@ -110,6 +110,7 @@ module DearImGui
   , Raw.endGroup
 
   , setCursorPos
+  , Raw.getCursorPos
   , Raw.alignTextToFramePadding
 
     -- * ID stack
