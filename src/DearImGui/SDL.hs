@@ -50,7 +50,7 @@ import Control.Monad.IO.Class
 
 C.context (Cpp.cppCtx <> C.bsCtx)
 C.include "imgui.h"
-C.include "backends/imgui_impl_sdl.h"
+C.include "backends/imgui_impl_sdl2.h"
 C.include "SDL.h"
 Cpp.using "namespace ImGui"
 

@@ -33,7 +33,7 @@ import Control.Monad.IO.Class ( MonadIO, liftIO )
 C.context Cpp.cppCtx
 C.include "imgui.h"
 C.include "backends/imgui_impl_vulkan.h"
-C.include "backends/imgui_impl_sdl.h"
+C.include "backends/imgui_impl_sdl2.h"
 C.include "SDL.h"
 C.include "SDL_vulkan.h"
 Cpp.using "namespace ImGui"
