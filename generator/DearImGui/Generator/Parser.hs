@@ -60,7 +60,7 @@ import Data.Text
   ( Text )
 import qualified Data.Text as Text
   ( all, any, breakOn, drop, dropWhile, dropWhileEnd
-  , length, stripPrefix, unlines, unpack
+  , length, stripPrefix, unlines, unpack, pack
   )
 
 -- transformers
@@ -81,6 +81,8 @@ import DearImGui.Generator.Tokeniser
 import DearImGui.Generator.Types
   ( Comment(..), Enumeration(..), Headers(..) )
 
+import qualified Text.Show as Text
+
 --------------------------------------------------------------------------------
 -- Parse error type.
 
@@ -90,7 +92,9 @@ data CustomParseError
     , problems :: ![Text]
     }
   | MissingForwardDeclaration
-    { enumName :: !Text }
+    { enumName :: !Text
+    , library :: HashMap Text ( TH.Name, Comment )
+    }
   | UnexpectedSection
     { sectionName :: !Text
     , problem     :: ![Text]
@@ -101,8 +105,9 @@ instance ShowErrorComponent CustomParseError where
   showErrorComponent ( Couldn'tLookupEnumValues { enumName, problems } ) = Text.unpack $
     "Couldn't lookup the following values in enum " <> enumName <> ":\n"
     <> Text.unlines ( map ( " - "  <> ) problems )
-  showErrorComponent ( MissingForwardDeclaration { enumName } ) = Text.unpack $
-    "Missing forward declaration for enum named " <> enumName
+  showErrorComponent ( MissingForwardDeclaration { enumName, library } ) = Text.unpack $
+    "Missing forward declaration for enum named " <> enumName <> "\n"
+    <> "In Library: " <> Text.pack ( Text.show library)
   showErrorComponent ( UnexpectedSection { sectionName, problem } ) = Text.unpack $
     "Unexpected section name.\n\
     \Expected: " <> sectionName <> "\n\
@@ -124,6 +129,7 @@ headers = do
   ( _defines, basicEnums ) <- partitionEithers <$>
     manyTill
       (   ( Left  <$> try ignoreDefine )
+      <|> ( Left  <$> try cppConditional )
       <|> ( Right <$> enumeration enumNamesAndTypes )
       )
       ( namedSection "Helpers: Memory allocations macros, ImVector<>" )
@@ -134,7 +140,7 @@ headers = do
 
   _ <- skipManyTill anySingle ( namedSection "Misc data structures" )
 
-  _ <- skipManyTill anySingle ( namedSection "Helpers (ImGuiOnceUponAFrame, ImGuiTextFilter, ImGuiTextBuffer, ImGuiStorage, ImGuiListClipper, ImColor)" )
+  _ <- skipManyTill anySingle ( namedSection "Helpers (ImGuiOnceUponAFrame, ImGuiTextFilter, ImGuiTextBuffer, ImGuiStorage, ImGuiListClipper, Math Operators, ImColor)" )
 
   _ <- skipManyTill anySingle ( namedSection "Drawing API (ImDrawCmd, ImDrawIdx, ImDrawVert, ImDrawChannel, ImDrawListSplitter, ImDrawListFlags, ImDrawList, ImDrawData)" )
   skipManyTill anySingle ( try . lookAhead $ many comment *> keyword "enum" )
@@ -171,14 +177,24 @@ forwardDeclarations = do
     pure ( structName, doc )
   _ <- many comment
   enums <- many do
+    keyword "enum"
+    enumName <- identifier
+    symbol ":"
+    ty <- cTypeName
+    reservedSymbol ';'
+    doc <- commentText <$> comment
+    pure ( enumName, ( ty, CommentText <$> Text.drop 2 . snd $ Text.breakOn "//" doc ) )
+  _ <- many comment
+  typedefs <- many do
     keyword "typedef"
     ty <- cTypeName
     enumName <- identifier
     reservedSymbol ';'
     doc <- commentText <$> comment
+    _ <- many comment
     pure ( enumName, ( ty, CommentText <$> Text.drop 2 . snd $ Text.breakOn "//" doc ) )
   -- Stopping after simple structs and enums for now.
-  pure ( HashMap.fromList structs, HashMap.fromList enums )
+  pure ( HashMap.fromList structs, HashMap.fromList (enums <> typedefs) )
 
 cTypeName :: MonadParsec e [Tok] m => m TH.Name
 cTypeName = keyword "int" $> ''CInt
@@ -200,6 +216,7 @@ enumeration enumNamesAndTypes = do
     keyword "enum"
     pure inlineDocs
   fullEnumName <- identifier
+  _ <- try $ (symbol ":" >> cTypeName >> pure ()) <|> pure ()
   let
     enumName :: Text
     enumName = Text.dropWhileEnd ( == '_' ) fullEnumName
@@ -207,7 +224,7 @@ enumeration enumNamesAndTypes = do
     enumTypeName = ()
   ( underlyingType, forwardDoc ) <- case HashMap.lookup enumName enumNamesAndTypes of
     Just res -> pure res
-    Nothing  -> customFailure ( MissingForwardDeclaration { enumName } )
+    Nothing  -> customFailure ( MissingForwardDeclaration { enumName, library=enumNamesAndTypes } )
   let
     docs :: [Comment]
     docs = forwardDoc : CommentText "" : inlineDocs
