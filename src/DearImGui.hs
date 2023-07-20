@@ -1690,7 +1690,7 @@ withTabBarOpen tabBarID flags action =
 -- | Create a new tab. Returns @True@ if the tab is selected.
 --
 -- Wraps @ImGui::BeginTabItem@.
-beginTabItem :: (MonadIO m, HasGetter ref Bool, HasSetter ref Bool) => Text -> ref -> ImGuiTabBarFlags -> m Bool
+beginTabItem :: (MonadIO m, HasGetter ref Bool, HasSetter ref Bool) => Text -> ref -> ImGuiTabItemFlags -> m Bool
 beginTabItem tabName ref flags = liftIO do
   currentValue <- get ref
   with (bool 0 1 currentValue) \refPtr -> do
@@ -1706,14 +1706,14 @@ beginTabItem tabName ref flags = liftIO do
 -- | Create a new tab.
 --
 -- The action will get 'True' if the tab is selected.
-withTabItem :: (MonadUnliftIO m, HasGetter ref Bool, HasSetter ref Bool) => Text -> ref -> ImGuiTabBarFlags -> (Bool -> m a) -> m a
+withTabItem :: (MonadUnliftIO m, HasGetter ref Bool, HasSetter ref Bool) => Text -> ref -> ImGuiTabItemFlags -> (Bool -> m a) -> m a
 withTabItem tabName ref flags =
   bracket (beginTabItem tabName ref flags) (`when` Raw.endTabItem)
 
 -- | Create a new tab.
 --
 -- The action will be skipped unless the tab is selected.
-withTabItemOpen :: (MonadUnliftIO m, HasGetter ref Bool, HasSetter ref Bool) => Text -> ref -> ImGuiTabBarFlags -> m () -> m ()
+withTabItemOpen :: (MonadUnliftIO m, HasGetter ref Bool, HasSetter ref Bool) => Text -> ref -> ImGuiTabItemFlags -> m () -> m ()
 withTabItemOpen tabName ref flags action =
   withTabItem tabName ref flags (`when` action)
 

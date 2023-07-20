@@ -79,10 +79,10 @@ loop window checked color slider r pos size' selected tab1Ref tab2Ref = do
   text "Hello!"
 
   beginTabBar "My tab bar" ImGuiTabBarFlags_Reorderable >>= whenTrue do
-    beginTabItem "Tab 1" tab1Ref ImGuiTabBarFlags_None >>= whenTrue do
+    beginTabItem "Tab 1" tab1Ref ImGuiTabItemFlags_None >>= whenTrue do
       text "Tab 1 is currently selected."
       endTabItem
-    beginTabItem "Tab 2" tab2Ref ImGuiTabBarFlags_None >>= whenTrue do
+    beginTabItem "Tab 2" tab2Ref ImGuiTabItemFlags_None >>= whenTrue do
       text "Tab 2 is selected now."
       endTabItem
     reOpen <- tabItemButton "ReopenTabs" ImGuiTabItemFlags_Trailing
