@@ -1346,9 +1346,9 @@ endTabBar = liftIO do
 -- | Create a new tab. Returns @True@ if the tab is selected.
 --
 -- Wraps @ImGui::BeginTabItem@.
-beginTabItem :: (MonadIO m) => CString -> Ptr CBool -> ImGuiTabBarFlags -> m Bool
+beginTabItem :: (MonadIO m) => CString -> Ptr CBool -> ImGuiTabItemFlags -> m Bool
 beginTabItem namePtr refPtr flags = liftIO do
-  (0 /=) <$> [C.exp| bool { BeginTabItem($(char* namePtr), $(bool* refPtr), $(ImGuiTabBarFlags flags) ) } |]
+  (0 /=) <$> [C.exp| bool { BeginTabItem($(char* namePtr), $(bool* refPtr), $(ImGuiTabItemFlags flags) ) } |]
 
 
 -- | Finish appending elements to a tab. Only call if 'beginTabItem' returns @True@.
