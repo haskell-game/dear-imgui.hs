@@ -134,6 +134,8 @@ vulkanInit ( InitInfo {..} ) renderPass = do
           initInfo.MSAASamples = $(VkSampleCountFlagBits msaaSamples);
           initInfo.Allocator = $(VkAllocationCallbacks* callbacksPtr);
           initInfo.CheckVkResultFn = $( void (*checkResultFunPtr)(VkResult) );
+          initInfo.UseDynamicRendering = false;
+          // TODO: initInfo.ColorAttachmentFormat
           return ImGui_ImplVulkan_Init(&initInfo, $(VkRenderPass renderPass) );
         }|]
     pure ( checkResultFunPtr, initResult /= 0 )
