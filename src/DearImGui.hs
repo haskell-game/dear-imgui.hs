@@ -1748,7 +1748,7 @@ beginPopup :: MonadIO m => Text -> m Bool
 beginPopup popupId = liftIO do
   Text.withCString popupId Raw.beginPopup
 
--- | Append intems to a non-modal Popup.
+-- | Append items to a non-modal Popup.
 --
 -- Non-modal popups can be closed by clicking anywhere outside them,
 -- or by pressing ESCAPE.
@@ -1759,7 +1759,7 @@ beginPopup popupId = liftIO do
 withPopup :: MonadUnliftIO m => Text -> (Bool -> m a) -> m a
 withPopup popupId = bracket (beginPopup popupId) (`when` Raw.endPopup)
 
--- | Append intems to a non-modal Popup.
+-- | Append items to a non-modal Popup.
 --
 -- Non-modal popups can be closed by clicking anywhere outside them,
 -- or by pressing ESCAPE.
@@ -1778,7 +1778,7 @@ beginPopupModal :: MonadIO m => Text -> m Bool
 beginPopupModal popupId = liftIO do
   Text.withCString popupId Raw.beginPopupModal
 
--- | Append intems to a modal Popup.
+-- | Append items to a modal Popup.
 --
 -- Modal popups can be closed only with 'closeCurrentPopup'.
 --
