@@ -408,11 +408,9 @@ createSwapchain physicalDevice device surface surfaceFormat imageUsage imageCoun
 
   let
     presentMode :: Vulkan.PresentModeKHR
-    presentMode
-      | Vulkan.PRESENT_MODE_MAILBOX_KHR `elem` presentModes
-      = Vulkan.PRESENT_MODE_MAILBOX_KHR
-      | otherwise
-      = Vulkan.PRESENT_MODE_FIFO_KHR
+    presentMode =
+      Vulkan.PRESENT_MODE_FIFO_KHR -- run at presentation rate
+      -- Vulkan.PRESENT_MODE_MAILBOX_KHR -- max-FPS alternative for benchmarks, input lag debugging, etc.
 
     Vulkan.SurfaceCapabilitiesKHR{currentExtent, currentTransform} = surfaceCapabilities
     Vulkan.SurfaceFormatKHR{format=fmt, colorSpace=csp} = surfaceFormat
