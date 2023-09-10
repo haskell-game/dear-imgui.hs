@@ -1,5 +1,13 @@
 # Changelog for dear-imgui
 
+## [2.2.0]
+
+- `imgui` updated to [1.89.9].
+- Update bounds for ghc-9.6.
+- Exposed `DearImGui.Raw.Context`.
+- Added `getCursorPos``.
+- Fix TabItem flags type.
+
 ## [2.1.3]
 
 - Fixed off-by-1 in internal Text wrapper.
@@ -107,7 +115,9 @@ Initial Hackage release based on [1.83].
 [2.1.1]: https://github.com/haskell-game/dear-imgui.hs/tree/v2.1.1
 [2.1.2]: https://github.com/haskell-game/dear-imgui.hs/tree/v2.1.2
 [2.1.3]: https://github.com/haskell-game/dear-imgui.hs/tree/v2.1.3
+[2.2.0]: https://github.com/haskell-game/dear-imgui.hs/tree/v2.2.0
 
+[1.89.9]: https://github.com/ocornut/imgui/releases/tag/v1.89.9
 [1.87]: https://github.com/ocornut/imgui/releases/tag/v1.87
 [1.86]: https://github.com/ocornut/imgui/releases/tag/v1.86
 [1.85]: https://github.com/ocornut/imgui/releases/tag/v1.85
