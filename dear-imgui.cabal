@@ -301,7 +301,7 @@ library dear-imgui-generator
     , inline-c
         >= 0.9.0.0 && < 0.10
     , megaparsec
-        >= 9.0 && < 9.3
+        >= 9.0 && < 9.4
     , parser-combinators
         >= 1.2.0 && < 1.4
     , scientific
