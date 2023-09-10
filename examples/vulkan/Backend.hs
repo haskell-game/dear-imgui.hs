@@ -401,8 +401,6 @@ createSwapchain physicalDevice device surface surfaceFormat imageUsage imageCoun
 
   surfaceCapabilities <- Vulkan.getPhysicalDeviceSurfaceCapabilitiesKHR physicalDevice ( Vulkan.SurfaceKHR surface )
 
-  ( _, presentModes ) <- Vulkan.getPhysicalDeviceSurfacePresentModesKHR physicalDevice ( Vulkan.SurfaceKHR surface )
-
   let
     presentMode :: Vulkan.PresentModeKHR
     presentMode =
