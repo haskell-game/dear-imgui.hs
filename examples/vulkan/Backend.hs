@@ -44,7 +44,7 @@ import Data.Traversable
 import Data.Word
   ( Word32 )
 import Foreign.C.String
-  ( CString )
+  ( peekCString )
 import Foreign.C.Types
   ( CInt )
 import Foreign.Ptr
@@ -53,8 +53,6 @@ import Foreign.Ptr
 -- bytestring
 import Data.ByteString
   ( ByteString )
-import qualified Data.ByteString.Short as ShortByteString
-  ( packCString )
 
 -- containers
 import qualified Data.Map.Strict as Map
@@ -77,11 +75,13 @@ import qualified SDL
 import qualified SDL.Raw
 import qualified SDL.Video.Vulkan
 
--- text-short
-import Data.Text.Short
-  ( ShortText )
-import qualified Data.Text.Short as ShortText
-  ( intercalate, pack, fromShortByteString, toByteString, unpack )
+-- text
+import Data.Text
+  ( Text )
+import qualified Data.Text as Text
+  ( intercalate, pack, unpack )
+import Data.Text.Encoding
+  ( encodeUtf8 )
 
 -- transformers
 import Control.Monad.IO.Class
@@ -118,7 +118,7 @@ import Attachments
 
 --------------------------------------------------------------------------------
 
-type LogMessage = WithSeverity ShortText
+type LogMessage = WithSeverity Text
 class    ( MonadUnliftIO m, MonadResource m, MonadLog LogMessage m ) => MonadVulkan m
 instance ( MonadUnliftIO m, MonadResource m, MonadLog LogMessage m ) => MonadVulkan m
 
@@ -127,9 +127,9 @@ instance ( MonadUnliftIO m, MonadResource m, MonadLog LogMessage m ) => MonadVul
 
 logHandler :: MonadIO m => LogMessage -> m ()
 logHandler ( WithSeverity sev mess )
-  = liftIO . putStrLn . ShortText.unpack $ showSeverity sev <> " " <> mess
+  = liftIO . putStrLn . Text.unpack $ showSeverity sev <> " " <> mess
 
-showSeverity :: Severity -> ShortText
+showSeverity :: Severity -> Text
 showSeverity Emergency     = "! PANIC !"
 showSeverity Alert         = "! ALERT !"
 showSeverity Critical      = "! CRIT !"
@@ -244,7 +244,7 @@ vulkanInstanceInfo appName = do
 
   case validationLayer of
     Nothing -> logInfo "Validation layer unavailable. Is the Vulkan SDK installed?"
-    Just _  -> logInfo ( "Enabled validation layers " <> ShortText.pack ( show enabledLayers ) )
+    Just _  -> logInfo ( "Enabled validation layers " <> Text.pack ( show enabledLayers ) )
 
   pure createInfo
 
@@ -305,26 +305,23 @@ initialiseWindow ( WindowInfo { height, width, windowName, mouseMode } ) = do
   void ( SDL.setMouseLocationMode mouseMode )
   window           <- logDebug "Creating SDL window"           *> createWindow width height windowName
   neededExtensions <- logDebug "Loading needed extensions"     *> SDL.Video.Vulkan.vkGetInstanceExtensions window
-  extensionNames   <- traverse ( liftIO . peekCString ) neededExtensions
-  logInfo $ "Needed instance extensions are: " <> ShortText.intercalate ", " extensionNames
-  pure ( window, map ShortText.toByteString extensionNames )
-
-peekCString :: CString -> IO ShortText
-peekCString = fmap ( fromMaybe "???" . ShortText.fromShortByteString ) . ShortByteString.packCString
+  extensionNames   <- traverse ( liftIO . fmap fromString . peekCString ) neededExtensions
+  logInfo $ "Needed instance extensions are: " <> Text.intercalate ", " extensionNames
+  pure ( window, map encodeUtf8 extensionNames )
 
 data WindowInfo
   = WindowInfo
   { width      :: CInt
   , height     :: CInt
-  , windowName :: ShortText
+  , windowName :: Text
   , mouseMode  :: SDL.LocationMode
   }
 
-createWindow :: MonadVulkan m => CInt -> CInt -> ShortText -> m SDL.Window
+createWindow :: MonadVulkan m => CInt -> CInt -> Text -> m SDL.Window
 createWindow x y title =
   snd <$> ResourceT.allocate
     ( SDL.createWindow
-              ( fromString ( ShortText.unpack title ) )
+              ( fromString ( Text.unpack title ) )
               SDL.defaultWindow
                 { SDL.windowGraphicsContext = SDL.VulkanContext
                 , SDL.windowInitialSize     = SDL.V2 x y
