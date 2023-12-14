@@ -335,6 +335,7 @@ module DearImGui
   , Raw.getBackgroundDrawList
   , Raw.getForegroundDrawList
   , Raw.imCol32
+  , Raw.framerate
 
     -- * Types
   , module DearImGui.Enums
