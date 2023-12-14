@@ -240,10 +240,12 @@ library
   if flag(sdl)
     exposed-modules:
       DearImGui.SDL
+      DearImGui.SDL.Renderer
     build-depends:
       sdl2
     cxx-sources:
       imgui/backends/imgui_impl_sdl2.cpp
+      imgui/backends/imgui_impl_sdlrenderer2.cpp
 
     if os(windows) || os(darwin)
       extra-libraries:
@@ -356,6 +358,14 @@ executable image
   hs-source-dirs: examples/sdl
   build-depends: sdl2, gl, dear-imgui, managed, vector
   if (!flag(examples) || !flag(sdl) || !flag(opengl3))
+    buildable: False
+
+executable sdlrenderer
+  import: common, exe-flags
+  main-is: Renderer.hs
+  hs-source-dirs: examples/sdl
+  build-depends: sdl2, dear-imgui, managed, text
+  if (!flag(examples) || !flag(sdl))
     buildable: False
 
 executable vulkan
