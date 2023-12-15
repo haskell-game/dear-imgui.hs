@@ -45,6 +45,7 @@ module DearImGui
     -- * Windows
   , withWindow
   , withWindowOpen
+  , withCloseableWindow
   , withFullscreen
   , fullscreenFlags
 
@@ -335,6 +336,7 @@ module DearImGui
   , Raw.getBackgroundDrawList
   , Raw.getForegroundDrawList
   , Raw.imCol32
+  , Raw.framerate
 
     -- * Types
   , module DearImGui.Enums
@@ -414,6 +416,26 @@ withWindow name = bracket (begin name) (const Raw.end)
 withWindowOpen :: MonadUnliftIO m => Text -> m () -> m ()
 withWindowOpen name action =
   withWindow name (`when` action)
+
+-- | Append items to a closeable window unless it is collapsed or fully clipped.
+--
+-- You may append multiple times to the same window during the same frame
+-- by calling 'withWindowOpen' in multiple places.
+--
+-- The 'Bool' state variable will be set to 'False' when the window's close
+-- button is pressed.
+withCloseableWindow :: (HasSetter ref Bool, MonadUnliftIO m) => Text -> ref -> m () -> m ()
+withCloseableWindow name ref action = bracket open close (`when` action)
+  where
+    open = liftIO do
+      with 1 \boolPtr -> do
+        Text.withCString name \namePtr -> do
+          isVisible <- Raw.begin namePtr (Just boolPtr) Nothing
+          isOpen <- peek boolPtr
+          when (isOpen == 0) $ ref $=! False
+          pure isVisible
+
+    close = liftIO . const Raw.end
 
 -- | Append items to a fullscreen window.
 --

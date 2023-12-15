@@ -249,6 +249,7 @@ module DearImGui.Raw
   , getBackgroundDrawList
   , getForegroundDrawList
   , imCol32
+  , framerate
 
     -- * Types
   , module DearImGui.Enums
@@ -1778,6 +1779,12 @@ wantCaptureMouse = liftIO do
 wantCaptureKeyboard :: MonadIO m => m Bool
 wantCaptureKeyboard = liftIO do
   (0 /=) <$> [C.exp| bool { GetIO().WantCaptureKeyboard } |]
+
+-- | Estimate of application framerate (rolling average over 60 frames), in
+-- frame per second. Solely for convenience.
+framerate :: MonadIO m => m Float
+framerate = liftIO do
+  realToFrac <$> [C.exp| float { GetIO().Framerate } |]
 
 -- | This draw list will be the first rendering one.
 --

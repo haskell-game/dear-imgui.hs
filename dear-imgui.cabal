@@ -94,6 +94,15 @@ flag sdl
   manual:
     True
 
+flag sdl-renderer
+  description:
+    Enable SDL Renderer backend (requires the SDL_RenderGeometry function available in SDL 2.0.18+).
+    The sdl configuration flag must also be enabled when using this flag.
+  default:
+    False
+  manual:
+    True
+
 flag glfw
   description:
     Enable GLFW backend.
@@ -260,6 +269,12 @@ library
       exposed-modules:
         DearImGui.SDL.Vulkan
 
+    if flag(sdl-renderer)
+      exposed-modules:
+        DearImGui.SDL.Renderer
+      cxx-sources:
+        imgui/backends/imgui_impl_sdlrenderer2.cpp
+
   if flag(glfw)
     exposed-modules:
       DearImGui.GLFW
@@ -356,6 +371,14 @@ executable image
   hs-source-dirs: examples/sdl
   build-depends: sdl2, gl, dear-imgui, managed, vector
   if (!flag(examples) || !flag(sdl) || !flag(opengl3))
+    buildable: False
+
+executable sdlrenderer
+  import: common, exe-flags
+  main-is: Renderer.hs
+  hs-source-dirs: examples/sdl
+  build-depends: sdl2, dear-imgui, managed, text
+  if (!flag(examples) || !flag(sdl) || !flag(sdl-renderer))
     buildable: False
 
 executable vulkan
