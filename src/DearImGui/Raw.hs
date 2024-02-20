@@ -65,6 +65,8 @@ module DearImGui.Raw
   , setNextWindowSizeConstraints
   , setNextWindowCollapsed
   , setNextWindowBgAlpha
+  , beginDisabled
+  , endDisabled
 
     -- ** Child Windows
   , beginChild
@@ -1580,6 +1582,29 @@ setNextWindowCollapsed b cond = liftIO do
 setNextWindowBgAlpha :: (MonadIO m) => CFloat -> m ()
 setNextWindowBgAlpha alpha = liftIO do
   [C.exp| void { SetNextWindowBgAlpha($(float alpha)) } |]
+
+
+-- | Begin a block that may be disabled. This disables all user interactions
+-- and dims item visuals.
+--
+-- Always call a matching 'endDisabled' for each 'beginDisabled' call.
+--
+-- The boolean argument is only intended to facilitate use of boolean
+-- expressions. If you can avoid calling @beginDisabled 0@ altogether,
+-- that should be preferred.
+--
+-- Wraps @ImGui::BeginDisabled()@
+beginDisabled :: (MonadIO m) => CBool -> m ()
+beginDisabled disabled = liftIO do
+  [C.exp| void { BeginDisabled($(bool disabled)) } |]
+
+
+-- | Ends a block that may be disabled.
+--
+-- Wraps @ImGui::EndDisabled()@
+endDisabled :: (MonadIO m) => m ()
+endDisabled = liftIO do
+  [C.exp| void { EndDisabled() } |]
 
 
 -- | undo a sameLine or force a new line when in an horizontal-layout context.

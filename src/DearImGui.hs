@@ -279,6 +279,11 @@ module DearImGui
   , Raw.beginTooltip
   , Raw.endTooltip
 
+    -- ** Disabled blocks
+  , withDisabled
+  , Raw.beginDisabled
+  , Raw.endDisabled
+
     -- * Popups/Modals
 
     -- ** Generic
@@ -1762,6 +1767,17 @@ setTabItemClosed tabName = liftIO do
 -- Can contain any kind of items.
 withTooltip ::  MonadUnliftIO m => m a -> m a
 withTooltip = bracket_ Raw.beginTooltip Raw.endTooltip
+
+
+-- | Action wrapper for disabled blocks.
+--
+-- See 'Raw.beginDisabled' and 'Raw.endDisabled' for more info.
+withDisabled :: (MonadUnliftIO m, HasGetter ref Bool) => ref -> m a -> m a
+withDisabled disabledRef action = do
+  disabled <- get disabledRef
+  if disabled then bracket_ (Raw.beginDisabled 1) Raw.endDisabled action else action
+
+
 
 -- | Returns 'True' if the popup is open, and you can start outputting to it.
 --
