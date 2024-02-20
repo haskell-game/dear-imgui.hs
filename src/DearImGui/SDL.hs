@@ -21,12 +21,14 @@ module DearImGui.SDL (
   , sdl2Shutdown
   , pollEventWithImGui
   , pollEventsWithImGui
+    -- *** Raw
+  , dispatchRawEvent
   )
   where
 
 -- base
 import Control.Monad
-  ( when )
+  ( void, when )
 import Foreign.Marshal.Alloc
   ( alloca )
 import Foreign.Ptr
@@ -42,6 +44,7 @@ import qualified Language.C.Inline.Cpp as Cpp
 import SDL
 import SDL.Raw.Enum as Raw
 import qualified SDL.Raw.Event as Raw
+import qualified SDL.Raw.Types as Raw
 
 -- transformers
 import Control.Monad.IO.Class
@@ -77,10 +80,23 @@ pollEventWithImGui = liftIO do
     nEvents <- Raw.peepEvents evPtr 1 Raw.SDL_PEEKEVENT Raw.SDL_FIRSTEVENT Raw.SDL_LASTEVENT
 
     when (nEvents > 0) do
-      let evPtr' = castPtr evPtr :: Ptr ()
-      [C.exp| void { ImGui_ImplSDL2_ProcessEvent((SDL_Event*) $(void* evPtr')) } |]
+      void $ dispatchRawEvent evPtr
 
     pollEvent
+
+-- | Dispatch a raw 'Raw.Event' value to Dear ImGui.
+--
+-- You may want this function instead of 'pollEventWithImGui' if you do not use
+-- @sdl2@'s higher-level 'Event' type (e.g. your application has its own polling
+-- mechanism).
+--
+-- __It is your application's responsibility to both manage the input__
+-- __pointer's memory and to fill the memory location with a raw 'Raw.Event'__
+-- __value.__
+dispatchRawEvent :: MonadIO m => Ptr Raw.Event -> m Bool
+dispatchRawEvent evPtr = liftIO do
+  let evPtr' = castPtr evPtr :: Ptr ()
+  (0 /=) <$> [C.exp| bool { ImGui_ImplSDL2_ProcessEvent((const SDL_Event*) $(void* evPtr')) } |]
 
 -- | Like the SDL2 'pollEvents' function, while also dispatching the events to
 -- Dear ImGui. See 'pollEventWithImGui'.
