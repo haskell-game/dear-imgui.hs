@@ -179,8 +179,15 @@ library
     imgui/imgui_draw.cpp
     imgui/imgui_tables.cpp
     imgui/imgui_widgets.cpp
-  extra-libraries:
-    stdc++
+  if impl(ghc >= 9.4)
+    build-depends: system-cxx-std-lib
+  else
+    if os(linux)
+      extra-libraries: stdc++
+    if os(darwin)
+      extra-libraries: stdc++
+    if os(windows)
+      extra-libraries: stdc++
   include-dirs:
     imgui
   build-depends:
