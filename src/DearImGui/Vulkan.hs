@@ -31,6 +31,8 @@ import Data.Word
   ( Word32 )
 import Foreign.Marshal.Alloc
   ( alloca )
+import Foreign.Marshal.Utils
+  ( fromBool )
 import Foreign.Ptr
   ( FunPtr, Ptr, freeHaskellFunPtr, nullPtr )
 import Foreign.Storable
@@ -70,19 +72,20 @@ Cpp.using "namespace ImGui"
 
 data InitInfo =
   InitInfo
-  { instance'      :: !Vulkan.Instance
-  , physicalDevice :: !Vulkan.PhysicalDevice
-  , device         :: !Vulkan.Device
-  , queueFamily    :: !Word32
-  , queue          :: !Vulkan.Queue
-  , pipelineCache  :: !Vulkan.PipelineCache
-  , descriptorPool :: !Vulkan.DescriptorPool
-  , subpass        :: !Word32
-  , minImageCount  :: !Word32
-  , imageCount     :: !Word32
-  , msaaSamples    :: !Vulkan.SampleCountFlagBits
-  , mbAllocator    :: Maybe Vulkan.AllocationCallbacks
-  , checkResult    :: Vulkan.Result -> IO ()
+  { instance'           :: !Vulkan.Instance
+  , physicalDevice      :: !Vulkan.PhysicalDevice
+  , device              :: !Vulkan.Device
+  , queueFamily         :: !Word32
+  , queue               :: !Vulkan.Queue
+  , pipelineCache       :: !Vulkan.PipelineCache
+  , descriptorPool      :: !Vulkan.DescriptorPool
+  , subpass             :: !Word32
+  , minImageCount       :: !Word32
+  , imageCount          :: !Word32
+  , msaaSamples         :: !Vulkan.SampleCountFlagBits
+  , useDynamicRendering :: !Bool
+  , mbAllocator         :: Maybe Vulkan.AllocationCallbacks
+  , checkResult         :: Vulkan.Result -> IO ()
   }
 
 -- | Wraps @ImGui_ImplVulkan_Init@ and @ImGui_ImplVulkan_Shutdown@.
@@ -112,6 +115,8 @@ vulkanInit ( InitInfo {..} ) renderPass = do
     withCallbacks f = case mbAllocator of
       Nothing        -> f nullPtr
       Just callbacks -> alloca ( \ ptr -> poke ptr callbacks *> f ptr )
+    useDynamicRenderingCBool :: Cpp.CBool
+    useDynamicRenderingCBool = fromBool useDynamicRendering
   liftIO do
     checkResultFunPtr <- $( C.mkFunPtr [t| Vulkan.Result -> IO () |] ) checkResult
     initResult <- withCallbacks \ callbacksPtr ->
@@ -134,7 +139,7 @@ vulkanInit ( InitInfo {..} ) renderPass = do
           initInfo.MSAASamples = $(VkSampleCountFlagBits msaaSamples);
           initInfo.Allocator = $(VkAllocationCallbacks* callbacksPtr);
           initInfo.CheckVkResultFn = $( void (*checkResultFunPtr)(VkResult) );
-          initInfo.UseDynamicRendering = false;
+          initInfo.UseDynamicRendering = $(bool useDynamicRenderingCBool);
           // TODO: initInfo.ColorAttachmentFormat
           return ImGui_ImplVulkan_Init(&initInfo, $(VkRenderPass renderPass) );
         }|]
