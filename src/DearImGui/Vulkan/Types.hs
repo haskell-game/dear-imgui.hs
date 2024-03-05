@@ -35,6 +35,7 @@ vulkanTypesTable = Map.fromList
   , ( C.TypeName "VkImageView"          , [t| Vulkan.ImageView           |] )
   , ( C.TypeName "VkImageLayout"        , [t| Vulkan.ImageLayout         |] )
   , ( C.TypeName "VkDescriptorSet"      , [t| Vulkan.DescriptorSet       |] )
+  , ( C.TypeName "VkFormat"             , [t| Vulkan.Format              |])
   ]
 
 vulkanCtx :: C.Context
