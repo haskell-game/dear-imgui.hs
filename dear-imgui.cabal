@@ -252,7 +252,7 @@ library
     exposed-modules:
       DearImGui.SDL
     build-depends:
-      sdl2
+      sdl2 >= 2
     cxx-sources:
       imgui/backends/imgui_impl_sdl2.cpp
 
