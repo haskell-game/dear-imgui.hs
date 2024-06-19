@@ -9,11 +9,11 @@ jobs:
           persist-credentials: false
           submodules: true
 
-    - uses: cachix/install-nix-action@v20
+    - uses: cachix/install-nix-action@v27
       with:
         nix_path: nixpkgs=channel:nixos-unstable
 
-    - uses: cachix/cachix-action@v12
+    - uses: cachix/cachix-action@v15
       with:
         name: hs-dear-imgui
         authToken: '${{ secrets.CACHIX_AUTH_TOKEN }}'
