@@ -31,6 +31,8 @@ import Data.Word
   ( Word32 )
 import Foreign.Marshal.Alloc
   ( alloca )
+import Foreign.Marshal.Utils
+  ( fromBool )
 import Foreign.Ptr
   ( FunPtr, Ptr, freeHaskellFunPtr, nullPtr )
 import Foreign.Storable
@@ -70,19 +72,21 @@ Cpp.using "namespace ImGui"
 
 data InitInfo =
   InitInfo
-  { instance'      :: !Vulkan.Instance
-  , physicalDevice :: !Vulkan.PhysicalDevice
-  , device         :: !Vulkan.Device
-  , queueFamily    :: !Word32
-  , queue          :: !Vulkan.Queue
-  , pipelineCache  :: !Vulkan.PipelineCache
-  , descriptorPool :: !Vulkan.DescriptorPool
-  , subpass        :: !Word32
-  , minImageCount  :: !Word32
-  , imageCount     :: !Word32
-  , msaaSamples    :: !Vulkan.SampleCountFlagBits
-  , mbAllocator    :: Maybe Vulkan.AllocationCallbacks
-  , checkResult    :: Vulkan.Result -> IO ()
+  { instance'             :: !Vulkan.Instance
+  , physicalDevice        :: !Vulkan.PhysicalDevice
+  , device                :: !Vulkan.Device
+  , queueFamily           :: !Word32
+  , queue                 :: !Vulkan.Queue
+  , pipelineCache         :: !Vulkan.PipelineCache
+  , descriptorPool        :: !Vulkan.DescriptorPool
+  , subpass               :: !Word32
+  , minImageCount         :: !Word32
+  , imageCount            :: !Word32
+  , msaaSamples           :: !Vulkan.SampleCountFlagBits
+  , colorAttachmentFormat :: !(Maybe Vulkan.Format)
+  , useDynamicRendering   :: !Bool
+  , mbAllocator           :: Maybe Vulkan.AllocationCallbacks
+  , checkResult           :: Vulkan.Result -> IO ()
   }
 
 -- | Wraps @ImGui_ImplVulkan_Init@ and @ImGui_ImplVulkan_Shutdown@.
@@ -112,6 +116,10 @@ vulkanInit ( InitInfo {..} ) renderPass = do
     withCallbacks f = case mbAllocator of
       Nothing        -> f nullPtr
       Just callbacks -> alloca ( \ ptr -> poke ptr callbacks *> f ptr )
+    useDynamicRendering' :: Cpp.CBool
+    useDynamicRendering' = fromBool useDynamicRendering
+    colorAttachmentFormat' :: Vulkan.Format
+    colorAttachmentFormat' = fromMaybe Vulkan.FORMAT_UNDEFINED colorAttachmentFormat
   liftIO do
     checkResultFunPtr <- $( C.mkFunPtr [t| Vulkan.Result -> IO () |] ) checkResult
     initResult <- withCallbacks \ callbacksPtr ->
@@ -134,8 +142,8 @@ vulkanInit ( InitInfo {..} ) renderPass = do
           initInfo.MSAASamples = $(VkSampleCountFlagBits msaaSamples);
           initInfo.Allocator = $(VkAllocationCallbacks* callbacksPtr);
           initInfo.CheckVkResultFn = $( void (*checkResultFunPtr)(VkResult) );
-          initInfo.UseDynamicRendering = false;
-          // TODO: initInfo.ColorAttachmentFormat
+          initInfo.UseDynamicRendering = $(bool useDynamicRendering');
+          initInfo.ColorAttachmentFormat = $(VkFormat colorAttachmentFormat');
           return ImGui_ImplVulkan_Init(&initInfo, $(VkRenderPass renderPass) );
         }|]
     pure ( checkResultFunPtr, initResult /= 0 )
