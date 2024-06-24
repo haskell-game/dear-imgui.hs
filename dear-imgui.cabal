@@ -233,7 +233,7 @@ library
     other-modules:
       DearImGui.Vulkan.Types
     build-depends:
-        vulkan
+        vulkan >= 3.20
       , unliftio
     cxx-sources:
       imgui/backends/imgui_impl_vulkan.cpp
@@ -415,7 +415,7 @@ executable vulkan
       , vector
          >= 0.12.1.2 && < 0.14
       , vulkan
-         >= 3.12
+         >= 3.20
       , vulkan-utils
          >= 0.5
       , VulkanMemoryAllocator

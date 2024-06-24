@@ -9,6 +9,7 @@
 {-# LANGUAGE MonoLocalBinds #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE PatternSynonyms #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
@@ -99,6 +100,7 @@ import qualified Data.Vector as Boxed.Vector
 
 -- vulkan
 import qualified Vulkan
+import Vulkan.Core10.DeviceInitialization (pattern INSTANCE_CREATE_ENUMERATE_PORTABILITY_BIT_KHR)
 import qualified Vulkan.CStruct.Extends as Vulkan
 import qualified Vulkan.Requirement     as Vulkan
 import qualified Vulkan.Zero            as Vulkan
@@ -156,9 +158,10 @@ data InstanceType
 
 data VulkanRequirements =
   VulkanRequirements
-    { instanceRequirements :: [ Vulkan.InstanceRequirement ]
-    , deviceRequirements   :: [ Vulkan.DeviceRequirement   ]
-    , queueFlags           :: Vulkan.QueueFlags
+    { instanceRequirements    :: [ Vulkan.InstanceRequirement ]
+    , instanceRequirementsOpt :: [ Vulkan.InstanceRequirement ]
+    , deviceRequirements      :: [ Vulkan.DeviceRequirement   ]
+    , queueFlags              :: Vulkan.QueueFlags
     }
 
 data ValidationLayerName
@@ -167,12 +170,12 @@ data ValidationLayerName
   deriving stock ( Eq, Show )
 
 initialiseVulkanContext :: MonadVulkan m => InstanceType -> ByteString -> VulkanRequirements -> m VulkanContext
-initialiseVulkanContext instanceType appName ( VulkanRequirements { instanceRequirements, deviceRequirements, queueFlags } ) = do
+initialiseVulkanContext instanceType appName ( VulkanRequirements { instanceRequirements, instanceRequirementsOpt, deviceRequirements, queueFlags } ) = do
   logDebug "Creating Vulkan instance"
   instanceInfo    <- vulkanInstanceInfo appName
   instance'       <- case instanceType of
-    NormalInstance -> Vulkan.Utils.createInstanceFromRequirements      instanceRequirements [] instanceInfo
-    DebugInstance  -> Vulkan.Utils.createDebugInstanceFromRequirements instanceRequirements [] instanceInfo
+    NormalInstance -> Vulkan.Utils.createInstanceFromRequirements      instanceRequirements instanceRequirementsOpt instanceInfo
+    DebugInstance  -> Vulkan.Utils.createDebugInstanceFromRequirements instanceRequirements instanceRequirementsOpt instanceInfo
   physicalDevice  <- logDebug "Creating physical device"      *> createPhysicalDevice instance'
   queueFamily     <- logDebug "Finding suitable queue family" *> findQueueFamilyIndex physicalDevice queueFlags
   let
@@ -236,7 +239,7 @@ vulkanInstanceInfo appName = do
     createInfo =
       Vulkan.InstanceCreateInfo
         { Vulkan.next                  = ()
-        , Vulkan.flags                 = Vulkan.zero
+        , Vulkan.flags                 = INSTANCE_CREATE_ENUMERATE_PORTABILITY_BIT_KHR
         , Vulkan.applicationInfo       = Just appInfo
         , Vulkan.enabledLayerNames     = Boxed.Vector.fromList enabledLayers
         , Vulkan.enabledExtensionNames = mempty

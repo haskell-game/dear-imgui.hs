@@ -148,10 +148,14 @@ app = do
         , mouseMode  = SDL.AbsoluteLocation
         }
   let
+    compatExtensions =
+      [ Vulkan.KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME
+      ]
     vulkanReqs :: VulkanRequirements
     vulkanReqs =
       VulkanRequirements
         { instanceRequirements = instanceExtensions windowExtensions
+        , instanceRequirementsOpt = instanceExtensions compatExtensions
         , deviceRequirements   = []
         , queueFlags           = Vulkan.QUEUE_GRAPHICS_BIT
         }
