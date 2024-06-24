@@ -387,14 +387,16 @@ app = do
       , device
       , queueFamily
       , queue
-      , pipelineCache  = Vulkan.NULL_HANDLE
-      , descriptorPool = imGuiDescriptorPool
-      , subpass        = 0
+      , pipelineCache         = Vulkan.NULL_HANDLE
+      , descriptorPool        = imGuiDescriptorPool
+      , subpass               = 0
       , minImageCount
       , imageCount
-      , msaaSamples    = Vulkan.SAMPLE_COUNT_1_BIT
-      , mbAllocator    = Nothing
-      , checkResult    = \case { Vulkan.SUCCESS -> pure (); e -> throw $ Vulkan.VulkanException e }
+      , msaaSamples           = Vulkan.SAMPLE_COUNT_1_BIT
+      , mbAllocator           = Nothing
+      , useDynamicRendering   = False
+      , colorAttachmentFormat = Nothing
+      , checkResult           = \case { Vulkan.SUCCESS -> pure (); e -> throw $ Vulkan.VulkanException e }
       }
 
   logDebug "Initialising ImGui SDL2 for Vulkan"
