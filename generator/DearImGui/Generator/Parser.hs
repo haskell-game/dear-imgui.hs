@@ -27,7 +27,7 @@ import Data.Bits
 import Data.Char
   ( isSpace, toLower )
 import Data.Either
-  ( partitionEithers )
+  ( rights )
 import Data.Functor
   ( ($>) )
 import Data.Int
@@ -35,7 +35,7 @@ import Data.Int
 import Data.Maybe
   ( catMaybes, fromMaybe )
 import Foreign.C.Types
-  ( CInt )
+  ( CChar, CInt, CShort, CLLong, CUChar, CUShort, CUInt, CULLong )
 
 -- template-haskell
 import qualified Language.Haskell.TH as TH
@@ -44,7 +44,7 @@ import qualified Language.Haskell.TH as TH
 -- megaparsec
 import Text.Megaparsec
   ( MonadParsec(..), ShowErrorComponent(..)
-  , (<?>), anySingle, customFailure, single
+  , (<?>), anySingle, choice, customFailure, single
   )
 
 -- parser-combinators
@@ -126,13 +126,24 @@ headers = do
   _ <- skipManyTill anySingle ( namedSection "Dear ImGui end-user API functions" )
 
   _ <- skipManyTill anySingle ( namedSection "Flags & Enumerations" )
-  ( _defines, basicEnums ) <- partitionEithers <$>
+
+  basicEnums <- rights <$>
     manyTill
       (   ( Left  <$> try ignoreDefine )
       <|> ( Left  <$> try cppConditional )
       <|> ( Right <$> enumeration enumNamesAndTypes )
       )
-      ( namedSection "Helpers: Memory allocations macros, ImVector<>" )
+      ( namedSection "Tables API flags and structures (ImGuiTableFlags, ImGuiTableColumnFlags, ImGuiTableRowFlags, ImGuiTableBgTarget, ImGuiTableSortSpecs, ImGuiTableColumnSortSpecs)" )
+
+  tableEnums <- rights <$>
+    manyTill
+      (   ( Left  <$> try ignoreDefine )
+      <|> ( Left  <$> try cppConditional )
+      <|> ( Right <$> enumeration enumNamesAndTypes )
+      )
+      ( try $ many comment >> keyword "struct" >> identifier)
+
+  _ <- skipManyTill anySingle ( namedSection "Helpers: Memory allocations macros, ImVector<>" )
 
   _ <- skipManyTill anySingle ( namedSection "ImGuiStyle" )
 
@@ -158,7 +169,7 @@ headers = do
 
   let
     enums :: [ Enumeration () ]
-    enums = basicEnums <> drawingEnums <> fontEnums
+    enums = basicEnums <> tableEnums <> drawingEnums <> fontEnums
   pure ( Headers { enums } )
 
 --------------------------------------------------------------------------------
@@ -169,6 +180,15 @@ forwardDeclarations
   => m ( HashMap Text Comment, HashMap Text ( TH.Name, Comment ) )
 forwardDeclarations = do
   _ <- many comment
+  _scalars <- many do
+    try $ keyword "typedef"
+    signed <- try (keyword "signed" $> True) <|> (keyword "unsigned" $> False)
+    width <- try (keyword "int") <|> try (keyword "char") <|> try (keyword "short") <|> try (keyword "int") <|> (keyword "long" >> keyword "long")
+    typeName <- identifier
+    reservedSymbol ';'
+    doc <- comment
+    pure (typeName, (signed, width, doc))
+  _ <- many comment
   structs <- many do
     keyword "struct"
     structName <- identifier
@@ -177,6 +197,9 @@ forwardDeclarations = do
     pure ( structName, doc )
   _ <- many comment
   enums <- many do
+    _ <- try do
+      _ <- many comment
+      cppConditional <|> pure ()
     keyword "enum"
     enumName <- identifier
     symbol ":"
@@ -197,7 +220,23 @@ forwardDeclarations = do
   pure ( HashMap.fromList structs, HashMap.fromList (enums <> typedefs) )
 
 cTypeName :: MonadParsec e [Tok] m => m TH.Name
-cTypeName = keyword "int" $> ''CInt
+cTypeName =
+  choice
+    [ try $ (keyword "char") $> ''CChar
+    , try $ (keyword "signed" >> keyword "int") $> ''CInt
+    , try $ (keyword "unsigned" >> keyword "int") $> ''CUInt
+    , try $ (keyword "unsigned" >> keyword "char") $> ''CUChar
+    , try $ (identifier' "ImS8") $> ''CChar
+    , try $ (identifier' "ImU8") $> ''CUChar
+    , try $ (identifier' "ImS16") $> ''CShort
+    , try $ (identifier' "ImU16") $> ''CUShort
+    , try $ (identifier' "ImS32") $> ''CInt
+    , try $ (identifier' "ImU32") $> ''CUInt
+    , try $ (identifier' "ImS64") $> ''CLLong
+    , try $ (identifier' "ImU64") $> ''CULLong
+    , keyword "int" $> ''CInt
+    ]
+  <?> "cTypeName"
 
 --------------------------------------------------------------------------------
 -- Parsing enumerations.
@@ -211,6 +250,7 @@ data EnumState = EnumState
 
 enumeration :: MonadParsec CustomParseError [Tok] m => HashMap Text ( TH.Name, Comment ) -> m ( Enumeration () )
 enumeration enumNamesAndTypes = do
+  void $ many (try $ comment >> cppConditional)
   inlineDocs <- try do
     inlineDocs <- many comment
     keyword "enum"
@@ -331,12 +371,19 @@ comment = CommentText <$>
     <?> "comment"
 
 keyword :: MonadParsec e [ Tok ] m => Text -> m ()
-keyword kw = token ( \ case { Keyword kw' | kw == kw' -> Just (); _ -> Nothing } ) mempty
+keyword = void . keyword'
+
+keyword' :: MonadParsec e [ Tok ] m => Text -> m Text
+keyword' kw = token ( \ case { Keyword kw' | kw == kw' -> Just kw; _ -> Nothing } ) mempty
   <?> ( Text.unpack kw <> " (keyword)" )
 
 identifier :: MonadParsec e [ Tok ] m => m Text
 identifier = token ( \ case { Identifier i -> Just i; _ -> Nothing } ) mempty
   <?> "identifier"
+
+identifier' :: MonadParsec e [ Tok ] m => Text -> m Text
+identifier' ident = token ( \ case { Identifier i | i == ident -> Just ident; _ -> Nothing } ) mempty
+  <?> ( Text.unpack ident <> " (identifier)" )
 
 {-
 prefixedIdentifier :: MonadParsec e [ Tok ] m => Text -> m Text
@@ -452,7 +499,7 @@ cppDirective f = token ( \case { BeginCPP a -> f a; _ -> Nothing } ) mempty
 
 cppConditional :: MonadParsec e [Tok] m => m ()
 cppConditional = do
-  void $ cppDirective ( \case { "ifdef" -> Just True; "ifndef" -> Just False; _ -> Nothing } )
+  void $ cppDirective ( \case { "if" -> Just True; "ifdef" -> Just True; "ifndef" -> Just False; _ -> Nothing } )
   -- assumes no nesting
   void $ skipManyTill anySingle ( cppDirective ( \case { "endif" -> Just (); _ -> Nothing } ) )
   void $ skipManyTill anySingle ( single EndCPPLine )

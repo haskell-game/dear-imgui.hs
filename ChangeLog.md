@@ -1,5 +1,10 @@
 # Changelog for dear-imgui
 
+## [2.3.0]
+
+- `imgui` updated to [1.90.9].
+    * Breaking: `sdlRendererRenderDrawData` now required `Renderer` arg.
+
 ## [2.2.1]
 
 - Added `DearImGui.SDL.Renderer` backend and `sdlrenderer` example.
@@ -125,7 +130,9 @@ Initial Hackage release based on [1.83].
 [2.1.3]: https://github.com/haskell-game/dear-imgui.hs/tree/v2.1.3
 [2.2.0]: https://github.com/haskell-game/dear-imgui.hs/tree/v2.2.0
 [2.2.1]: https://github.com/haskell-game/dear-imgui.hs/tree/v2.2.1
+[2.3.0]: https://github.com/haskell-game/dear-imgui.hs/tree/v2.3.0
 
+[1.90.9]: https://github.com/ocornut/imgui/releases/tag/v1.90.9
 [1.89.9]: https://github.com/ocornut/imgui/releases/tag/v1.89.9
 [1.87]: https://github.com/ocornut/imgui/releases/tag/v1.87
 [1.86]: https://github.com/ocornut/imgui/releases/tag/v1.86

@@ -109,7 +109,7 @@ mainLoop renderer = do
     SDL.rendererDrawColor renderer $= V4 0 0 0 255
     SDL.clear renderer
     render
-    sdlRendererRenderDrawData =<< getDrawData
+    sdlRendererRenderDrawData renderer =<< getDrawData
     SDL.present renderer
 
     go refs
