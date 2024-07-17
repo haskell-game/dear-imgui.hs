@@ -35,7 +35,11 @@ module DearImGui.Raw
     -- * Demo, Debug, Information
   , showDemoWindow
   , showMetricsWindow
+  , showDebugLogWindow
+  , showIDStackToolWindow
   , showAboutWindow
+  , showStyleSelector
+  , showFontSelector
   , showUserGuide
   , getVersion
 
@@ -55,6 +59,9 @@ module DearImGui.Raw
   , getWindowSize
   , getWindowWidth
   , getWindowHeight
+  , isWindowAppearing
+  , isWindowCollapsed
+  , isWindowFocused
 
     -- ** Manipulation
 
@@ -64,7 +71,13 @@ module DearImGui.Raw
   , setNextWindowContentSize
   , setNextWindowSizeConstraints
   , setNextWindowCollapsed
+  , setNextWindowFocus
+  , setNextWindowScroll
   , setNextWindowBgAlpha
+  , getContentRegionAvail
+  , getContentRegionMax
+  , getWindowContentRegionMin
+  , getWindowContentRegionMax
   , beginDisabled
   , endDisabled
 
@@ -78,6 +91,8 @@ module DearImGui.Raw
   , popStyleColor
   , pushStyleVar
   , popStyleVar
+  , pushTabStop
+  , popTabStop
 
     -- * Cursor/Layout
   , separator
@@ -90,11 +105,20 @@ module DearImGui.Raw
   , setNextItemWidth
   , pushItemWidth
   , popItemWidth
+  , calcItemWidth
+  , pushTextWrapPos
+  , popTextWrapPos
   , beginGroup
   , endGroup
   , getCursorPos
-  , setCursorPos
+  , getCursorPosX
+  , getCursorPosY
   , getCursorScreenPos
+  , getCursorStartPos
+  , setCursorPos
+  , setCursorPosX
+  , setCursorPosY
+  , setCursorScreenPos
   , alignTextToFramePadding
 
     -- * Widgets
@@ -367,6 +391,15 @@ showMetricsWindow :: (MonadIO m) => m ()
 showMetricsWindow = liftIO do
   [C.exp| void { ShowMetricsWindow(); } |]
 
+-- | Create Debug Log window. display a simplified log of important dear imgui events.
+showDebugLogWindow :: (MonadIO m) => m ()
+showDebugLogWindow = liftIO do
+  [C.exp| void { ShowDebugLogWindow(); } |]
+
+-- | Create Stack Tool window. hover items with mouse to query information about the source of their unique ID.
+showIDStackToolWindow :: (MonadIO m) => m ()
+showIDStackToolWindow = liftIO do
+  [C.exp| void { ShowIDStackToolWindow(); } |]
 
 -- | Create About window. display Dear ImGui version, credits and build/system
 -- information.
@@ -374,6 +407,34 @@ showAboutWindow :: (MonadIO m) => m ()
 showAboutWindow = liftIO do
   [C.exp| void { ShowAboutWindow(); } |]
 
+{- TODO: requires ImGuiStyle.
+-- | Add style editor block (not a window). you can pass in a reference "ImGuiStyle" structure to compare to, revert to and save to (else it uses the default style).
+showStyleEditor :: (MonadIO m) => Ptr ImGuiStyle -> m ()
+showStyleEditor = liftIO do
+  [C.exp| void { ShowStyleEditor(); } |]
+-}
+
+-- | Add style selector block (not a window), essentially a combo listing the default styles.
+showStyleSelector :: (MonadIO m) => CString -> m Bool
+showStyleSelector labelPtr = liftIO do
+  (0 /=) <$> [C.exp|
+    bool {
+      ShowStyleSelector(
+        $(char* labelPtr)
+      )
+    }
+  |]
+
+-- | Add font selector block (not a window), essentially a combo listing the loaded fonts.
+showFontSelector :: (MonadIO m) => CString -> m ()
+showFontSelector labelPtr = liftIO do
+  [C.exp|
+    void {
+      ShowFontSelector(
+        $(char* labelPtr)
+      )
+    }
+  |]
 
 -- | Add basic help/info block (not a window): how to manipulate ImGui as a
 -- end-user (mouse/keyboard controls).
@@ -487,6 +548,29 @@ endChild :: (MonadIO m) => m ()
 endChild = liftIO do
   [C.exp| void { EndChild(); } |]
 
+isWindowAppearing :: (MonadIO m) => m Bool
+isWindowAppearing = liftIO do
+  (0 /=) <$> [C.exp|
+    bool {
+      IsWindowAppearing()
+    }
+  |]
+
+isWindowCollapsed :: (MonadIO m) => m Bool
+isWindowCollapsed = liftIO do
+  (0 /=) <$> [C.exp|
+    bool {
+      IsWindowCollapsed()
+    }
+  |]
+
+isWindowFocused :: (MonadIO m) => ImGuiFocusedFlags -> m Bool
+isWindowFocused flags = liftIO do
+  (0 /=) <$> [C.exp|
+    bool {
+      IsWindowFocused($(ImGuiFocusedFlags flags))
+    }
+  |]
 
 -- | Separator, generally horizontal. inside a menu bar or in horizontal layout
 -- mode, this becomes a vertical separator.
@@ -1567,7 +1651,6 @@ setNextWindowSizeConstraints :: (MonadIO m) => Ptr ImVec2 -> Ptr ImVec2 -> m ()
 setNextWindowSizeConstraints sizeMinPtr sizeMaxPtr = liftIO do
   [C.exp| void { SetNextWindowSizeConstraints(*$(ImVec2* sizeMinPtr), *$(ImVec2* sizeMaxPtr)) } |]
 
-
 -- | Set next window collapsed state. call before `begin`
 --
 -- Wraps @ImGui::SetNextWindowCollapsed()@
@@ -1575,6 +1658,15 @@ setNextWindowCollapsed :: (MonadIO m) => CBool -> ImGuiCond -> m ()
 setNextWindowCollapsed b cond = liftIO do
   [C.exp| void { SetNextWindowCollapsed($(bool b), $(ImGuiCond cond)) } |]
 
+-- | Set next window to be focused / top-most. call before `begin`
+setNextWindowFocus :: (MonadIO m) => m ()
+setNextWindowFocus = liftIO do
+  [C.exp| void { SetNextWindowFocus() } |]
+
+-- | Set next window scrolling value (use < 0.0f to not affect a given axis).
+setNextWindowScroll :: (MonadIO m) => Ptr ImVec2 -> m ()
+setNextWindowScroll posPtr = liftIO do
+  [C.exp| void { SetNextWindowScroll(*$(ImVec2* posPtr)) } |]
 
 -- | Set next window background color alpha. helper to easily override the Alpha component of `ImGuiCol_WindowBg`, `ChildBg`, `PopupBg`. you may also use `ImGuiWindowFlags_NoBackground`.
 --
@@ -1583,6 +1675,47 @@ setNextWindowBgAlpha :: (MonadIO m) => CFloat -> m ()
 setNextWindowBgAlpha alpha = liftIO do
   [C.exp| void { SetNextWindowBgAlpha($(float alpha)) } |]
 
+-- | Retrieve available space from a given point.
+--
+-- @== GetContentRegionMax() - GetCursorPos()@
+getContentRegionAvail :: (MonadIO m) => m ImVec2
+getContentRegionAvail = liftIO do
+  C.withPtr_ \ptr ->
+    [C.block|
+      void {
+        *$(ImVec2 * ptr) = GetContentRegionAvail();
+      }
+    |]
+
+-- | Current content boundaries (typically window boundaries including scrolling, or current column boundaries), in window coordinates.
+getContentRegionMax :: (MonadIO m) => m ImVec2
+getContentRegionMax = liftIO do
+  C.withPtr_ \ptr ->
+    [C.block|
+      void {
+        *$(ImVec2 * ptr) = GetContentRegionMax();
+      }
+    |]
+
+-- | Content boundaries min for the full window (roughly @(0,0) - Scroll@), in window coordinates.
+getWindowContentRegionMin :: (MonadIO m) => m ImVec2
+getWindowContentRegionMin = liftIO do
+  C.withPtr_ \ptr ->
+    [C.block|
+      void {
+        *$(ImVec2 * ptr) = GetWindowContentRegionMin();
+      }
+    |]
+
+-- | Content boundaries max for the full window (roughly @(0,0) + Size - Scroll@) where Size can be overridden with SetNextWindowContentSize(), in window coordinates.
+getWindowContentRegionMax :: (MonadIO m) => m ImVec2
+getWindowContentRegionMax = liftIO do
+  C.withPtr_ \ptr ->
+    [C.block|
+      void {
+        *$(ImVec2 * ptr) = GetWindowContentRegionMax();
+      }
+    |]
 
 -- | Begin a block that may be disabled. This disables all user interactions
 -- and dims item visuals.
@@ -1666,6 +1799,23 @@ popItemWidth :: (MonadIO m) => m ()
 popItemWidth = liftIO do
   [C.exp| void { PopItemWidth() } |]
 
+-- | Width of item given pushed settings and current cursor position. NOT necessarily the width of last item unlike most Item functions.
+calcItemWidth :: MonadIO m => m Float
+calcItemWidth = liftIO do
+  realToFrac <$> [C.exp| float { CalcItemWidth() } |]
+
+-- | Push word-wrapping position for Text commands.
+--
+-- Negative: no wrapping.
+-- Zero: wrap to end of window (or column).
+-- Positive: wrap at 'wrap_pos_x' position in window local space.
+pushTextWrapPos :: (MonadIO m) => CFloat -> m ()
+pushTextWrapPos wrapLocalPosX = liftIO do
+  [C.exp| void { PushTextWrapPos($(float wrapLocalPosX)) } |]
+
+popTextWrapPos :: (MonadIO m) => m ()
+popTextWrapPos = liftIO do
+  [C.exp| void { PopTextWrapPos() } |]
 
 -- | lock horizontal starting position
 --
@@ -1698,6 +1848,14 @@ setCursorPos :: (MonadIO m) => Ptr ImVec2 -> m ()
 setCursorPos posPtr = liftIO do
   [C.exp| void { SetCursorPos(*$(ImVec2* posPtr)) } |]
 
+setCursorPosX :: (MonadIO m) => CFloat -> m ()
+setCursorPosX localX = liftIO do
+  [C.exp| void { SetCursorPosX($(float localX)) } |]
+
+setCursorPosY :: (MonadIO m) => CFloat -> m ()
+setCursorPosY localY = liftIO do
+  [C.exp| void { SetCursorPosY($(float localY)) } |]
+
 -- | Get cursor position in window-local coordinates.
 --
 -- Useful to overlap draw using 'setCursorPos'.
@@ -1711,6 +1869,14 @@ getCursorPos = liftIO do
         *$(ImVec2 * ptr) = GetCursorPos();
       }
     |]
+
+getCursorPosX :: (MonadIO m) => m CFloat
+getCursorPosX = liftIO do
+  [C.exp| float { GetCursorPosX() } |]
+
+getCursorPosY :: (MonadIO m) => m CFloat
+getCursorPosY = liftIO do
+  [C.exp| float { GetCursorPosY() } |]
 
 -- | Cursor position in absolute coordinates.
 --
@@ -1726,6 +1892,21 @@ getCursorScreenPos = liftIO do
         *$(ImVec2 * ptr) = GetCursorScreenPos();
       }
     |]
+
+-- | Initial cursor position, in window coordinates.
+getCursorStartPos :: (MonadIO m) => m ImVec2
+getCursorStartPos = liftIO do
+  C.withPtr_ \ptr ->
+    [C.block|
+      void {
+        *$(ImVec2 * ptr) = GetCursorStartPos();
+      }
+    |]
+
+-- | Set cursor position in absolute coordinates.
+setCursorScreenPos :: (MonadIO m) => Ptr ImVec2 -> m ()
+setCursorScreenPos posPtr = liftIO do
+  [C.exp| void { SetCursorScreenPos(*$(ImVec2* posPtr)) } |]
 
 
 -- | Modify a style color by pushing to the shared stack. always use this if you modify the style after `newFrame`
@@ -1759,6 +1940,14 @@ popStyleVar :: (MonadIO m) => CInt -> m ()
 popStyleVar n = liftIO do
   [C.exp| void { PopStyleVar($(int n)) } |]
 
+-- | Allow focusing using TAB/Shift-TAB, enabled by default but you can disable it for certain widgets.
+pushTabStop :: (MonadIO m) => CBool -> m ()
+pushTabStop b = liftIO do
+  [C.exp| void { PushTabStop($(bool b)) } |]
+
+popTabStop :: (MonadIO m) => m ()
+popTabStop = liftIO do
+  [C.exp| void { PopTabStop() } |]
 
 -- | Push integer into the ID stack (will hash int).
 --
