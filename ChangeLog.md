@@ -4,6 +4,11 @@
 
 - `imgui` updated to [1.90.9].
     * Breaking: `sdlRendererRenderDrawData` now required `Renderer` arg.
+    * Breaking: ImplVulkan removed command buffer for `ImGui_ImplVulkan_CreateFontsTexture`.
+    * Breaking: ImplVulkan removed command for `ImGui_ImplVulkan_DestroyFontUploadObjects`.
+      + Added `ImGui_ImplVulkan_DestroyFontsTexture`, but it shouldn't be needed as it is called from impl internals.
+    * Breaking: ImplVulkan moved RenderPass into InitInfo structure.
+      + Breaking: Haskell API is now using `Either RenderPass RenderingPipelineCreateInfo` to switch between RP/dynamic rendering.
 
 ## [2.2.1]
 
