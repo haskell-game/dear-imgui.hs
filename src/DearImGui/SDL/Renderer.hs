@@ -69,6 +69,6 @@ sdlRendererNewFrame = liftIO do
   [C.exp| void { ImGui_ImplSDLRenderer2_NewFrame(); } |]
 
 -- | Wraps @ImGui_ImplSDLRenderer2_RenderDrawData@.
-sdlRendererRenderDrawData :: MonadIO m => DrawData -> m ()
-sdlRendererRenderDrawData (DrawData ptr) = liftIO do
-  [C.exp| void { ImGui_ImplSDLRenderer2_RenderDrawData((ImDrawData*) $( void* ptr )) } |]
+sdlRendererRenderDrawData :: MonadIO m => Renderer -> DrawData -> m ()
+sdlRendererRenderDrawData (Renderer renderPtr) (DrawData ptr) = liftIO do
+  [C.exp| void { ImGui_ImplSDLRenderer2_RenderDrawData((ImDrawData*) $( void* ptr ), (SDL_Renderer*) $( void* renderPtr )) } |]
