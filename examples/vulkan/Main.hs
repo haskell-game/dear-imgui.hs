@@ -391,16 +391,15 @@ app = do
       , device
       , queueFamily
       , queue
-      , pipelineCache         = Vulkan.NULL_HANDLE
-      , descriptorPool        = imGuiDescriptorPool
-      , subpass               = 0
+      , pipelineCache  = Vulkan.NULL_HANDLE
+      , descriptorPool = imGuiDescriptorPool
+      , subpass        = 0
       , minImageCount
       , imageCount
-      , msaaSamples           = Vulkan.SAMPLE_COUNT_1_BIT
-      , mbAllocator           = Nothing
-      , useDynamicRendering   = False
-      , colorAttachmentFormat = Nothing
-      , checkResult           = \case { Vulkan.SUCCESS -> pure (); e -> throw $ Vulkan.VulkanException e }
+      , msaaSamples    = Vulkan.SAMPLE_COUNT_1_BIT
+      , mbAllocator    = Nothing
+      , rendering      = Left imGuiRenderPass
+      , checkResult    = \case { Vulkan.SUCCESS -> pure (); e -> throw $ Vulkan.VulkanException e }
       }
 
   logDebug "Initialising ImGui SDL2 for Vulkan"
@@ -409,7 +408,7 @@ app = do
     ( const ImGui.SDL.sdl2Shutdown )
 
   logDebug "Initialising ImGui for Vulkan"
-  ImGui.Vulkan.withVulkan initInfo imGuiRenderPass \ _ -> do
+  ImGui.Vulkan.withVulkan initInfo \ _ -> do
 
     logDebug "Running one-shot commands to upload ImGui textures"
     logDebug "Creating fence"
@@ -421,7 +420,9 @@ app = do
 
     logDebug "Recording one-shot commands"
     beginCommandBuffer oneshotCommandBuffer
-    _ <- ImGui.Vulkan.vulkanCreateFontsTexture oneshotCommandBuffer
+
+    logDebug "ImGui preparing fonts texture"
+    _ <- ImGui.Vulkan.vulkanCreateFontsTexture
 
     logDebug "Uploading texture"
     let textureSubresource = Vulkan.ImageSubresourceRange
@@ -497,8 +498,6 @@ app = do
     waitForFences device ( WaitAll [ fence ] )
 
     logDebug "Finished uploading font objects"
-    logDebug "Cleaning up one-shot commands"
-    ImGui.Vulkan.vulkanDestroyFontUploadObjects
     traverse_ ResourceT.release [ fenceKey, oneshotCommandBufferKey, stageKey ]
 
     logDebug "Adding imgui texture"

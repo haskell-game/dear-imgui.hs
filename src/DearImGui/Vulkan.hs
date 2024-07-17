@@ -17,7 +17,7 @@ module DearImGui.Vulkan
   , vulkanNewFrame
   , vulkanRenderDrawData
   , vulkanCreateFontsTexture
-  , vulkanDestroyFontUploadObjects
+  , vulkanDestroyFontsTexture
   , vulkanSetMinImageCount
 
   , vulkanAddTexture
@@ -27,6 +27,8 @@ module DearImGui.Vulkan
 -- base
 import Data.Maybe
   ( fromMaybe )
+import Data.Either
+  ( isRight )
 import Data.Word
   ( Word32 )
 import Foreign.Marshal.Alloc
@@ -56,6 +58,8 @@ import UnliftIO.Exception
 
 -- vulkan
 import qualified Vulkan
+import Vulkan.Zero
+  ( zero )
 
 -- DearImGui
 import DearImGui
@@ -63,8 +67,8 @@ import DearImGui
 import DearImGui.Vulkan.Types
   ( vulkanCtx )
 
-
 C.context ( Cpp.cppCtx <> C.funCtx <> vulkanCtx )
+C.include "string.h"
 C.include "imgui.h"
 C.include "backends/imgui_impl_vulkan.h"
 Cpp.using "namespace ImGui"
@@ -72,28 +76,27 @@ Cpp.using "namespace ImGui"
 
 data InitInfo =
   InitInfo
-  { instance'             :: !Vulkan.Instance
-  , physicalDevice        :: !Vulkan.PhysicalDevice
-  , device                :: !Vulkan.Device
-  , queueFamily           :: !Word32
-  , queue                 :: !Vulkan.Queue
-  , pipelineCache         :: !Vulkan.PipelineCache
-  , descriptorPool        :: !Vulkan.DescriptorPool
-  , subpass               :: !Word32
-  , minImageCount         :: !Word32
-  , imageCount            :: !Word32
-  , msaaSamples           :: !Vulkan.SampleCountFlagBits
-  , colorAttachmentFormat :: !(Maybe Vulkan.Format)
-  , useDynamicRendering   :: !Bool
-  , mbAllocator           :: Maybe Vulkan.AllocationCallbacks
-  , checkResult           :: Vulkan.Result -> IO ()
+  { instance'      :: !Vulkan.Instance
+  , physicalDevice :: !Vulkan.PhysicalDevice
+  , device         :: !Vulkan.Device
+  , queueFamily    :: !Word32
+  , queue          :: !Vulkan.Queue
+  , pipelineCache  :: !Vulkan.PipelineCache
+  , descriptorPool :: !Vulkan.DescriptorPool
+  , subpass        :: !Word32
+  , minImageCount  :: !Word32
+  , imageCount     :: !Word32
+  , msaaSamples    :: !Vulkan.SampleCountFlagBits
+  , rendering      :: Either Vulkan.RenderPass Vulkan.PipelineRenderingCreateInfo
+  , mbAllocator    :: Maybe Vulkan.AllocationCallbacks
+  , checkResult    :: Vulkan.Result -> IO ()
   }
 
 -- | Wraps @ImGui_ImplVulkan_Init@ and @ImGui_ImplVulkan_Shutdown@.
-withVulkan :: MonadUnliftIO m => InitInfo -> Vulkan.RenderPass -> ( Bool -> m a ) -> m a
-withVulkan initInfo renderPass action =
+withVulkan :: MonadUnliftIO m => InitInfo -> ( Bool -> m a ) -> m a
+withVulkan initInfo action =
   bracket
-    ( vulkanInit initInfo renderPass )
+    ( vulkanInit initInfo )
     vulkanShutdown
     ( \ ( _, initResult ) -> action initResult )
 
@@ -101,8 +104,8 @@ withVulkan initInfo renderPass action =
 --
 -- Use 'vulkanShutdown' to clean up on shutdown.
 -- Prefer using 'withVulkan' when possible, as it automatically handles cleanup.
-vulkanInit :: MonadIO m => InitInfo -> Vulkan.RenderPass -> m (FunPtr (Vulkan.Result -> IO ()), Bool)
-vulkanInit ( InitInfo {..} ) renderPass = do
+vulkanInit :: MonadIO m => InitInfo -> m (FunPtr (Vulkan.Result -> IO ()), Bool)
+vulkanInit ( InitInfo {..} ) = liftIO do
   let
     instancePtr :: Ptr Vulkan.Instance_T
     instancePtr = Vulkan.instanceHandle instance'
@@ -117,14 +120,20 @@ vulkanInit ( InitInfo {..} ) renderPass = do
       Nothing        -> f nullPtr
       Just callbacks -> alloca ( \ ptr -> poke ptr callbacks *> f ptr )
     useDynamicRendering' :: Cpp.CBool
-    useDynamicRendering' = fromBool useDynamicRendering
-    colorAttachmentFormat' :: Vulkan.Format
-    colorAttachmentFormat' = fromMaybe Vulkan.FORMAT_UNDEFINED colorAttachmentFormat
-  liftIO do
+    useDynamicRendering' = fromBool (isRight rendering)
+    renderPass :: Vulkan.RenderPass
+    renderPass = either id (const zero) rendering
+  Vulkan.withCStruct (either (const zero) id rendering) \pipelineRenderingCIPtr -> do
     checkResultFunPtr <- $( C.mkFunPtr [t| Vulkan.Result -> IO () |] ) checkResult
-    initResult <- withCallbacks \ callbacksPtr ->
+    initResult <- withCallbacks \ callbacksPtr -> do
         [C.block| bool {
-          ImGui_ImplVulkan_InitInfo initInfo;
+          ImGui_ImplVulkan_InitInfo initInfo = {0,};
+
+          #ifdef IMGUI_IMPL_VULKAN_HAS_DYNAMIC_RENDERING
+          VkPipelineRenderingCreateInfoKHR pipelineRenderingCI;
+          memset(&pipelineRenderingCI, 0, sizeof(VkPipelineRenderingCreateInfoKHR));
+          #endif
+
           VkInstance instance = { $( VkInstance_T* instancePtr ) };
           initInfo.Instance = instance;
           VkPhysicalDevice physicalDevice = { $( VkPhysicalDevice_T* physicalDevicePtr ) };
@@ -142,9 +151,12 @@ vulkanInit ( InitInfo {..} ) renderPass = do
           initInfo.MSAASamples = $(VkSampleCountFlagBits msaaSamples);
           initInfo.Allocator = $(VkAllocationCallbacks* callbacksPtr);
           initInfo.CheckVkResultFn = $( void (*checkResultFunPtr)(VkResult) );
+
           initInfo.UseDynamicRendering = $(bool useDynamicRendering');
-          initInfo.ColorAttachmentFormat = $(VkFormat colorAttachmentFormat');
-          return ImGui_ImplVulkan_Init(&initInfo, $(VkRenderPass renderPass) );
+          initInfo.RenderPass = $(VkRenderPass renderPass);
+          if ($(VkPipelineRenderingCreateInfo* pipelineRenderingCIPtr))
+            memcpy(&initInfo.PipelineRenderingCreateInfo, $(VkPipelineRenderingCreateInfo* pipelineRenderingCIPtr), sizeof(VkPipelineRenderingCreateInfo));
+          return ImGui_ImplVulkan_Init(&initInfo);
         }|]
     pure ( checkResultFunPtr, initResult /= 0 )
 
@@ -175,22 +187,21 @@ vulkanRenderDrawData (DrawData dataPtr) commandBuffer mbPipeline = liftIO do
   }|]
 
 -- | Wraps @ImGui_ImplVulkan_CreateFontsTexture@.
-vulkanCreateFontsTexture :: MonadIO m => Vulkan.CommandBuffer -> m Bool
-vulkanCreateFontsTexture commandBuffer = liftIO do
-  let
-    commandBufferPtr :: Ptr Vulkan.CommandBuffer_T
-    commandBufferPtr = Vulkan.commandBufferHandle commandBuffer
+vulkanCreateFontsTexture :: MonadIO m => m Bool
+vulkanCreateFontsTexture = liftIO do
   res <-
     [C.block| bool {
-      VkCommandBuffer commandBuffer = { $( VkCommandBuffer_T* commandBufferPtr ) };
-      return ImGui_ImplVulkan_CreateFontsTexture(commandBuffer);
+      return ImGui_ImplVulkan_CreateFontsTexture();
     }|]
   pure ( res /= 0 )
 
--- | Wraps @ImGui_ImplVulkan_DestroyFontUploadObjects@.
-vulkanDestroyFontUploadObjects :: MonadIO m => m ()
-vulkanDestroyFontUploadObjects = liftIO do
-  [C.exp| void { ImGui_ImplVulkan_DestroyFontUploadObjects(); } |]
+-- | You probably never need to call this, as it is called by ImGui_ImplVulkan_CreateFontsTexture() and ImGui_ImplVulkan_Shutdown().
+-- | Wraps @ImGui_ImplVulkan_DestroyFontsTexture@.
+vulkanDestroyFontsTexture :: MonadIO m => m ()
+vulkanDestroyFontsTexture = liftIO do
+  [C.block| void {
+    return ImGui_ImplVulkan_DestroyFontsTexture();
+  }|]
 
 -- | Wraps @ImGui_ImplVulkan_SetMinImageCount@.
 vulkanSetMinImageCount :: MonadIO m => Word32 -> m ()
