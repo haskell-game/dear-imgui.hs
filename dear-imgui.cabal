@@ -162,6 +162,7 @@ library
     DearImGui.FontAtlas
     DearImGui.Internal.Text
     DearImGui.Raw
+    DearImGui.Raw.DragDrop
     DearImGui.Raw.DrawList
     DearImGui.Raw.Font
     DearImGui.Raw.Font.Config

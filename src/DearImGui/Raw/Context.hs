@@ -43,5 +43,6 @@ imguiContext = mempty
       , ( TypeName "ImFontGlyphRangesBuilder", [t| ImFontGlyphRangesBuilder |] )
       , ( TypeName "ImGuiListClipper", [t| ImGuiListClipper |] )
       , ( TypeName "ImGuiTableSortSpecs", [t| ImGuiTableSortSpecs |] )
+      , ( TypeName "ImGuiPayload", [t| ImGuiPayload |] )
       ]
   }
