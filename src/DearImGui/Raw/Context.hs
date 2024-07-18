@@ -44,5 +44,6 @@ imguiContext = mempty
       , ( TypeName "ImGuiListClipper", [t| ImGuiListClipper |] )
       , ( TypeName "ImGuiTableSortSpecs", [t| ImGuiTableSortSpecs |] )
       , ( TypeName "ImGuiPayload", [t| ImGuiPayload |] )
+      , ( TypeName "ImGuiKeyChord", [t| Int |] )
       ]
   }

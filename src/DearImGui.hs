@@ -1316,7 +1316,7 @@ colorPicker3 desc ref = liftIO do
   ImVec3{x, y, z} <- get ref
   withArray (realToFrac <$> [x, y, z]) \refPtr -> do
     changed <- Text.withCString desc \descPtr ->
-      Raw.colorPicker3 descPtr refPtr
+      Raw.colorPicker3 descPtr refPtr ImGuiColorEditFlags_None
 
     when changed do
       [x', y', z'] <- peekArray 3 refPtr

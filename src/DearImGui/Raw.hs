@@ -42,6 +42,8 @@ module DearImGui.Raw
   , showFontSelector
   , showUserGuide
   , getVersion
+  , logButtons
+  , logText
 
     -- * Styles
   , styleColorsDark
@@ -80,6 +82,11 @@ module DearImGui.Raw
   , getWindowContentRegionMax
   , beginDisabled
   , endDisabled
+
+  , setItemDefaultFocus
+  , setKeyboardFocusHere
+
+  , setNextItemAllowOverlap
 
     -- ** Child Windows
   , beginChild
@@ -120,6 +127,10 @@ module DearImGui.Raw
   , setCursorPosY
   , setCursorScreenPos
   , alignTextToFramePadding
+  , getTextLineHeight
+  , getTextLineHeightWithSpacing
+  , getFrameHeight
+  , getFrameHeightWithSpacing
 
     -- * Widgets
     -- ** Text
@@ -129,6 +140,11 @@ module DearImGui.Raw
   , textWrapped
   , labelText
   , bulletText
+  , separatorText
+  , valueBool
+  , valueInt
+  , valueUInt
+  , valueFloat
 
     -- ** Main
   , button
@@ -138,6 +154,10 @@ module DearImGui.Raw
   , image
   , imageButton
   , checkbox
+  , checkboxFlags
+  , checkboxFlagsU
+  , radioButton
+  , radioButtonI
   , progressBar
   , bullet
 
@@ -180,10 +200,25 @@ module DearImGui.Raw
   , inputText
   , inputTextMultiline
   , inputTextWithHint
+  , inputFloat
+  , inputFloat2
+  , inputFloat3
+  , inputFloat4
+  , inputInt
+  , inputInt2
+  , inputInt3
+  , inputInt4
+  , inputDouble
+  , inputScalar
+  , inputScalarN
 
     -- * Color Editor/Picker
+  , colorEdit3
+  , colorEdit4
   , colorPicker3
+  , colorPicker4
   , colorButton
+  , setColorEditOptions
 
     -- * Tables
   , beginTable
@@ -212,6 +247,8 @@ module DearImGui.Raw
   , treeNode
   , treePush
   , treePop
+  , getTreeNodeToLabelSpacing
+  , collapsingHeader
   , setNextItemOpen
 
     -- ** Selectables
@@ -242,6 +279,8 @@ module DearImGui.Raw
   , setTabItemClosed
 
     -- * Tooltips
+  , setItemTooltip
+  , beginItemTooltip
   , beginTooltip
   , endTooltip
 
@@ -266,8 +305,36 @@ module DearImGui.Raw
 
     -- * Item/Widgets Utilities
   , isItemHovered
+  , isItemActive
+  , isItemFocused
+  , isItemClicked
+  , isItemVisible
+  , isItemEdited
+  , isItemActivated
+  , isItemDeactivated
+  , isItemDeactivatedAfterEdit
+  , isItemToggledOpen
+  , isAnyItemHovered
+  , isAnyItemActive
+  , isAnyItemFocused
+  , getItemID
+  , getItemRectMin
+  , getItemRectMax
+  , getItemRectSize
+
   , wantCaptureMouse
+  , getMousePos
+  , getMousePosOnOpeningCurrentPopup
+  , isMouseDragging
+  , getMouseDragDelta
+  , resetMouseDragDelta
+
   , wantCaptureKeyboard
+
+    -- ** Inputs Utilities: Shortcut Testing & Routing @BETA@
+  , ImGuiKeyChord
+  , shortcut
+  , setNextItemShortcut
 
     -- * Utilities
 
@@ -276,6 +343,11 @@ module DearImGui.Raw
   , getForegroundDrawList
   , imCol32
   , framerate
+  , getTime
+  , getFrameCount
+
+    -- ** Text utilities
+  , calcTextSize
 
     -- * Types
   , module DearImGui.Enums
@@ -449,6 +521,15 @@ getVersion :: (MonadIO m) => m CString
 getVersion = liftIO do
   [C.exp| const char* { GetVersion() } |]
 
+-- | Helper to display buttons for logging to tty/file/clipboard.
+logButtons :: (MonadIO m) => m ()
+logButtons = liftIO do
+  [C.block| void { LogButtons(); } |]
+
+-- | Pass text data straight to log (without being displayed).
+logText :: (MonadIO m) => CString -> m ()
+logText textPtr = liftIO do
+  [C.block| void { LogText("%s", $(char* textPtr) ); }|]
 
 -- | New, recommended style (default).
 --
@@ -649,6 +730,27 @@ bulletText :: (MonadIO m) => CString -> m ()
 bulletText textPtr = liftIO do
   [C.exp| void { BulletText("%s", $(char* textPtr)) } |]
 
+-- | Text with an horizontal line.
+separatorText :: (MonadIO m) => CString -> m ()
+separatorText textPtr = liftIO do
+  [C.block| void { SeparatorText($(char* textPtr)); } |]
+
+valueBool :: (MonadIO m) => CString -> CBool -> m ()
+valueBool labelPtr b = liftIO do
+  [C.block| void { Value($(char* labelPtr), $(bool b)); } |]
+
+valueInt :: (MonadIO m) => CString -> CInt -> m ()
+valueInt labelPtr v = liftIO do
+  [C.block| void { Value($(char* labelPtr), $(int v)); } |]
+
+valueUInt :: (MonadIO m) => CString -> CUInt -> m ()
+valueUInt labelPtr v = liftIO do
+  [C.block| void { Value($(char* labelPtr), $(unsigned int v)); } |]
+
+valueFloat :: (MonadIO m) => CString -> CFloat -> CString -> m ()
+valueFloat labelPtr v formatPtr = liftIO do
+  [C.block| void { Value($(char* labelPtr), $(float v), $(char* formatPtr)); } |]
+
 -- | A button. Returns 'True' when clicked.
 --
 -- Wraps @ImGui::Button()@.
@@ -740,6 +842,24 @@ checkbox :: (MonadIO m) => CString -> Ptr CBool -> m Bool
 checkbox labelPtr boolPtr = liftIO do
   (0 /=) <$> [C.exp| bool { Checkbox($(char* labelPtr), $(bool* boolPtr)) } |]
 
+-- | A checkbox toggling a bit mask (signed).
+checkboxFlags :: (MonadIO m) => CString -> Ptr CInt -> CInt -> m Bool
+checkboxFlags labelPtr flagsPtr flagsValue = liftIO do
+  (0 /=) <$> [C.exp| bool { CheckboxFlags($(char* labelPtr), $(int* flagsPtr), $(int flagsValue)) } |]
+
+-- | A checkbox toggling a bit mask (unsigned).
+checkboxFlagsU :: (MonadIO m) => CString -> Ptr CUInt -> CUInt -> m Bool
+checkboxFlagsU labelPtr flagsPtr flagsValue = liftIO do
+  (0 /=) <$> [C.exp| bool { CheckboxFlags($(char* labelPtr), $(unsigned int* flagsPtr), $(unsigned int flagsValue)) } |]
+
+radioButton :: (MonadIO m) => CString -> CBool -> m Bool
+radioButton labelPtr active = liftIO do
+  (0 /=) <$> [C.exp| bool { RadioButton($(char* labelPtr), $(bool active)) } |]
+
+-- | A shortcut for "radioButton" when the value is an integer.
+radioButtonI :: (MonadIO m) => CString -> Ptr CInt -> CInt -> m Bool
+radioButtonI labelPtr v vButton  = liftIO do
+  (0 /=) <$> [C.exp| bool { RadioButton($(char* labelPtr), $(int* v), $(int vButton)) } |]
 
 -- TODO: publish ImVec2(-FLT_MIN, 0)
 -- | Wraps @ImGui::ProgressBar()@.
@@ -1167,12 +1287,103 @@ inputTextWithHint labelPtr hintPtr (bufPtr, fromIntegral -> bufSize) flags = lif
     }
   |]
 
+inputFloat :: (MonadIO m) => CString -> Ptr CFloat -> CFloat -> CFloat -> CString -> ImGuiInputTextFlags -> m Bool
+inputFloat descPtr floatPtr step stepFast formatPtr flags = liftIO do
+  (0 /=) <$> [C.exp| bool { InputFloat( $(char* descPtr), $(float* floatPtr), $(float step), $(float stepFast), $(char* formatPtr), $(ImGuiInputTextFlags flags)) } |]
+
+inputFloat2 :: (MonadIO m) => CString -> Ptr CFloat -> CString -> ImGuiInputTextFlags -> m Bool
+inputFloat2 descPtr floatPtr formatPtr flags = liftIO do
+  (0 /=) <$> [C.exp| bool { InputFloat2( $(char* descPtr), $(float* floatPtr), $(char* formatPtr), $(ImGuiInputTextFlags flags)) } |]
+
+inputFloat3 :: (MonadIO m) => CString -> Ptr CFloat -> CString -> ImGuiInputTextFlags -> m Bool
+inputFloat3 descPtr floatPtr formatPtr flags = liftIO do
+  (0 /=) <$> [C.exp| bool { InputFloat3( $(char* descPtr), $(float* floatPtr), $(char* formatPtr), $(ImGuiInputTextFlags flags)) } |]
+
+inputFloat4 :: (MonadIO m) => CString -> Ptr CFloat -> CString -> ImGuiInputTextFlags -> m Bool
+inputFloat4 descPtr floatPtr formatPtr flags = liftIO do
+  (0 /=) <$> [C.exp| bool { InputFloat4( $(char* descPtr), $(float* floatPtr), $(char* formatPtr), $(ImGuiInputTextFlags flags)) } |]
+
+inputInt :: (MonadIO m) => CString -> Ptr CInt -> CInt -> CInt -> ImGuiInputTextFlags -> m Bool
+inputInt descPtr intPtr step stepFast flags = liftIO do
+  (0 /=) <$> [C.exp| bool { InputInt( $(char* descPtr), $(int* intPtr), $(int step), $(int stepFast), $(ImGuiInputTextFlags flags)) } |]
+
+inputInt2 :: (MonadIO m) => CString -> Ptr CInt -> ImGuiInputTextFlags -> m Bool
+inputInt2 descPtr intPtr flags = liftIO do
+  (0 /=) <$> [C.exp| bool { InputInt2( $(char* descPtr), $(int* intPtr), $(ImGuiInputTextFlags flags)) } |]
+
+inputInt3 :: (MonadIO m) => CString -> Ptr CInt -> ImGuiInputTextFlags -> m Bool
+inputInt3 descPtr intPtr flags = liftIO do
+  (0 /=) <$> [C.exp| bool { InputInt3( $(char* descPtr), $(int* intPtr), $(ImGuiInputTextFlags flags)) } |]
+
+inputInt4 :: (MonadIO m) => CString -> Ptr CInt -> ImGuiInputTextFlags -> m Bool
+inputInt4 descPtr intPtr flags = liftIO do
+  (0 /=) <$> [C.exp| bool { InputInt4( $(char* descPtr), $(int* intPtr), $(ImGuiInputTextFlags flags)) } |]
+
+inputDouble :: (MonadIO m) => CString -> Ptr CDouble -> CDouble -> CDouble -> CString -> ImGuiInputTextFlags -> m Bool
+inputDouble descPtr doublePtr step stepFast formatPtr flags = liftIO do
+  (0 /=) <$> [C.exp| bool { InputDouble( $(char* descPtr), $(double* doublePtr), $(double step), $(double stepFast), $(char* formatPtr), $(ImGuiInputTextFlags flags)) } |]
+
+inputScalar :: (MonadIO m) => CString -> ImGuiDataType -> Ptr a -> Ptr a -> Ptr a -> CString -> ImGuiInputTextFlags -> m Bool
+inputScalar labelPtr dataType dataPtr stepPtr stepMaxPtr formatPtr flags = liftIO do
+  (0 /=) <$> [C.exp| bool {
+    InputScalar(
+      $(char* labelPtr),
+      $(ImGuiDataType dataType),
+      $(void* dataPtr_),
+      $(void* stepPtr_),
+      $(void* stepMaxPtr_),
+      $(char* formatPtr),
+      $(ImGuiInputTextFlags flags)
+    )
+  } |]
+  where
+    dataPtr_ = castPtr dataPtr
+    stepPtr_ = castPtr stepPtr
+    stepMaxPtr_ = castPtr stepMaxPtr
+
+inputScalarN :: (MonadIO m) => CString -> ImGuiDataType -> Ptr a -> CInt -> Ptr a -> Ptr a -> CString -> ImGuiInputTextFlags -> m Bool
+inputScalarN labelPtr dataType dataPtr components stepPtr stepMaxPtr formatPtr flags = liftIO do
+  (0 /=) <$> [C.exp| bool {
+    InputScalarN(
+      $(char* labelPtr),
+      $(ImGuiDataType dataType),
+      $(void* dataPtr_),
+      $(int components),
+      $(void* stepPtr_),
+      $(void* stepMaxPtr_),
+      $(char* formatPtr),
+      $(ImGuiInputTextFlags flags)
+    )
+  } |]
+  where
+    dataPtr_ = castPtr dataPtr
+    stepPtr_ = castPtr stepPtr
+    stepMaxPtr_ = castPtr stepMaxPtr
 
 -- | Wraps @ImGui::ColorPicker3()@.
-colorPicker3 :: (MonadIO m) => CString -> Ptr CFloat -> m Bool
-colorPicker3 descPtr refPtr = liftIO do
-  (0 /= ) <$> [C.exp| bool { ColorPicker3( $(char* descPtr), $(float* refPtr) ) } |]
+colorEdit3 :: (MonadIO m) => CString -> Ptr CFloat -> ImGuiColorEditFlags -> m Bool
+colorEdit3 descPtr refPtr flags = liftIO do
+  (0 /= ) <$> [C.exp| bool { ColorEdit3( $(char* descPtr), $(float* refPtr), $(ImGuiColorEditFlags flags) ) } |]
 
+colorEdit4 :: (MonadIO m) => CString -> Ptr CFloat -> ImGuiColorEditFlags -> m Bool
+colorEdit4 descPtr refPtr flags = liftIO do
+  (0 /= ) <$> [C.exp| bool { ColorEdit4( $(char* descPtr), $(float* refPtr), $(ImGuiColorEditFlags flags) ) } |]
+
+-- | Wraps @ImGui::ColorPicker3()@.
+colorPicker3 :: (MonadIO m) => CString -> Ptr CFloat -> ImGuiColorEditFlags -> m Bool
+colorPicker3 descPtr refPtr flags = liftIO do
+  (0 /= ) <$> [C.exp| bool { ColorPicker3( $(char* descPtr), $(float* refPtr), $(ImGuiColorEditFlags flags) ) } |]
+
+colorPicker4 :: (MonadIO m) => CString -> Ptr CFloat -> ImGuiColorEditFlags -> Ptr CFloat -> m Bool
+colorPicker4 descPtr refPtr flags refColPtr = liftIO do
+  (0 /= ) <$> [C.exp| bool { ColorPicker4( $(char* descPtr), $(float* refPtr), $(ImGuiColorEditFlags flags), $(float* refColPtr) ) } |]
+
+-- | Initialize current options (generally on application startup) if you want to select a default format, picker type, etc.
+--
+-- User will be able to change many settings, unless you pass the `ImGuiColorEditFlags_NoOptions` flag to your calls.
+setColorEditOptions :: (MonadIO m) => ImGuiColorEditFlags -> m ()
+setColorEditOptions flags = liftIO do
+  [C.block| void { SetColorEditOptions( $(ImGuiColorEditFlags flags) ); } |]
 
 -- | Display a color square/button, hover for details, return true when pressed.
 --
@@ -1321,6 +1532,23 @@ treePop :: (MonadIO m) => m ()
 treePop = liftIO do
   [C.exp| void { TreePop() } |]
 
+getTreeNodeToLabelSpacing :: (MonadIO m) => m CFloat
+getTreeNodeToLabelSpacing = liftIO do
+  [C.exp| float { GetTreeNodeToLabelSpacing() } |]
+
+-- | CollapsingHeader returns True when opened but do not indent nor push into the ID stack (because of the `ImGuiTreeNodeFlags_NoTreePushOnOpen` flag).
+--
+-- This is basically the same as calling `treeNodeEx` with `ImGuiTreeNodeFlags_CollapsingHeader`. You can remove the `ImGuiTreeNodeFlags_NoTreePushOnOpen` flag if you want behavior closer to normal `treeNode`.
+--
+-- @p_visible == NULL                        @ - regular collapsing header.
+-- @p_visible != NULL && *p_visible == true  @ - show a small close button on the corner of the header, clicking the button will set @*p_visible = false@.
+-- @p_visible != NULL && *p_visible == false @ - do not show the header at all.
+--
+-- Do not mistake this with the Open state of the header itself, which you can adjust with SetNextItemOpen() or ImGuiTreeNodeFlags_DefaultOpen.
+
+collapsingHeader :: (MonadIO m) => CString -> Ptr CBool -> ImGuiTreeNodeFlags -> m Bool
+collapsingHeader labelPtr visiblePtr flags = liftIO do
+  (0 /=) <$> [C.exp| bool { CollapsingHeader($(char* labelPtr), $(bool* visiblePtr), $(ImGuiTreeNodeFlags flags)) } |]
 
 -- | Wraps @ImGui::SetNextItemOpen()@.
 setNextItemOpen :: (MonadIO m) => CBool -> m ()
@@ -1463,20 +1691,25 @@ setTabItemClosed namePtr = liftIO do
   [C.exp| void { SetTabItemClosed($(char* namePtr)); } |]
 
 
--- | Begin/append a tooltip window to create full-featured tooltip (with any
--- kind of items).
---
--- Wraps @ImGui::BeginTooltip()@
-beginTooltip :: (MonadIO m) => m ()
+-- | Begin/append a tooltip window to create full-featured tooltip (with any kind of items).
+beginTooltip :: (MonadIO m) => m Bool
 beginTooltip = liftIO do
-  [C.exp| void { BeginTooltip() } |]
+  (0 /=) <$> [C.exp| bool { BeginTooltip() } |]
 
+-- | A shortcut for the @if (IsItemHovered(ImGuiHoveredFlags_ForTooltip) && BeginTooltip())@ idiom.
+beginItemTooltip :: (MonadIO m) => m Bool
+beginItemTooltip = liftIO do
+  (0 /=) <$>  [C.exp| bool { BeginItemTooltip() } |]
 
--- | Wraps @ImGui::EndTooltip()@
+-- | Only call if 'beginTooltip'/'beginItemTooltip' returns True!
 endTooltip :: (MonadIO m) => m ()
 endTooltip = liftIO do
   [C.exp| void { EndTooltip() } |]
 
+-- | Set a text-only tooltip if preceding item was hovered. Overrides any previous call to 'setTooltip'.
+setItemTooltip :: (MonadIO m) => CString -> m ()
+setItemTooltip textPtr = liftIO do
+  [C.exp| void { SetItemTooltip("%s", $(char* textPtr)); } |]
 
 -- | Returns 'True' if the popup is open, and you can start outputting to it.
 --
@@ -1565,6 +1798,86 @@ isItemHovered :: (MonadIO m) => m Bool
 isItemHovered = liftIO do
   (0 /=) <$> [C.exp| bool { IsItemHovered() } |]
 
+-- | Is the last item hovered? (and usable, aka not blocked by a popup, etc.).
+isItemActive :: (MonadIO m) => m Bool
+isItemActive = liftIO do
+  (0 /=) <$> [C.exp| bool { IsItemActive() } |]
+
+isItemFocused :: (MonadIO m) => m Bool
+isItemFocused = liftIO do
+  (0 /=) <$> [C.exp| bool { IsItemFocused() } |]
+
+isItemClicked :: (MonadIO m) => ImGuiMouseButton -> m Bool
+isItemClicked mouseButton = liftIO do
+  (0 /=) <$> [C.exp| bool { IsItemClicked( $(ImGuiMouseButton mouseButton) ) } |]
+
+isItemVisible :: (MonadIO m) => m Bool
+isItemVisible = liftIO do
+  (0 /=) <$> [C.exp| bool { IsItemVisible() } |]
+
+isItemEdited :: (MonadIO m) => m Bool
+isItemEdited = liftIO do
+  (0 /=) <$> [C.exp| bool { IsItemEdited() } |]
+
+isItemActivated :: (MonadIO m) => m Bool
+isItemActivated = liftIO do
+  (0 /=) <$> [C.exp| bool { IsItemActivated() } |]
+
+isItemDeactivated :: (MonadIO m) => m Bool
+isItemDeactivated = liftIO do
+  (0 /=) <$> [C.exp| bool { IsItemDeactivated() } |]
+
+isItemDeactivatedAfterEdit :: (MonadIO m) => m Bool
+isItemDeactivatedAfterEdit = liftIO do
+  (0 /=) <$> [C.exp| bool { IsItemDeactivatedAfterEdit() } |]
+
+isItemToggledOpen :: (MonadIO m) => m Bool
+isItemToggledOpen = liftIO do
+  (0 /=) <$> [C.exp| bool { IsItemToggledOpen() } |]
+
+isAnyItemHovered :: (MonadIO m) => m Bool
+isAnyItemHovered = liftIO do
+  (0 /=) <$> [C.exp| bool { IsAnyItemHovered() } |]
+
+-- | Is the last item hovered? (and usable, aka not blocked by a popup, etc.).
+isAnyItemActive :: (MonadIO m) => m Bool
+isAnyItemActive = liftIO do
+  (0 /=) <$> [C.exp| bool { IsAnyItemActive() } |]
+
+isAnyItemFocused :: (MonadIO m) => m Bool
+isAnyItemFocused = liftIO do
+  (0 /=) <$> [C.exp| bool { IsAnyItemFocused() } |]
+
+getItemID :: (MonadIO m) => m ImGuiID
+getItemID = liftIO do
+  [C.exp| ImGuiID { GetItemID() } |]
+
+getItemRectMin :: (MonadIO m) => m ImVec2
+getItemRectMin = liftIO do
+  C.withPtr_ \ptr ->
+    [C.block|
+      void {
+        *$(ImVec2 * ptr) = GetItemRectMin();
+      }
+    |]
+
+getItemRectMax :: (MonadIO m) => m ImVec2
+getItemRectMax = liftIO do
+  C.withPtr_ \ptr ->
+    [C.block|
+      void {
+        *$(ImVec2 * ptr) = GetItemRectMin();
+      }
+    |]
+
+getItemRectSize :: (MonadIO m) => m ImVec2
+getItemRectSize = liftIO do
+  C.withPtr_ \ptr ->
+    [C.block|
+      void {
+        *$(ImVec2 * ptr) = GetItemRectSize();
+      }
+    |]
 
 -- | Get draw list associated to the current window.
 getWindowDrawList :: (MonadIO m) => m DrawList
@@ -1739,6 +2052,26 @@ endDisabled :: (MonadIO m) => m ()
 endDisabled = liftIO do
   [C.exp| void { EndDisabled() } |]
 
+-- | Make last item the default focused item of a window.
+setItemDefaultFocus :: (MonadIO m) => m ()
+setItemDefaultFocus = liftIO do
+  [C.block| void { SetItemDefaultFocus(); } |]
+
+-- | Focus keyboard on the next widget.
+--
+-- Use positive 'offset' to access sub components of a multiple component widget.
+-- Use -1 to access previous widget.
+setKeyboardFocusHere :: (MonadIO m) => CInt -> m ()
+setKeyboardFocusHere offset = liftIO do
+  [C.block| void { SetKeyboardFocusHere( $(int offset)); } |]
+
+-- | Allow next item to be overlapped by a subsequent item.
+--
+-- Useful with invisible buttons, selectable, treenode covering an area where subsequent items may need to be added.
+-- Note that both `selectable` and `treeNode` have dedicated flags doing this.
+setNextItemAllowOverlap :: (MonadIO m) => m ()
+setNextItemAllowOverlap = liftIO do
+  [C.block| void { SetNextItemAllowOverlap(); } |]
 
 -- | undo a sameLine or force a new line when in an horizontal-layout context.
 --
@@ -1840,6 +2173,29 @@ alignTextToFramePadding :: (MonadIO m) => m ()
 alignTextToFramePadding = liftIO do
   [C.exp| void { AlignTextToFramePadding() } |]
 
+-- | ~ @FontSize@
+getTextLineHeight :: (MonadIO m) => m CFloat
+getTextLineHeight = liftIO do
+  [C.exp| float { GetTextLineHeight() } |]
+
+-- | Distance in pixels between 2 consecutive lines of text.
+--
+-- ~ @FontSize + style.ItemSpacing.y@ ()
+getTextLineHeightWithSpacing :: (MonadIO m) => m CFloat
+getTextLineHeightWithSpacing = liftIO do
+  [C.exp| float { GetTextLineHeightWithSpacing() } |]
+
+-- | ~ @FontSize + style.FramePadding.y * 2@
+getFrameHeight :: (MonadIO m) => m CFloat
+getFrameHeight = liftIO do
+  [C.exp| float { GetFrameHeight() } |]
+
+-- | Distance in pixels between 2 consecutive lines of framed widgets
+--
+-- ~ @FontSize + style.FramePadding.y * 2 + style.ItemSpacing.y@
+getFrameHeightWithSpacing :: (MonadIO m) => m CFloat
+getFrameHeightWithSpacing = liftIO do
+  [C.exp| float { GetFrameHeightWithSpacing() } |]
 
 -- | Set cursor position in window-local coordinates
 --
@@ -1985,10 +2341,55 @@ popID :: (MonadIO m) => m ()
 popID = liftIO do
   [C.exp| void { PopID() } |]
 
+getMousePos :: (MonadIO m) => m ImVec2
+getMousePos = liftIO do
+  C.withPtr_ \ptr ->
+    [C.block|
+      void {
+        *$(ImVec2 * ptr) = GetMousePos();
+      }
+    |]
+
+-- | Retrieve mouse position at the time of opening popup we have 'beginPopup' into (helper to avoid user backing that value themselves).
+getMousePosOnOpeningCurrentPopup :: (MonadIO m) => m ImVec2
+getMousePosOnOpeningCurrentPopup = liftIO do
+  C.withPtr_ \ptr ->
+    [C.block|
+      void {
+        *$(ImVec2 * ptr) = GetMousePosOnOpeningCurrentPopup();
+      }
+    |]
+
+isMouseDragging :: MonadIO m => ImGuiMouseButton -> CFloat -> m Bool
+isMouseDragging btn lockThreshold = liftIO do
+  (0 /=) <$> [C.exp| bool { IsMouseDragging( $(ImGuiMouseButton btn), $(float lockThreshold) ) } |]
+
+getMouseDragDelta :: (MonadIO m) => ImGuiMouseButton -> CFloat -> m ImVec2
+getMouseDragDelta btn lockThreshold = liftIO do
+  C.withPtr_ \ptr ->
+    [C.block|
+      void {
+        *$(ImVec2 * ptr) = GetMouseDragDelta( $(ImGuiMouseButton btn), $(float lockThreshold) );
+      }
+    |]
+
+resetMouseDragDelta :: MonadIO m => ImGuiMouseButton -> m ()
+resetMouseDragDelta btn = liftIO do
+  [C.block| void { ResetMouseDragDelta( $(ImGuiMouseButton btn) ); } |]
 
 wantCaptureMouse :: MonadIO m => m Bool
 wantCaptureMouse = liftIO do
   (0 /=) <$> [C.exp| bool { GetIO().WantCaptureMouse } |]
+
+type ImGuiKeyChord = Int
+
+shortcut :: MonadIO m => ImGuiKeyChord -> ImGuiInputFlags -> m Bool
+shortcut keyChord flags = liftIO do
+  (0 /=) <$> [C.exp| bool { Shortcut( $(ImGuiKeyChord keyChord), $(ImGuiInputFlags flags) ) } |]
+
+setNextItemShortcut :: MonadIO m => ImGuiKeyChord -> ImGuiInputFlags -> m ()
+setNextItemShortcut keyChord flags = liftIO do
+  [C.block| void { SetNextItemShortcut( $(ImGuiKeyChord keyChord), $(ImGuiInputFlags flags) ); } |]
 
 wantCaptureKeyboard :: MonadIO m => m Bool
 wantCaptureKeyboard = liftIO do
@@ -1999,6 +2400,34 @@ wantCaptureKeyboard = liftIO do
 framerate :: MonadIO m => m Float
 framerate = liftIO do
   realToFrac <$> [C.exp| float { GetIO().Framerate } |]
+
+-- | Get global imgui time.
+--
+-- Incremented by io.DeltaTime every frame.
+getTime :: MonadIO m => m Double
+getTime = liftIO do
+  realToFrac <$> [C.exp| double { GetTime() } |]
+
+-- | Get global imgui frame count.
+--
+-- Incremented by 1 every frame.
+getFrameCount :: MonadIO m => m Int
+getFrameCount = liftIO do
+  fromIntegral <$> [C.exp| int { GetFrameCount() } |]
+
+calcTextSize :: MonadIO m => CString -> CString -> CBool -> CFloat -> m ImVec2
+calcTextSize textPtr textEndPtr hideAfterDoubleHash wrapWidth = liftIO do
+  C.withPtr_ \ptr ->
+    [C.block|
+      void {
+        *$(ImVec2 * ptr) = CalcTextSize(
+          $(char* textPtr),
+          $(char* textEndPtr),
+          $(bool hideAfterDoubleHash),
+          $(float wrapWidth)
+        );
+      }
+    |]
 
 -- | This draw list will be the first rendering one.
 --
