@@ -32,10 +32,18 @@ module DearImGui
 
     -- * Demo, Debug, Information
   , Raw.showDemoWindow
+  , Raw.showIDStackToolWindow
   , Raw.showMetricsWindow
   , Raw.showAboutWindow
+  , Raw.showStyleSelector
+  , Raw.showFontSelector
   , Raw.showUserGuide
   , getVersion
+
+    -- * Logging
+  , Raw.showDebugLogWindow
+  , Raw.logButtons
+  , logText
 
     -- * Styles
   , Raw.styleColorsDark
@@ -59,6 +67,9 @@ module DearImGui
   , Raw.getWindowSize
   , Raw.getWindowWidth
   , Raw.getWindowHeight
+  , Raw.isWindowAppearing
+  , Raw.isWindowCollapsed
+  , Raw.isWindowFocused
 
     -- ** Manipulation
   , setNextWindowPos
@@ -67,7 +78,13 @@ module DearImGui
   , setNextWindowContentSize
   , setNextWindowSizeConstraints
   , setNextWindowCollapsed
+  , Raw.setNextWindowFocus
+  , setNextWindowScroll
   , setNextWindowBgAlpha
+  , Raw.getContentRegionAvail
+  , Raw.getContentRegionMax
+  , Raw.getWindowContentRegionMin
+  , Raw.getWindowContentRegionMax
 
     -- ** Child Windows
   , withChild
@@ -84,6 +101,8 @@ module DearImGui
   , withStyleVar
   , pushStyleVar
   , popStyleVar
+  , Raw.pushTabStop
+  , Raw.popTabStop
 
   , withFont
   , Raw.Font.pushFont
@@ -105,14 +124,28 @@ module DearImGui
   , withItemWidth
   , pushItemWidth
   , Raw.popItemWidth
+  , Raw.calcItemWidth
+  , withTextWrapPos
+  , pushTextWrapPos
+  , Raw.popTextWrapPos
 
   , withGroup
   , Raw.beginGroup
   , Raw.endGroup
 
   , setCursorPos
+  , setCursorPosX
+  , setCursorPosY
+  , setCursorScreenPos
   , Raw.getCursorPos
+  , getCursorPosX
+  , getCursorPosY
+  , Raw.getCursorStartPos
   , Raw.alignTextToFramePadding
+  , getTextLineHeight
+  , getTextLineHeightWithSpacing
+  , getFrameHeight
+  , getFrameHeightWithSpacing
 
     -- * ID stack
   , withID
@@ -126,6 +159,11 @@ module DearImGui
   , textWrapped
   , labelText
   , bulletText
+  , separatorText
+  , valueBool
+  , valueFloat
+  , valueInt32
+  , valueWord32
 
     -- ** Main
   , button
@@ -134,6 +172,10 @@ module DearImGui
   , arrowButton
   , Raw.image
   , checkbox
+  , checkboxFlags
+  , checkboxFlagsU
+  , radioButton
+  , radioButtonI
   , progressBar
   , Raw.bullet
 
@@ -178,10 +220,24 @@ module DearImGui
   , inputText
   , inputTextMultiline
   , inputTextWithHint
+  , inputFloat
+  , inputFloat2
+  , inputFloat3
+  , inputFloat4
+  , inputInt
+  , inputInt2
+  , inputInt3
+  , inputInt4
+  , inputScalar
+  , inputScalarN
 
     -- ** Color Editor/Picker
+  , colorEdit3
+  , colorEdit4
   , colorPicker3
+  , colorPicker4
   , colorButton
+  , Raw.setColorEditOptions
 
     -- ** Tables
   , withTable
@@ -229,6 +285,8 @@ module DearImGui
   , treePush
   , Raw.treePop
   , setNextItemOpen
+  , collapsingHeader
+  , getTreeNodeToLabelSpacing
 
     -- ** Selectables
   , selectable
@@ -275,6 +333,8 @@ module DearImGui
   , setTabItemClosed
 
     -- ** Tooltips
+  , setItemTooltip
+  , withItemTooltip
   , withTooltip
   , Raw.beginTooltip
   , Raw.endTooltip
@@ -327,10 +387,38 @@ module DearImGui
 
     -- * Item/Widgets Utilities
   , Raw.isItemHovered
-  , Raw.wantCaptureMouse
-  , Raw.wantCaptureKeyboard
+  , Raw.isItemActive
+  , Raw.isItemFocused
+  , Raw.isItemClicked
+  , Raw.isItemVisible
+  , Raw.isItemEdited
+  , Raw.isItemActivated
+  , Raw.isItemDeactivated
+  , Raw.isItemDeactivatedAfterEdit
+  , Raw.isItemToggledOpen
+  , Raw.isAnyItemHovered
+  , Raw.isAnyItemActive
+  , Raw.isAnyItemFocused
+  , Raw.getItemID
+  , Raw.getItemRectMin
+  , Raw.getItemRectMax
+  , Raw.getItemRectSize
 
     -- * Utilities
+  , Raw.wantCaptureMouse
+  , Raw.getMousePos
+  , Raw.getMousePosOnOpeningCurrentPopup
+  , Raw.isMouseDragging
+  , Raw.getMouseDragDelta
+  , Raw.resetMouseDragDelta
+
+  , Raw.wantCaptureKeyboard
+  , Raw.shortcut
+  , Raw.setNextItemShortcut
+
+  , Raw.setItemDefaultFocus
+  , Raw.setKeyboardFocusHere
+  , Raw.setNextItemAllowOverlap
 
     -- ** ListClipper
   , withListClipper
@@ -342,6 +430,9 @@ module DearImGui
   , Raw.getForegroundDrawList
   , Raw.imCol32
   , Raw.framerate
+  , Raw.getTime
+  , Raw.getFrameCount
+  , calcTextSize
 
     -- * Types
   , module DearImGui.Enums
@@ -392,6 +483,11 @@ import qualified Data.Vector.Unboxed as VU
 getVersion :: MonadIO m => m Text
 getVersion = liftIO do
   Raw.getVersion >>= Text.peekCString
+
+-- | Send text to logs.
+logText :: MonadIO m => Text -> m ()
+logText t = liftIO do
+  Text.withCString t Raw.logText
 
 -- | Push window to the stack and start appending to it.
 --
@@ -558,6 +654,33 @@ bulletText :: MonadIO m => Text -> m ()
 bulletText t = liftIO do
   Text.withCString t Raw.bulletText
 
+-- | Text with an horizontal line.
+separatorText :: MonadIO m => Text -> m ()
+separatorText t = liftIO do
+  Text.withCString t Raw.separatorText
+
+-- | Shortcut for a labelled Bool.
+valueBool :: MonadIO m => Text -> Bool -> m ()
+valueBool t b = liftIO do
+  Text.withCString t \tPtr -> Raw.valueBool tPtr (bool 0 1 b)
+
+-- | Shortcut for a labelled Int.
+valueInt32 :: MonadIO m => Text -> Int32 -> m ()
+valueInt32 t i = liftIO do
+  Text.withCString t \tPtr -> Raw.valueInt tPtr (CInt i)
+
+-- | Shortcut for a labelled Word.
+valueWord32 :: MonadIO m => Text -> Word32 -> m ()
+valueWord32 t w = liftIO do
+  Text.withCString t \tPtr -> Raw.valueUInt tPtr (CUInt w)
+
+-- | Shortcut for a labelled Float.
+valueFloat :: MonadIO m => Text -> Float -> Text -> m ()
+valueFloat t f format = liftIO do
+  Text.withCString t \tPtr ->
+    Text.withCString format \formatPtr ->
+      Raw.valueFloat tPtr (CFloat f) formatPtr
+
 -- | A button. Returns 'True' when clicked.
 --
 -- Wraps @ImGui::Button()@.
@@ -609,6 +732,55 @@ checkbox label ref = liftIO do
       ref $=! (newValue == 1)
 
     return changed
+
+
+-- | Checkbox for a bit mask inside a signed value.
+checkboxFlags :: (HasSetter ref Int32, HasGetter ref Int32, MonadIO m) => Text -> ref -> Int32 -> m Bool
+checkboxFlags label ref flagsValue = liftIO do
+  currentValue <- get ref
+  Text.withCString label \labelPtr ->
+    with (CInt currentValue) \flagsPtr -> do
+      changed <- Raw.checkboxFlags labelPtr flagsPtr (CInt flagsValue)
+
+      when changed do
+        CInt newValue <- peek flagsPtr
+        ref $=! newValue
+
+      return changed
+
+
+-- | Checkbox for a bit mask inside an unsigned value.
+checkboxFlagsU :: (HasSetter ref Word32, HasGetter ref Word32, MonadIO m) => Text -> ref -> Word32 -> m Bool
+checkboxFlagsU label ref flagsValue = liftIO do
+  currentValue <- get ref
+  Text.withCString label \labelPtr ->
+    with (CUInt currentValue) \flagsPtr -> do
+      changed <- Raw.checkboxFlagsU labelPtr flagsPtr (CUInt flagsValue)
+
+      when changed do
+        CUInt newValue <- peek flagsPtr
+        ref $=! newValue
+
+      return changed
+
+radioButton :: MonadIO m => Text -> Bool -> m Bool
+radioButton label b = liftIO do
+  Text.withCString label \labelPtr ->
+    Raw.radioButton labelPtr (bool 0 1 b)
+
+
+radioButtonI :: (HasSetter ref Int32, HasGetter ref Int32, MonadIO m) => Text -> ref -> Int32 -> m Bool
+radioButtonI label ref vButton = liftIO do
+  currentValue <- get ref
+  Text.withCString label \labelPtr ->
+    with (CInt currentValue) \valuePtr -> do
+      changed <- Raw.radioButtonI labelPtr valuePtr (CInt vButton)
+
+      when changed do
+        CInt newValue <- peek valuePtr
+        ref $=! newValue
+
+      return changed
 
 
 progressBar :: MonadIO m => Float -> Maybe Text -> m ()
@@ -1309,18 +1481,225 @@ withInputString ref bufSize action = liftIO do
         max refSize bufSize +
         5 -- XXX: max size of UTF8 code point + NUL terminator
 
+inputFloat :: (MonadIO m, HasSetter ref Float, HasGetter ref Float) => Text -> ref -> Float -> Float -> m Bool
+inputFloat desc ref step stepFast = liftIO do
+  currentValue <- get ref
+  with (CFloat currentValue) \floatPtr -> do
+    changed <- Text.withCString desc \descPtr ->
+      Raw.inputFloat descPtr floatPtr (CFloat step) (CFloat stepFast) nullPtr ImGuiInputTextFlags_None
+
+    when changed do
+      CFloat newValue <- peek floatPtr
+      ref $=! newValue
+
+    return changed
+
+inputFloat2 :: (MonadIO m, HasSetter ref (Float, Float), HasGetter ref (Float, Float)) => Text -> ref -> m Bool
+inputFloat2 desc ref = liftIO do
+  (x, y) <- get ref
+  withArray [ CFloat x, CFloat y ] \floatPtr -> do
+    changed <- Text.withCString desc \descPtr ->
+      Raw.inputFloat2 descPtr floatPtr nullPtr ImGuiInputTextFlags_None
+
+    when changed do
+      [CFloat x', CFloat y'] <- peekArray 2 floatPtr
+      ref $=! (x', y')
+
+    return changed
+
+inputFloat3 :: (MonadIO m, HasSetter ref (Float, Float, Float), HasGetter ref (Float, Float, Float)) => Text -> ref -> m Bool
+inputFloat3 desc ref = liftIO do
+  (x, y, z) <- get ref
+  withArray [ CFloat x, CFloat y, CFloat z ] \floatPtr -> do
+    changed <- Text.withCString desc \descPtr ->
+      Raw.inputFloat3 descPtr floatPtr nullPtr ImGuiInputTextFlags_None
+
+    when changed do
+      [CFloat x', CFloat y', CFloat z'] <- peekArray 3 floatPtr
+      ref $=! (x', y', z')
+
+    return changed
+
+inputFloat4 :: (MonadIO m, HasSetter ref (Float, Float, Float, Float), HasGetter ref (Float, Float, Float, Float)) => Text -> ref -> m Bool
+inputFloat4 desc ref = liftIO do
+  (x, y, z, u) <- get ref
+  withArray [ CFloat x, CFloat y, CFloat z, CFloat u ] \floatPtr -> do
+    changed <- Text.withCString desc \descPtr ->
+      Raw.inputFloat4 descPtr floatPtr nullPtr ImGuiInputTextFlags_None
+
+    when changed do
+      [CFloat x', CFloat y', CFloat z', CFloat u'] <- peekArray 4 floatPtr
+      ref $=! (x', y', z', u')
+
+    return changed
+
+inputInt :: (MonadIO m, HasSetter ref Int32, HasGetter ref Int32) => Text -> ref -> Int32 -> Int32 -> m Bool
+inputInt desc ref step stepFast = liftIO do
+  currentValue <- get ref
+  with (CInt currentValue) \intPtr -> do
+    changed <- Text.withCString desc \descPtr ->
+      Raw.inputInt descPtr intPtr (CInt step) (CInt stepFast) ImGuiInputTextFlags_None
+
+    when changed do
+      CInt newValue <- peek intPtr
+      ref $=! newValue
+
+    return changed
+
+inputInt2 :: (MonadIO m, HasSetter ref (Int32, Int32), HasGetter ref (Int32, Int32)) => Text -> ref -> m Bool
+inputInt2 desc ref = liftIO do
+  (x, y) <- get ref
+  withArray [ CInt x, CInt y ] \intPtr -> do
+    changed <- Text.withCString desc \descPtr ->
+      Raw.inputInt2 descPtr intPtr ImGuiInputTextFlags_None
+
+    when changed do
+      [CInt x', CInt y'] <- peekArray 2 intPtr
+      ref $=! (x', y')
+
+    return changed
+
+inputInt3 :: (MonadIO m, HasSetter ref (Int32, Int32, Int32), HasGetter ref (Int32, Int32, Int32)) => Text -> ref -> m Bool
+inputInt3 desc ref = liftIO do
+  (x, y, z) <- get ref
+  withArray [ CInt x, CInt y, CInt z ] \intPtr -> do
+    changed <- Text.withCString desc \descPtr ->
+      Raw.inputInt3 descPtr intPtr ImGuiInputTextFlags_None
+
+    when changed do
+      [CInt x', CInt y', CInt z'] <- peekArray 3 intPtr
+      ref $=! (x', y', z')
+
+    return changed
+
+inputInt4 :: (MonadIO m, HasSetter ref (Int32, Int32, Int32, Int32), HasGetter ref (Int32, Int32, Int32, Int32)) => Text -> ref -> m Bool
+inputInt4 desc ref = liftIO do
+  (x, y, z, u) <- get ref
+  withArray [ CInt x, CInt y, CInt z, CInt u ] \intPtr -> do
+    changed <- Text.withCString desc \descPtr ->
+      Raw.inputInt4 descPtr intPtr ImGuiInputTextFlags_None
+
+    when changed do
+      [CInt x', CInt y', CInt z', CInt u'] <- peekArray 4 intPtr
+      ref $=! (x', y', z', u')
+
+    return changed
+
+inputScalar
+  :: (HasGetter ref a, HasSetter ref a, HasGetter range a, Storable a, MonadIO m)
+  => Text -> ImGuiDataType -> ref -> range -> range -> Text -> ImGuiInputTextFlags -> m Bool
+inputScalar label dataType ref refMin refMax format flags = liftIO do
+  currentValue <- get ref
+  minValue <- get refMin
+  maxValue <- get refMax
+
+  with currentValue \dataPtr ->
+    with minValue \minPtr ->
+      with maxValue \maxPtr -> do
+        changed <-
+          Text.withCString label \labelPtr ->
+            Text.withCString format \formatPtr ->
+              Raw.inputScalar
+                labelPtr
+                dataType
+                dataPtr
+                minPtr
+                maxPtr
+                formatPtr
+                flags
+
+        when changed do
+          newValue <- peek dataPtr
+          ref $=! newValue
+
+        return changed
+
+inputScalarN
+  :: (HasSetter value [a], HasGetter value [a], HasGetter range a, Storable a, MonadIO m)
+  => Text -> ImGuiDataType -> value -> range -> range -> Text -> ImGuiInputTextFlags -> m Bool
+inputScalarN label dataType ref refMin refMax format flags = liftIO do
+  currentValues <- get ref
+  minValue <- get refMin
+  maxValue <- get refMax
+
+  withArrayLen currentValues \components dataPtr ->
+    with minValue \minPtr ->
+      with maxValue \maxPtr -> do
+        changed <-
+          Text.withCString label \labelPtr ->
+            Text.withCString format \formatPtr ->
+              Raw.inputScalarN
+                labelPtr
+                dataType
+                dataPtr
+                (fromIntegral components)
+                minPtr
+                maxPtr
+                formatPtr
+                flags
+
+        when changed do
+          newValue <- peekArray components dataPtr
+          ref $=! newValue
+
+        return changed
+
+-- | Wraps @ImGui::ColorPicker3()@.
+colorEdit3 :: (MonadIO m, HasSetter ref ImVec3, HasGetter ref ImVec3) => Text -> ref -> m Bool
+colorEdit3 desc ref = liftIO do
+  currentValue <- get ref
+  with currentValue \refPtr -> do
+    changed <- Text.withCString desc \descPtr ->
+      Raw.colorEdit3 descPtr (castPtr refPtr) ImGuiColorEditFlags_None
+
+    when changed do
+      newValue <- peek refPtr
+      ref $=! newValue
+
+    return changed
+
+
+-- | Wraps @ImGui::ColorEdit3()@.
+colorEdit4 :: (MonadIO m, HasSetter ref ImVec4, HasGetter ref ImVec4) => Text -> ref -> m Bool
+colorEdit4 desc ref = liftIO do
+  currentValue <- get ref
+  with currentValue \refPtr -> do
+    changed <- Text.withCString desc \descPtr ->
+      Raw.colorEdit4 descPtr (castPtr refPtr) ImGuiColorEditFlags_None
+
+    when changed do
+      newValue <- peek refPtr
+      ref $=! newValue
+
+    return changed
+
 
 -- | Wraps @ImGui::ColorPicker3()@.
 colorPicker3 :: (MonadIO m, HasSetter ref ImVec3, HasGetter ref ImVec3) => Text -> ref -> m Bool
 colorPicker3 desc ref = liftIO do
-  ImVec3{x, y, z} <- get ref
-  withArray (realToFrac <$> [x, y, z]) \refPtr -> do
+  currentValue <- get ref
+  with currentValue \refPtr -> do
     changed <- Text.withCString desc \descPtr ->
-      Raw.colorPicker3 descPtr refPtr ImGuiColorEditFlags_None
+      Raw.colorPicker3 descPtr (castPtr refPtr) ImGuiColorEditFlags_None
 
     when changed do
-      [x', y', z'] <- peekArray 3 refPtr
-      ref $=! ImVec3 (realToFrac x') (realToFrac y') (realToFrac z')
+      newValue <- peek refPtr
+      ref $=! newValue
+
+    return changed
+
+-- | Wraps @ImGui::ColorPicker3()@.
+colorPicker4 :: (MonadIO m, HasSetter ref ImVec4, HasGetter ref ImVec4) => Text -> ref -> Maybe ImVec4 -> m Bool
+colorPicker4 desc ref refColor = liftIO do
+  currentValue <- get ref
+  with currentValue \refPtr -> do
+    changed <- Text.withCString desc \descPtr ->
+      maybeWith with refColor \refColorPtr ->
+        Raw.colorPicker4 descPtr (castPtr refPtr) ImGuiColorEditFlags_None (castPtr refColorPtr)
+
+    when changed do
+      newValue <- peek refPtr
+      ref $=! newValue
 
     return changed
 
@@ -1575,6 +1954,17 @@ treePush :: MonadIO m => Text -> m ()
 treePush label = liftIO do
   Text.withCString label Raw.treePush
 
+getTreeNodeToLabelSpacing :: (MonadIO m) => m Float
+getTreeNodeToLabelSpacing = liftIO do
+  CFloat x <- Raw.getTreeNodeToLabelSpacing
+  pure x
+
+collapsingHeader :: (MonadIO m) => Text -> Maybe Bool -> m Bool
+collapsingHeader label visible = liftIO do
+  Text.withCString label \labelPtr ->
+    maybeWith with (bool 0 1 <$> visible) \visiblePtr ->
+      Raw.collapsingHeader labelPtr visiblePtr ImGuiTreeNodeFlags_None
+
 -- | Wraps @ImGui::SetNextItemOpen()@.
 setNextItemOpen :: MonadIO m => Bool -> m ()
 setNextItemOpen is_open = Raw.setNextItemOpen (bool 0 1 is_open)
@@ -1761,12 +2151,24 @@ setTabItemClosed :: MonadIO m => Text -> m ()
 setTabItemClosed tabName = liftIO do
   Text.withCString tabName Raw.setTabItemClosed
 
+-- | Set a text-only tooltip if preceding item was hovered.
+setItemTooltip :: MonadIO m => Text -> m ()
+setItemTooltip tabName = liftIO do
+  Text.withCString tabName Raw.setItemTooltip
+
+-- | Create a tooltip if a previous item is hovered.
+--
+-- Those are windows that follow a mouse and don't take focus away.
+-- Can contain any kind of items.
+withItemTooltip ::  MonadUnliftIO m => m () -> m ()
+withItemTooltip action = bracket Raw.beginItemTooltip (`when` Raw.endTooltip) (`when` action)
+
 -- | Create a tooltip.
 --
 -- Those are windows that follow a mouse and don't take focus away.
 -- Can contain any kind of items.
-withTooltip ::  MonadUnliftIO m => m a -> m a
-withTooltip = bracket_ Raw.beginTooltip Raw.endTooltip
+withTooltip ::  MonadUnliftIO m => m () -> m ()
+withTooltip action = bracket Raw.beginItemTooltip (`when` Raw.endTooltip) (`when` action)
 
 
 -- | Action wrapper for disabled blocks.
@@ -1979,6 +2381,9 @@ setNextWindowCollapsed :: (MonadIO m) => Bool -> ImGuiCond -> m ()
 setNextWindowCollapsed b cond = liftIO do
   Raw.setNextWindowCollapsed (bool 0 1 b) cond
 
+setNextWindowScroll :: (MonadIO m) => ImVec2 -> m ()
+setNextWindowScroll scroll = liftIO do
+  with scroll Raw.setNextWindowScroll
 
 -- | Set next window background color alpha. helper to easily override the Alpha component of `ImGuiCol_WindowBg`, `ChildBg`, `PopupBg`. you may also use `ImGuiWindowFlags_NoBackground`.
 --
@@ -2033,6 +2438,18 @@ pushItemWidth :: (MonadIO m) => Float -> m ()
 pushItemWidth itemWidth = liftIO do
   Raw.pushItemWidth (CFloat itemWidth)
 
+withTextWrapPos :: MonadUnliftIO m => Float -> m a -> m a
+withTextWrapPos width =
+  bracket_ (pushTextWrapPos width) Raw.popTextWrapPos
+
+-- | Push word-wrapping position for Text commands.
+--
+-- Negative: no wrapping.
+-- Zero: wrap to end of window (or column).
+-- Positive: wrap at 'wrap_pos_x' position in window local space.
+pushTextWrapPos :: (MonadIO m) => Float -> m ()
+pushTextWrapPos wrapLocalPosX = liftIO do
+  Raw.pushTextWrapPos (CFloat wrapLocalPosX)
 
 -- | Lock horizontal starting position
 --
@@ -2047,6 +2464,46 @@ setCursorPos :: (MonadIO m, HasGetter ref ImVec2) => ref -> m ()
 setCursorPos posRef = liftIO do
   pos <- get posRef
   with pos Raw.setCursorPos
+
+setCursorPosX :: (MonadIO m) => Float -> m ()
+setCursorPosX x = Raw.setCursorPosX (CFloat x)
+
+setCursorPosY :: (MonadIO m) => Float -> m ()
+setCursorPosY y = Raw.setCursorPosY (CFloat y)
+
+setCursorScreenPos :: (MonadIO m) => ImVec2 -> m ()
+setCursorScreenPos pos = liftIO do
+  with pos Raw.setCursorScreenPos
+
+getCursorPosX :: (MonadIO m) => m Float
+getCursorPosX = liftIO do
+  CFloat x <- Raw.getCursorPosX
+  pure x
+
+getCursorPosY :: (MonadIO m) => m Float
+getCursorPosY = liftIO do
+  CFloat y <- Raw.getCursorPosY
+  pure y
+
+getTextLineHeight :: (MonadIO m) => m Float
+getTextLineHeight = liftIO do
+  CFloat h <- Raw.getTextLineHeight
+  pure h
+
+getTextLineHeightWithSpacing :: (MonadIO m) => m Float
+getTextLineHeightWithSpacing = liftIO do
+  CFloat h <- Raw.getTextLineHeightWithSpacing
+  pure h
+
+getFrameHeight :: (MonadIO m) => m Float
+getFrameHeight = liftIO do
+  CFloat h <- Raw.getFrameHeight
+  pure h
+
+getFrameHeightWithSpacing :: (MonadIO m) => m Float
+getFrameHeightWithSpacing = liftIO do
+  CFloat h <- Raw.getFrameHeightWithSpacing
+  pure h
 
 -- | Add an element to a ID stack
 --
@@ -2155,6 +2612,11 @@ withListClipper itemHeight items action =
           clipItems startIndex endIndex items
 
         go clipper
+
+calcTextSize :: MonadIO m => Text -> Bool -> Float -> m ImVec2
+calcTextSize t hideAfterDoubleHash wrapWidth = liftIO do
+  Text.withCStringLen t \(textPtr, textLen) ->
+    Raw.calcTextSize textPtr (textPtr `plusPtr` textLen) (bool 0 1 hideAfterDoubleHash) (CFloat wrapWidth)
 
 -- | Containers usable with 'ListClipper'.
 class ClipItems t a where
