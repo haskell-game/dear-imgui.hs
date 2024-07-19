@@ -104,6 +104,9 @@ data ImDrawList
 -- | 'DearImGui.Raw.ListClipper.ListClipper' pointer tag.
 data ImGuiListClipper
 
+-- | 'DearImGui.Raw.DragDrop.Payload' pointer tag.
+data ImGuiPayload
+
 -- | A unique ID used by widgets (typically the result of hashing a stack of string)
 --   unsigned Integer (same as ImU32)
 type ImGuiID = ImU32
