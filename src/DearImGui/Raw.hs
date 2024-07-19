@@ -1545,7 +1545,6 @@ getTreeNodeToLabelSpacing = liftIO do
 -- @p_visible != NULL && *p_visible == false @ - do not show the header at all.
 --
 -- Do not mistake this with the Open state of the header itself, which you can adjust with SetNextItemOpen() or ImGuiTreeNodeFlags_DefaultOpen.
-
 collapsingHeader :: (MonadIO m) => CString -> Ptr CBool -> ImGuiTreeNodeFlags -> m Bool
 collapsingHeader labelPtr visiblePtr flags = liftIO do
   (0 /=) <$> [C.exp| bool { CollapsingHeader($(char* labelPtr), $(bool* visiblePtr), $(ImGuiTreeNodeFlags flags)) } |]
@@ -2296,7 +2295,7 @@ popStyleVar :: (MonadIO m) => CInt -> m ()
 popStyleVar n = liftIO do
   [C.exp| void { PopStyleVar($(int n)) } |]
 
--- | Allow focusing using TAB/Shift-TAB, enabled by default but you can disable it for certain widgets.
+-- | Allow/disable focusing using TAB/Shift-TAB, enabled by default but you can disable it for certain widgets.
 pushTabStop :: (MonadIO m) => CBool -> m ()
 pushTabStop b = liftIO do
   [C.exp| void { PushTabStop($(bool b)) } |]

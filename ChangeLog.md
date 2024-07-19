@@ -10,6 +10,7 @@
     * Breaking: ImplVulkan moved RenderPass into InitInfo structure.
       + Breaking: Haskell API is now using `Either RenderPass RenderingPipelineCreateInfo` to switch between RP/dynamic rendering.
 - Added lots of missing widgets and their wrappers.
+- Breaking: a few functions in `DearImGui` switched away from using CFloat/CBool wrappers.
 
 ## [2.2.1]
 

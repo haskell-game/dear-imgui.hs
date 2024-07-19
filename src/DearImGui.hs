@@ -65,8 +65,8 @@ module DearImGui
   , Raw.getWindowDrawList
   , Raw.getWindowPos
   , Raw.getWindowSize
-  , Raw.getWindowWidth
-  , Raw.getWindowHeight
+  , getWindowWidth
+  , getWindowHeight
   , Raw.isWindowAppearing
   , Raw.isWindowCollapsed
   , Raw.isWindowFocused
@@ -101,7 +101,8 @@ module DearImGui
   , withStyleVar
   , pushStyleVar
   , popStyleVar
-  , Raw.pushTabStop
+  , withTabStop
+  , pushTabStop
   , Raw.popTabStop
 
   , withFont
@@ -341,7 +342,7 @@ module DearImGui
 
     -- ** Disabled blocks
   , withDisabled
-  , Raw.beginDisabled
+  , beginDisabled
   , Raw.endDisabled
 
     -- * Popups/Modals
@@ -2179,7 +2180,12 @@ withDisabled disabledRef action = do
   disabled <- get disabledRef
   if disabled then bracket_ (Raw.beginDisabled 1) Raw.endDisabled action else action
 
-
+-- | Begin a block that may be disabled. This disables all user interactions
+-- and dims item visuals.
+--
+-- Always call a matching 'endDisabled' for each 'beginDisabled' call.
+beginDisabled :: MonadIO m => Bool -> m ()
+beginDisabled = Raw.beginDisabled . bool 0 1
 
 -- | Returns 'True' if the popup is open, and you can start outputting to it.
 --
@@ -2323,6 +2329,15 @@ isAnyLevelPopupOpen popupId = liftIO do
     Raw.isPopupOpen idPtr $
       ImGuiPopupFlags_AnyPopupId .|. ImGuiPopupFlags_AnyPopupLevel
 
+getWindowWidth :: MonadIO m => m Float
+getWindowWidth = liftIO do
+  CFloat w <- Raw.getWindowWidth
+  pure w
+
+getWindowHeight :: MonadIO m => m Float
+getWindowHeight = liftIO do
+  CFloat w <- Raw.getWindowHeight
+  pure w
 
 -- | Set next window position. Call before `begin` Use pivot=(0.5,0.5) to center on given point, etc.
 --
@@ -2562,6 +2577,15 @@ pushStyleColor col colorRef = liftIO do
 withStyleVar :: (MonadUnliftIO m, HasGetter ref ImVec2) => ImGuiStyleVar -> ref -> m a -> m a
 withStyleVar style ref =
   bracket_ (pushStyleVar style ref) (Raw.popStyleVar 1)
+
+-- | Allow/disable focusing using TAB/Shift-TAB, enabled by default but you can disable it for certain widgets.
+withTabStop :: MonadUnliftIO m => Bool -> m a -> m a
+withTabStop enabled =
+  bracket_ (pushTabStop enabled) Raw.popTabStop
+
+-- | Allow/disable focusing using TAB/Shift-TAB, enabled by default but you can disable it for certain widgets.
+pushTabStop :: (MonadIO m) => Bool -> m ()
+pushTabStop = Raw.pushTabStop . bool 0 1
 
 -- | Modify a style variable by pushing to the shared stack.
 --
