@@ -421,6 +421,14 @@ module DearImGui
   , Raw.setKeyboardFocusHere
   , Raw.setNextItemAllowOverlap
 
+   -- ** Drag and drop
+  , withDragDropSource
+  , withDragDropTarget
+  , withDragDropSource_
+  , withDragDropTarget_
+  , withDragDropSourceData
+  , withDragDropTargetData
+
     -- ** ListClipper
   , withListClipper
   , ClipItems(..)
@@ -446,7 +454,7 @@ import Control.Monad
   ( when )
 import Data.Bool
 import Data.Foldable
-  ( foldl' )
+  ( foldl', for_, traverse_ )
 import Foreign
 import Foreign.C
 
@@ -456,6 +464,7 @@ import DearImGui.Internal.Text (Text)
 import DearImGui.Structs
 import qualified DearImGui.Internal.Text as Text
 import qualified DearImGui.Raw as Raw
+import qualified DearImGui.Raw.DragDrop as Raw.DragDrop
 import qualified DearImGui.Raw.Font as Raw.Font
 import qualified DearImGui.Raw.ListClipper as Raw.ListClipper
 
@@ -471,7 +480,7 @@ import Control.Monad.IO.Class
   ( MonadIO, liftIO )
 
 -- unliftio
-import UnliftIO (MonadUnliftIO)
+import UnliftIO (MonadUnliftIO (..))
 import UnliftIO.Exception (bracket, bracket_)
 
 -- vector
@@ -2608,6 +2617,86 @@ popStyleVar n = liftIO do
 -- | Render widgets inside the block using provided font.
 withFont :: MonadUnliftIO m => Raw.Font.Font -> m a -> m a
 withFont font = bracket_ (Raw.Font.pushFont font) Raw.Font.popFont
+
+-- | Attach drag-n-drop source with a payload to a preceding item.
+--
+-- A valid target should have a matching payload type.
+--
+-- Data is copied and retained by DearImGui.
+-- Action is executed when the payload is accepted.
+withDragDropSource :: (MonadUnliftIO m, Storable a) => ImGuiDragDropFlags -> Text -> a -> (Bool -> m ()) -> m ()
+withDragDropSource flags payloadType payload action =
+  withRunInIO \run ->
+    with payload \payloadPtr ->
+      run $ withDragDropSourceData flags payloadType (castPtr payloadPtr, Foreign.sizeOf payload) action
+
+-- | Attach drag-n-drop target to a preceding item.
+--
+-- A valid source should have a matching payload type.
+--
+-- Data is fetched from DearImGui copy and cleared on delivery.
+-- Action is executed when the payload is accepted and not empty.
+withDragDropTarget :: (MonadUnliftIO m, Storable a) => ImGuiDragDropFlags -> Text -> (a -> m ()) -> m ()
+withDragDropTarget flags payloadType action =
+  withRunInIO \run ->
+    Raw.DragDrop.beginTarget >>= flip when do
+      Text.withCString payloadType \typePtr -> do
+        payload_ <- Raw.DragDrop.acceptPayload typePtr flags
+        for_ payload_ \payload -> do
+          dataPtr <- Raw.DragDrop.getData payload
+          Foreign.maybePeek peek (castPtr dataPtr) >>= traverse_ (run . action)
+      Raw.DragDrop.endTarget
+
+-- | Like 'withDragDropSource', but only set payload type.
+withDragDropSource_ :: (MonadUnliftIO m) => ImGuiDragDropFlags -> Text -> (Bool -> m ()) -> m ()
+withDragDropSource_ flags payloadType action =
+  withRunInIO \run ->
+    Raw.DragDrop.beginSource flags >>= flip when do
+      accepted <-
+        Text.withCString payloadType \typePtr ->
+          Raw.DragDrop.setPayload typePtr nullPtr 0 ImGuiCond_Once
+      run $ action accepted
+      Raw.DragDrop.endSource
+
+-- | Like 'withDragDropTarget', but only set payload type.
+--
+-- Payload data is ignored.
+withDragDropTarget_ :: (MonadUnliftIO m) => ImGuiDragDropFlags -> Text -> m () -> m ()
+withDragDropTarget_ flags payloadType action =
+  withRunInIO \run ->
+    Raw.DragDrop.beginTarget >>= flip when do
+      Text.withCString payloadType \typePtr -> do
+        payload_ <- Raw.DragDrop.acceptPayload typePtr flags
+        for_ payload_ (\_dataPtr -> run action)
+      Raw.DragDrop.endTarget
+
+-- | Like 'withDragDropSource', explicitly setting data ptr and size.
+--
+-- Suitable for data with dynamic lengths via @withCStringLen@-like functions.
+withDragDropSourceData :: (MonadUnliftIO m, Integral len) => ImGuiDragDropFlags -> Text -> (Ptr a, len) -> (Bool -> m ()) -> m ()
+withDragDropSourceData flags payloadType (dataPtr, dataSize) action =
+  withRunInIO \run ->
+    Raw.DragDrop.beginSource flags >>= flip when do
+      accepted <-
+        Text.withCString payloadType \typePtr ->
+          Raw.DragDrop.setPayload typePtr dataPtr (fromIntegral dataSize) ImGuiCond_Once
+      run $ action accepted
+      Raw.DragDrop.endSource
+
+-- | Like 'withDragDropTarget', getting raw data ptr and size.
+--
+-- Check the size, and pointer for NULLs etc.!
+withDragDropTargetData :: (MonadUnliftIO m, Integral len) => ImGuiDragDropFlags -> Text -> ((Ptr a, len) -> m ()) -> m ()
+withDragDropTargetData flags payloadType action =
+  withRunInIO \run ->
+    Raw.DragDrop.beginTarget >>= flip when do
+      Text.withCString payloadType \typePtr -> do
+        payload_ <- Raw.DragDrop.acceptPayload typePtr flags
+        for_ payload_ \payload -> do
+          dataPtr <- Raw.DragDrop.getData payload
+          dataSize <- Raw.DragDrop.getDataSize payload
+          run $ action (castPtr dataPtr, fromIntegral dataSize)
+      Raw.DragDrop.endTarget
 
 -- | Clips a large list of items
 --
