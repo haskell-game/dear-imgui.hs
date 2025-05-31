@@ -245,6 +245,7 @@ module DearImGui.Raw
 
     -- * Trees
   , treeNode
+  , treeNodeEx
   , treePush
   , treePop
   , getTreeNodeToLabelSpacing
@@ -1520,6 +1521,10 @@ treeNode :: (MonadIO m) => CString -> m Bool
 treeNode labelPtr = liftIO do
   (0 /=) <$> [C.exp| bool { TreeNode($(char* labelPtr)) } |]
 
+-- | Wraps @ImGui::TreeNodeEx()@.
+treeNodeEx :: (MonadIO m) => CString -> ImGuiTreeNodeFlags -> m Bool
+treeNodeEx labelPtr flags = liftIO do
+  (0 /=) <$> [C.exp| bool { TreeNodeEx($(char* labelPtr), $(ImGuiTreeNodeFlags flags)) } |]
 
 -- | Wraps @ImGui::TreePush()@.
 treePush :: (MonadIO m) => CString -> m ()

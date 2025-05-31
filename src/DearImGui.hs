@@ -283,6 +283,7 @@ module DearImGui
 
     -- ** Trees
   , treeNode
+  , treeNodeWith
   , treePush
   , Raw.treePop
   , setNextItemOpen
@@ -1958,6 +1959,10 @@ treeNode :: MonadIO m => Text -> m Bool
 treeNode label = liftIO do
   Text.withCString label Raw.treeNode
 
+-- | Wraps @ImGui::TreeNodeEx()@.
+treeNodeWith :: MonadIO m => Text -> ImGuiTreeNodeFlags -> m Bool
+treeNodeWith label flags = liftIO do
+  Text.withCString label (flip Raw.treeNodeEx flags)
 
 -- | Wraps @ImGui::TreePush()@.
 treePush :: MonadIO m => Text -> m ()
