@@ -152,7 +152,7 @@ mainLoop window textures flag = unlessQuit do
           Foreign.with (ImVec2 1 1) \uv1Ptr ->
             Foreign.with (ImVec4 1 1 1 1) \tintColPtr ->
               Foreign.with (ImVec4 1 1 1 1) \bgColPtr ->
-                Raw.imageButton openGLtextureID sizePtr uv0Ptr uv1Ptr (-1) bgColPtr tintColPtr
+                Raw.imageButton nullPtr openGLtextureID sizePtr uv0Ptr uv1Ptr bgColPtr tintColPtr
     else
       pure False
 
