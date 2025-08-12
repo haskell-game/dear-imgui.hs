@@ -143,7 +143,7 @@ headers = do
       )
       ( try $ many comment >> keyword "struct" >> identifier)
 
-  _ <- skipManyTill anySingle ( namedSection "Helpers: Memory allocations macros, ImVector<>" )
+  _ <- skipManyTill anySingle ( namedSection "Helpers: Debug log, memory allocations macros, ImVector<>" )
 
   _ <- skipManyTill anySingle ( namedSection "ImGuiStyle" )
 
@@ -152,6 +152,8 @@ headers = do
   _ <- skipManyTill anySingle ( namedSection "Misc data structures" )
 
   _ <- skipManyTill anySingle ( namedSection "Helpers (ImGuiOnceUponAFrame, ImGuiTextFilter, ImGuiTextBuffer, ImGuiStorage, ImGuiListClipper, Math Operators, ImColor)" )
+
+  _ <- skipManyTill anySingle ( namedSection "Multi-Select API flags and structures (ImGuiMultiSelectFlags, ImGuiSelectionRequestType, ImGuiSelectionRequest, ImGuiMultiSelectIO, ImGuiSelectionBasicStorage)" )
 
   _ <- skipManyTill anySingle ( namedSection "Drawing API (ImDrawCmd, ImDrawIdx, ImDrawVert, ImDrawChannel, ImDrawListSplitter, ImDrawListFlags, ImDrawList, ImDrawData)" )
   skipManyTill anySingle ( try . lookAhead $ many comment *> keyword "enum" )

@@ -823,22 +823,21 @@ image userTextureIDPtr sizePtr uv0Ptr uv1Ptr tintColPtr borderColPtr = liftIO do
 -- Negative @frame_padding@ uses default frame padding settings. Set to 0 for no padding.
 --
 -- Wraps @ImGui::ImageButton()@.
-imageButton :: (MonadIO m) => Ptr () -> Ptr ImVec2 -> Ptr ImVec2 -> Ptr ImVec2 -> CInt -> Ptr ImVec4 -> Ptr ImVec4 -> m Bool
-imageButton userTextureIDPtr sizePtr uv0Ptr uv1Ptr framePadding bgColPtr tintColPtr = liftIO do
+imageButton :: (MonadIO m) => CString -> Ptr () -> Ptr ImVec2 -> Ptr ImVec2 -> Ptr ImVec2 -> Ptr ImVec4 -> Ptr ImVec4 -> m Bool
+imageButton labelPtr userTextureIDPtr sizePtr uv0Ptr uv1Ptr bgColPtr tintColPtr = liftIO do
   (0 /=) <$> [C.exp|
     bool {
       ImageButton(
+        $(char* labelPtr),
         $(void* userTextureIDPtr),
         *$(ImVec2* sizePtr),
         *$(ImVec2* uv0Ptr),
         *$(ImVec2* uv1Ptr),
-        $(int framePadding),
         *$(ImVec4* bgColPtr),
         *$(ImVec4* tintColPtr)
       )
     }
   |]
-
 
 -- | Wraps @ImGui::Checkbox()@.
 checkbox :: (MonadIO m) => CString -> Ptr CBool -> m Bool
