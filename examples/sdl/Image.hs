@@ -23,6 +23,7 @@ import qualified SDL as SDL
 
 --  For the texture creation
 import Foreign
+import Foreign.C.String
 import qualified Data.Vector.Storable as VS
 
 data Texture = Texture
@@ -152,7 +153,8 @@ mainLoop window textures flag = unlessQuit do
           Foreign.with (ImVec2 1 1) \uv1Ptr ->
             Foreign.with (ImVec4 1 1 1 1) \tintColPtr ->
               Foreign.with (ImVec4 1 1 1 1) \bgColPtr ->
-                Raw.imageButton nullPtr openGLtextureID sizePtr uv0Ptr uv1Ptr bgColPtr tintColPtr
+                withCString "##btn" \idPtr ->
+                  Raw.imageButton idPtr openGLtextureID sizePtr uv0Ptr uv1Ptr bgColPtr tintColPtr
     else
       pure False
 
