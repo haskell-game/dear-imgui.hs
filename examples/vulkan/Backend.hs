@@ -100,6 +100,7 @@ import qualified Data.Vector as Boxed.Vector
 
 -- vulkan
 import qualified Vulkan
+import qualified Vulkan as LayerProperties (LayerProperties(..))
 import Vulkan.Core10.DeviceInitialization (pattern INSTANCE_CREATE_ENUMERATE_PORTABILITY_BIT_KHR)
 import qualified Vulkan.CStruct.Extends as Vulkan
 import qualified Vulkan.Requirement     as Vulkan
@@ -211,7 +212,7 @@ vulkanInstanceInfo appName = do
     validationLayer
       = coerce
       . foldMap
-        (  (  Vulkan.layerName :: Vulkan.LayerProperties -> ByteString )
+        (  LayerProperties.layerName
         >>> \case
               "VK_LAYER_LUNARG_standard_validation" -> Just ( First LunarG  )
               "VK_LAYER_KHRONOS_validation"         -> Just ( First Khronos )

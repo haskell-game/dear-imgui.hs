@@ -82,6 +82,7 @@ import qualified DearImGui.SDL        as ImGui.SDL
 import qualified DearImGui.SDL.Vulkan as ImGui.SDL.Vulkan
 import Util (vmaVulkanFunctions)
 import Foreign (Ptr, castPtr, copyBytes, with, withForeignPtr, wordPtrToPtr, nullPtr)
+import Foreign.C.String (withCString)
 import qualified DearImGui.Raw as ImGui.Raw
 import UnliftIO (MonadUnliftIO)
 import qualified Vulkan.CStruct.Extends as Vulkan
@@ -110,14 +111,15 @@ gui texture = do
           with (ImGui.Raw.ImVec2 1 1) \uv1Ptr ->
             with (ImGui.Raw.ImVec4 1 1 1 1) \tintColPtr ->
               with (ImGui.Raw.ImVec4 1 1 1 1) \bgColPtr ->
-                ImGui.Raw.imageButton
-                  nullPtr
-                  (snd texture)
-                  sizePtr
-                  uv0Ptr
-                  uv1Ptr
-                  bgColPtr
-                  tintColPtr
+                withCString "##btn" \idPtr ->
+                  ImGui.Raw.imageButton
+                    idPtr
+                    (snd texture)
+                    sizePtr
+                    uv0Ptr
+                    uv1Ptr
+                    bgColPtr
+                    tintColPtr
 
     when clicked $
       ImGui.text "clicky click!"
