@@ -81,7 +81,7 @@ import qualified DearImGui.Vulkan     as ImGui.Vulkan
 import qualified DearImGui.SDL        as ImGui.SDL
 import qualified DearImGui.SDL.Vulkan as ImGui.SDL.Vulkan
 import Util (vmaVulkanFunctions)
-import Foreign (Ptr, castPtr, copyBytes, with, withForeignPtr, wordPtrToPtr)
+import Foreign (Ptr, castPtr, copyBytes, with, withForeignPtr, wordPtrToPtr, nullPtr)
 import qualified DearImGui.Raw as ImGui.Raw
 import UnliftIO (MonadUnliftIO)
 import qualified Vulkan.CStruct.Extends as Vulkan
@@ -111,11 +111,11 @@ gui texture = do
             with (ImGui.Raw.ImVec4 1 1 1 1) \tintColPtr ->
               with (ImGui.Raw.ImVec4 1 1 1 1) \bgColPtr ->
                 ImGui.Raw.imageButton
+                  nullPtr
                   (snd texture)
                   sizePtr
                   uv0Ptr
                   uv1Ptr
-                  (-1)
                   bgColPtr
                   tintColPtr
 
