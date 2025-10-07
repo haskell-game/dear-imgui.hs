@@ -8,6 +8,7 @@ module DearImGui.Structs where
 -- base
 import Data.Word
   ( Word32
+  , Word64
 #ifndef IMGUI_USE_WCHAR32
   , Word16
 #endif
@@ -113,6 +114,10 @@ type ImGuiID = ImU32
 
 -- | 32-bit unsigned integer (often used to store packed colors).
 type ImU32 = Word32
+
+type ImU64 = Word64
+
+type ImTextureID = ImU64
 
 type ImS16 = Int16
 

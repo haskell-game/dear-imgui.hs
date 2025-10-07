@@ -199,12 +199,12 @@ getClipRectMax (DrawList drawList) = liftIO do
     |]
 
 
-pushTextureID :: MonadIO m => DrawList -> Ptr () -> m ()
-pushTextureID (DrawList drawList) userTextureIDPtr = liftIO do
+pushTextureID :: MonadIO m => DrawList -> ImTextureID -> m ()
+pushTextureID (DrawList drawList) userTextureID = liftIO do
   [C.block|
     void {
       $(ImDrawList* drawList)->PushTextureID(
-        $(void* userTextureIDPtr)
+        $(ImTextureID userTextureID)
       );
     }
   |]
@@ -513,16 +513,16 @@ addBezierQuadratic (DrawList drawList) p1 p2 p3 col thickness numSegments = lift
 addImage
   :: MonadIO m
   => DrawList
-  -> Ptr ()
+  -> ImTextureID
   -> Ptr ImVec2 -> Ptr ImVec2 -- Positions
   -> Ptr ImVec2 -> Ptr ImVec2 -- UVs
   -> ImU32
   -> m ()
-addImage (DrawList drawList) userTextureIDPtr p_min p_max uv_min uv_max col = liftIO do
+addImage (DrawList drawList) userTextureID p_min p_max uv_min uv_max col = liftIO do
   [C.block|
     void {
       $(ImDrawList* drawList)->AddImage(
-        $(void* userTextureIDPtr),
+        $(ImTextureID userTextureID),
         *$(ImVec2* p_min),
         *$(ImVec2* p_max),
         *$(ImVec2* uv_min),
@@ -535,16 +535,16 @@ addImage (DrawList drawList) userTextureIDPtr p_min p_max uv_min uv_max col = li
 addImageQuad
   :: MonadIO m
   => DrawList
-  -> Ptr ()
+  -> ImTextureID
   -> Ptr ImVec2 -> Ptr ImVec2 -> Ptr ImVec2 -> Ptr ImVec2 -- Positions
   -> Ptr ImVec2 -> Ptr ImVec2 -> Ptr ImVec2 -> Ptr ImVec2 -- UVs
   -> ImU32
   -> m ()
-addImageQuad (DrawList drawList) userTextureIDPtr p1 p2 p3 p4 uv1 uv2 uv3 uv4 col = liftIO do
+addImageQuad (DrawList drawList) userTextureID p1 p2 p3 p4 uv1 uv2 uv3 uv4 col = liftIO do
   [C.block|
     void {
       $(ImDrawList* drawList)->AddImageQuad(
-        $(void* userTextureIDPtr),
+        $(ImTextureID userTextureID),
         *$(ImVec2* p1),
         *$(ImVec2* p2),
         *$(ImVec2* p3),
@@ -561,18 +561,18 @@ addImageQuad (DrawList drawList) userTextureIDPtr p1 p2 p3 p4 uv1 uv2 uv3 uv4 co
 addImageRounded
   :: MonadIO m
   => DrawList
-  -> Ptr ()
+  -> ImTextureID
   -> Ptr ImVec2 -> Ptr ImVec2 -- Positions
   -> Ptr ImVec2 -> Ptr ImVec2 -- UVs
   -> ImU32
   -> CFloat
   -> ImDrawFlags
   -> m ()
-addImageRounded (DrawList drawList) userTextureIDPtr p_min p_max uv_min uv_max col rounding flags = liftIO do
+addImageRounded (DrawList drawList) userTextureID p_min p_max uv_min uv_max col rounding flags = liftIO do
   [C.block|
     void {
       $(ImDrawList* drawList)->AddImageRounded(
-        $(void* userTextureIDPtr),
+        $(ImTextureID userTextureID),
         *$(ImVec2* p_min),
         *$(ImVec2* p_max),
         *$(ImVec2* uv_min),

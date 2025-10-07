@@ -1,5 +1,12 @@
 # Changelog for dear-imgui
 
+## [2.4.0]
+
+- `imgui` updated to [1.92.9b].
+    * Breaking: `ImTextureID` switched to a Word64 as a base type (was: pointer).
+      + Remove your *ToPtr casts and just use ImTextureID type (a Word64 alias).
+    * Breaking: `setGlyphExtraSpacing` renamed to `setGlyphExtraAdvanceX`.
+
 ## [2.3.1]
 
 - Extended DragDrop API.
