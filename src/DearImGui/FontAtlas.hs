@@ -52,9 +52,9 @@ module DearImGui.FontAtlas
   , oversampleH
   , oversampleV
   , pixelSnapH
-  , glyphExtraSpacing
   , glyphOffset
   , glyphRanges
+  , glyphExtraAdvanceX
   , glyphMinAdvanceX
   , glyphMaxAdvanceX
   , mergeMode
@@ -413,16 +413,6 @@ pixelSnapH value =
   ConfigSetup \fc ->
     FontConfig.setPixelSnapH fc (bool 0 1 value)
 
--- | Extra spacing (in pixels) between glyphs.
---
--- Only X axis is supported for now.
---
--- By default, it is @0, 0@
-glyphExtraSpacing :: (Float, Float) -> ConfigSetup
-glyphExtraSpacing (x, y) =
-  ConfigSetup \fc ->
-    Foreign.with (ImVec2 x y) (FontConfig.setGlyphExtraSpacing fc)
-
 -- | Offset all glyphs from this font input.
 --
 -- By default, it is @0, 0@
@@ -442,6 +432,14 @@ glyphRanges :: GlyphRanges -> ConfigSetup
 glyphRanges value =
   ConfigSetup \fc ->
     FontConfig.setGlyphRanges fc value
+
+-- | Extra spacing (in pixels) between glyphs.
+--
+-- By default, it is @0@
+glyphExtraAdvanceX :: Float -> ConfigSetup
+glyphExtraAdvanceX x =
+  ConfigSetup \fc ->
+    FontConfig.setGlyphExtraAdvanceX fc (CFloat x)
 
 -- | Minimum AdvanceX for glyphs.
 --

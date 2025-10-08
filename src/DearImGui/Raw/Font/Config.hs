@@ -27,7 +27,7 @@ module DearImGui.Raw.Font.Config
   , setOversampleH
   , setOversampleV
   , setPixelSnapH
-  , setGlyphExtraSpacing
+  , setGlyphExtraAdvanceX
   , setGlyphOffset
   , setGlyphRanges
   , setGlyphMinAdvanceX
@@ -154,14 +154,14 @@ setPixelSnapH (FontConfig fc) value = liftIO do
     }
   |]
 
--- | Extra spacing (in pixels) between glyphs. Only X axis is supported for now.
+-- | Extra spacing (in pixels) between glyphs.
 --
--- By default, it is @0, 0@
-setGlyphExtraSpacing :: MonadIO m => FontConfig -> Ptr ImVec2 -> m ()
-setGlyphExtraSpacing (FontConfig fc) value = liftIO do
+-- By default, it is @0@
+setGlyphExtraAdvanceX :: MonadIO m => FontConfig -> CFloat -> m ()
+setGlyphExtraAdvanceX (FontConfig fc) value = liftIO do
   [C.block|
     void {
-      $(ImFontConfig* fc)->GlyphExtraSpacing = *$(ImVec2* value);
+      $(ImFontConfig* fc)->GlyphExtraAdvanceX = $(float value);
     }
   |]
 

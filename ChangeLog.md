@@ -1,5 +1,13 @@
 # Changelog for dear-imgui
 
+## [2.4.0]
+
+- `imgui` updated to [1.91.9b].
+    * Breaking: `ImTextureID` switched to a Word64 as a base type (was: pointer).
+      + Remove your *ToPtr casts and just use ImTextureID type (a Word64 alias).
+    * Breaking: `setGlyphExtraSpacing` renamed to `setGlyphExtraAdvanceX`.
+    * Breaking: Some flags got updated, consult the [changelog](https://github.com/ocornut/imgui/blob/v1.91.9b/docs/CHANGELOG.txt) for migration hints.
+
 ## [2.3.1]
 
 - Extended DragDrop API.
@@ -147,7 +155,9 @@ Initial Hackage release based on [1.83].
 [2.2.1]: https://github.com/haskell-game/dear-imgui.hs/tree/v2.2.1
 [2.3.0]: https://github.com/haskell-game/dear-imgui.hs/tree/v2.3.0
 [2.3.1]: https://github.com/haskell-game/dear-imgui.hs/tree/v2.3.1
+[2.4.0]: https://github.com/haskell-game/dear-imgui.hs/tree/v2.4.0
 
+[1.91.9b]: https://github.com/ocornut/imgui/releases/tag/v1.91.9b
 [1.90.9]: https://github.com/ocornut/imgui/releases/tag/v1.90.9
 [1.89.9]: https://github.com/ocornut/imgui/releases/tag/v1.89.9
 [1.87]: https://github.com/ocornut/imgui/releases/tag/v1.87

@@ -120,8 +120,10 @@ headers :: MonadParsec CustomParseError [Tok] m => m ( Headers () )
 headers = do
   _ <- skipManyTill anySingle ( namedSection "Header mess" )
 
-  _ <- skipManyTill anySingle ( namedSection "Forward declarations" )
+  _ <- skipManyTill anySingle ( namedSection "Forward declarations and basic types" )
   ( _structNames, enumNamesAndTypes ) <- forwardDeclarations
+
+  _ <- skipManyTill anySingle ( namedSection "Texture identifier (ImTextureID)" )
 
   _ <- skipManyTill anySingle ( namedSection "Dear ImGui end-user API functions" )
 
@@ -191,7 +193,16 @@ forwardDeclarations = do
     doc <- comment
     pure (typeName, (signed, width, doc))
   _ <- many comment
-  structs <- many do
+  structs1 <- many do
+    -- // Forward declarations: ImDrawList, ImFontAtlas layer
+    keyword "struct"
+    structName <- identifier
+    reservedSymbol ';'
+    doc <- comment
+    pure ( structName, doc )
+  _ <- many comment
+  structs2 <- many do
+    -- // Forward declarations: ImGui layer
     keyword "struct"
     structName <- identifier
     reservedSymbol ';'
@@ -219,7 +230,7 @@ forwardDeclarations = do
     _ <- many comment
     pure ( enumName, ( ty, CommentText <$> Text.drop 2 . snd $ Text.breakOn "//" doc ) )
   -- Stopping after simple structs and enums for now.
-  pure ( HashMap.fromList structs, HashMap.fromList (enums <> typedefs) )
+  pure ( HashMap.fromList (structs1 <> structs2), HashMap.fromList (enums <> typedefs) )
 
 cTypeName :: MonadParsec e [Tok] m => m TH.Name
 cTypeName =
@@ -227,6 +238,7 @@ cTypeName =
     [ try $ (keyword "char") $> ''CChar
     , try $ (keyword "signed" >> keyword "int") $> ''CInt
     , try $ (keyword "unsigned" >> keyword "int") $> ''CUInt
+    , try $ (keyword "unsigned" >> keyword "short") $> ''CUShort
     , try $ (keyword "unsigned" >> keyword "char") $> ''CUChar
     , try $ (identifier' "ImS8") $> ''CChar
     , try $ (identifier' "ImU8") $> ''CUChar
@@ -236,6 +248,7 @@ cTypeName =
     , try $ (identifier' "ImU32") $> ''CUInt
     , try $ (identifier' "ImS64") $> ''CLLong
     , try $ (identifier' "ImU64") $> ''CULLong
+    , try $ (identifier' "ImTextureID") $> ''CULLong
     , keyword "int" $> ''CInt
     ]
   <?> "cTypeName"

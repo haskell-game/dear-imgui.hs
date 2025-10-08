@@ -139,7 +139,7 @@ mainLoop window textures flag = unlessQuit do
   let texture = if flag then fst textures else snd textures
   -- Drawing images require some backend-specific code.
   -- Meanwhile, we have to deal with raw bindings.
-  let openGLtextureID = intPtrToPtr $ fromIntegral $ textureID texture
+  let openGLtextureID = fromIntegral $ textureID texture
 
   -- Build the GUI
   clicked <- withWindow "Image example" \open ->

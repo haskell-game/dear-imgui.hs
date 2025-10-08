@@ -803,12 +803,12 @@ arrowButton strIdPtr dir = liftIO do
 -- See @examples/sdl/Image.hs@ for the whole process.
 --
 -- Wraps @ImGui::Image()@.
-image :: (MonadIO m) => Ptr () -> Ptr ImVec2 -> Ptr ImVec2 -> Ptr ImVec2 -> Ptr ImVec4 -> Ptr ImVec4 -> m ()
-image userTextureIDPtr sizePtr uv0Ptr uv1Ptr tintColPtr borderColPtr = liftIO do
+image :: (MonadIO m) => ImTextureID -> Ptr ImVec2 -> Ptr ImVec2 -> Ptr ImVec2 -> Ptr ImVec4 -> Ptr ImVec4 -> m ()
+image userTextureID sizePtr uv0Ptr uv1Ptr tintColPtr borderColPtr = liftIO do
   [C.exp|
     void {
       Image(
-        $(void* userTextureIDPtr),
+        $(ImTextureID userTextureID),
         *$(ImVec2* sizePtr),
         *$(ImVec2* uv0Ptr),
         *$(ImVec2* uv1Ptr),
@@ -823,13 +823,13 @@ image userTextureIDPtr sizePtr uv0Ptr uv1Ptr tintColPtr borderColPtr = liftIO do
 -- Negative @frame_padding@ uses default frame padding settings. Set to 0 for no padding.
 --
 -- Wraps @ImGui::ImageButton()@.
-imageButton :: (MonadIO m) => CString -> Ptr () -> Ptr ImVec2 -> Ptr ImVec2 -> Ptr ImVec2 -> Ptr ImVec4 -> Ptr ImVec4 -> m Bool
-imageButton labelPtr userTextureIDPtr sizePtr uv0Ptr uv1Ptr bgColPtr tintColPtr = liftIO do
+imageButton :: (MonadIO m) => CString -> ImTextureID -> Ptr ImVec2 -> Ptr ImVec2 -> Ptr ImVec2 -> Ptr ImVec4 -> Ptr ImVec4 -> m Bool
+imageButton labelPtr userTextureID sizePtr uv0Ptr uv1Ptr bgColPtr tintColPtr = liftIO do
   (0 /=) <$> [C.exp|
     bool {
       ImageButton(
         $(char* labelPtr),
-        $(void* userTextureIDPtr),
+        $(ImTextureID userTextureID),
         *$(ImVec2* sizePtr),
         *$(ImVec2* uv0Ptr),
         *$(ImVec2* uv1Ptr),

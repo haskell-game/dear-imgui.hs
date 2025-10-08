@@ -81,7 +81,7 @@ import qualified DearImGui.Vulkan     as ImGui.Vulkan
 import qualified DearImGui.SDL        as ImGui.SDL
 import qualified DearImGui.SDL.Vulkan as ImGui.SDL.Vulkan
 import Util (vmaVulkanFunctions)
-import Foreign (Ptr, castPtr, copyBytes, with, withForeignPtr, wordPtrToPtr, nullPtr)
+import Foreign (castPtr, copyBytes, with, withForeignPtr)
 import Foreign.C.String (withCString)
 import qualified DearImGui.Raw as ImGui.Raw
 import UnliftIO (MonadUnliftIO)
@@ -95,7 +95,7 @@ type Handler    = LogMessage -> ResourceT IO ()
 deriving via ( ReaderT Handler (ResourceT IO) )
   instance MonadResource ( LoggingT LogMessage (ResourceT IO) )
 
-gui :: MonadUnliftIO m => (ImGui.Raw.ImVec2, Ptr ()) ->  m ImGui.DrawData
+gui :: MonadUnliftIO m => (ImGui.Raw.ImVec2, ImGui.Raw.ImTextureID) ->  m ImGui.DrawData
 gui texture = do
   -- Prepare frame
   ImGui.Vulkan.vulkanNewFrame
@@ -505,7 +505,7 @@ app = do
     logDebug "Adding imgui texture"
     Vulkan.DescriptorSet ds <- ImGui.Vulkan.vulkanAddTexture sampler imageView Vulkan.IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
     let textureSize = ImGui.Raw.ImVec2 (fromIntegral textureWidth) (fromIntegral textureHeight)
-    let texture = (textureSize, wordPtrToPtr $ fromIntegral ds)
+    let texture = (textureSize, fromIntegral ds)
 
     let
       mainLoop :: AppState m -> m ()

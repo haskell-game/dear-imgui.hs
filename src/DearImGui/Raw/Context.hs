@@ -30,20 +30,22 @@ imguiContext :: Context
 imguiContext = mempty
   { ctxTypesTable = enumerationsTypesTable <>
     Map.fromList
-      [ ( TypeName "ImVec2", [t| ImVec2 |] )
-      , ( TypeName "ImVec3", [t| ImVec3 |] )
-      , ( TypeName "ImVec4", [t| ImVec4 |] )
-      , ( TypeName "ImU32", [t| ImU32 |] )
-      , ( TypeName "ImGuiID", [t| ImGuiID |] )
-      , ( TypeName "ImWchar", [t| ImWchar |] )
-      , ( TypeName "ImDrawList", [t| ImDrawList |] )
-      , ( TypeName "ImGuiContext", [t| ImGuiContext |] )
+      [ ( TypeName "ImDrawList", [t| ImDrawList |] )
       , ( TypeName "ImFont", [t| ImFont |] )
       , ( TypeName "ImFontConfig", [t| ImFontConfig |] )
       , ( TypeName "ImFontGlyphRangesBuilder", [t| ImFontGlyphRangesBuilder |] )
-      , ( TypeName "ImGuiListClipper", [t| ImGuiListClipper |] )
-      , ( TypeName "ImGuiTableSortSpecs", [t| ImGuiTableSortSpecs |] )
-      , ( TypeName "ImGuiPayload", [t| ImGuiPayload |] )
+      , ( TypeName "ImGuiContext", [t| ImGuiContext |] )
+      , ( TypeName "ImGuiID", [t| ImGuiID |] )
       , ( TypeName "ImGuiKeyChord", [t| Int |] )
+      , ( TypeName "ImGuiListClipper", [t| ImGuiListClipper |] )
+      , ( TypeName "ImGuiPayload", [t| ImGuiPayload |] )
+      , ( TypeName "ImGuiTableSortSpecs", [t| ImGuiTableSortSpecs |] )
+      , ( TypeName "ImTextureID", [t| ImTextureID |] )
+      , ( TypeName "ImU32", [t| ImU32 |] )
+      , ( TypeName "ImU64", [t| ImU64 |] )
+      , ( TypeName "ImVec2", [t| ImVec2 |] )
+      , ( TypeName "ImVec3", [t| ImVec3 |] )
+      , ( TypeName "ImVec4", [t| ImVec4 |] )
+      , ( TypeName "ImWchar", [t| ImWchar |] )
       ]
   }
