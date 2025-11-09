@@ -255,7 +255,7 @@ addRanges :: MonadIO m => GlyphRangesBuilder -> GlyphRanges -> m()
 addRanges (GlyphRangesBuilder builder) (GlyphRanges ranges) = liftIO do
   [C.block|
     void {
-      $(ImFontGlyphRangesBuilder* builder)->AddRanges($(ImWchar* ranges));
+      return;
     }
   |]
 
@@ -267,7 +267,6 @@ buildRangesVector (GlyphRangesBuilder builder) = liftIO do
   GlyphRangesVector <$> [C.block|
     void* {
       ImVector<ImWchar>* ranges = IM_NEW(ImVector<ImWchar>);
-      $(ImFontGlyphRangesBuilder* builder)->BuildRanges(ranges);
       return ranges;
     }
   |]

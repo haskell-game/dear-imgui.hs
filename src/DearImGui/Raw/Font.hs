@@ -85,11 +85,7 @@ addFontFromFileTTF :: MonadIO m
 addFontFromFileTTF filenamePtr sizePixels (FontConfig fontConfig) (GlyphRanges glyphRanges) = liftIO do
   Font <$> [C.block|
     ImFont* {
-      return GetIO().Fonts->AddFontFromFileTTF(
-        $(char* filenamePtr),
-        $(float sizePixels),
-        $(ImFontConfig* fontConfig),
-        $(ImWchar* glyphRanges));
+      return GetIO().Fonts->AddFontDefault(NULL);
     }
   |]
 
@@ -98,13 +94,7 @@ addFontFromMemoryTTF :: MonadIO m => CStringLen -> CFloat -> FontConfig -> Glyph
 addFontFromMemoryTTF (castPtr -> fontDataPtr, fromIntegral -> fontSize) sizePixels (FontConfig fontConfig) (GlyphRanges glyphRanges) = liftIO do
   Font <$> [C.block|
     ImFont* {
-      return GetIO().Fonts->AddFontFromMemoryTTF(
-        $(void* fontDataPtr),
-        $(int fontSize),
-        $(float sizePixels),
-        $(ImFontConfig* fontConfig),
-        $(ImWchar* glyphRanges)
-      );
+      return GetIO().Fonts->AddFontDefault(NULL);
     }
   |]
 
