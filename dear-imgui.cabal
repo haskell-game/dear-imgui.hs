@@ -202,9 +202,14 @@ library
       -optcxx-std=c++11
 
   if flag(disable-obsolete)
+    if impl(ghc >= 9.10)
+      ghc-options: -optcxx-DIMGUI_DISABLE_OBSOLETE_FUNCTIONS
     cxx-options: -DIMGUI_DISABLE_OBSOLETE_FUNCTIONS
+    cpp-options: -DIMGUI_DISABLE_OBSOLETE_FUNCTIONS
 
   if flag(use-wchar32)
+    if impl(ghc >= 9.10)
+      ghc-options: -optcxx-DIMGUI_USE_WCHAR32
     cxx-options: -DIMGUI_USE_WCHAR32
     cpp-options: -DIMGUI_USE_WCHAR32
 
