@@ -94,6 +94,14 @@ flag sdl
   manual:
     True
 
+flag sdl3
+  description:
+    Enable SDL3 backend.
+  default:
+    True
+  manual:
+    True
+
 flag sdl-renderer
   description:
     Enable SDL Renderer backend (requires the SDL_RenderGeometry function available in SDL 2.0.18+).
@@ -278,6 +286,27 @@ library
       cxx-sources:
         imgui/backends/imgui_impl_sdlrenderer2.cpp
 
+  if flag(sdl3)
+    exposed-modules:
+      DearImGui.SDL3
+    build-depends:
+      sdl3
+    cxx-sources:
+      imgui/backends/imgui_impl_sdl3.cpp
+
+    if os(windows) || os(darwin)
+      extra-libraries:
+        SDL3
+    else
+      pkgconfig-depends:
+        sdl3
+
+    if flag(sdl-renderer)
+      exposed-modules:
+        DearImGui.SDL3.Renderer
+      cxx-sources:
+        imgui/backends/imgui_impl_sdlrenderer3.cpp
+
   if flag(glfw)
     exposed-modules:
       DearImGui.GLFW
@@ -319,7 +348,7 @@ library dear-imgui-generator
     , inline-c
         >= 0.9.0.0 && < 0.10
     , megaparsec
-        >= 9.0 && < 9.7
+        >= 9.0 && < 9.8
     , parser-combinators
         >= 1.2.0 && < 1.4
     , scientific
@@ -382,6 +411,14 @@ executable sdlrenderer
   hs-source-dirs: examples/sdl
   build-depends: sdl2, dear-imgui, managed, text
   if (!flag(examples) || !flag(sdl) || !flag(sdl-renderer))
+    buildable: False
+
+executable sdl3renderer
+  import: common, exe-flags
+  main-is: Renderer.hs
+  hs-source-dirs: examples/sdl3
+  build-depends: sdl3, dear-imgui, managed, text
+  if (!flag(examples) || !flag(sdl3) || !flag(sdl-renderer))
     buildable: False
 
 executable vulkan
