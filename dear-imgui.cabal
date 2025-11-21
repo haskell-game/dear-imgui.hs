@@ -24,6 +24,9 @@ extra-source-files:
   imgui/imconfig.h,
   imgui/LICENSE.txt
 
+data-files:
+  examples/sdl3/GPU/ravioli.bmp
+
 common exe-flags
   if flag(debug)
     if os(linux)
@@ -103,6 +106,15 @@ flag sdl3
     True
 
 flag sdl-renderer
+  description:
+    Enable SDL Renderer backend (requires the SDL_RenderGeometry function available in SDL 2.0.18+).
+    The sdl configuration flag must also be enabled when using this flag.
+  default:
+    False
+  manual:
+    True
+
+flag sdl-gpu
   description:
     Enable SDL Renderer backend (requires the SDL_RenderGeometry function available in SDL 2.0.18+).
     The sdl configuration flag must also be enabled when using this flag.
@@ -306,6 +318,13 @@ library
         DearImGui.SDL3.Renderer
       cxx-sources:
         imgui/backends/imgui_impl_sdlrenderer3.cpp
+    
+    if flag(sdl-gpu)
+      exposed-modules:
+        DearImGui.SDL3.GPU
+      cxx-sources:
+        imgui/backends/imgui_impl_sdlgpu3.cpp
+        -- imgui/backends/imgui_impl_sdl3gpu_shaders.h
 
   if flag(glfw)
     exposed-modules:
@@ -419,6 +438,14 @@ executable sdl3renderer
   hs-source-dirs: examples/sdl3
   build-depends: sdl3, dear-imgui, managed, text
   if (!flag(examples) || !flag(sdl3) || !flag(sdl-renderer))
+    buildable: False
+
+executable sdl3gpu
+  import: common, exe-flags
+  main-is: GPU.hs
+  hs-source-dirs: examples/sdl3
+  build-depends: sdl3, dear-imgui, managed, text, linear, filepath
+  if (!flag(examples) || !flag(sdl3) || !flag(sdl-gpu))
     buildable: False
 
 executable vulkan
