@@ -46,7 +46,7 @@ import GPUCommon hiding (loadImage)
 
 import Control.Exception (try)
 import Control.Exception.Base (IOException)
-import DearImGui.SDL3 (sdl3NewFrame)
+import DearImGui.SDL3 (pollEventWithImGui, sdl3NewFrame)
 import GHC.Exception (SomeException)
 import Linear
 import SDL hiding (cos, sin)
@@ -538,7 +538,7 @@ eventLoopGPU context resources lastTime freq deltaTimeRef timeRef = do
 -- processEventsGPU
 processEventsGPU :: IORef Bool -> IO ()
 processEventsGPU shouldQuitRef = do
-    maybeEvent <- sdlPollEvent
+    maybeEvent <- pollEventWithImGui
     case maybeEvent of
         Nothing -> return ()
         Just event -> do
