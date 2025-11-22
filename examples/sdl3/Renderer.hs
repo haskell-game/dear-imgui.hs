@@ -81,33 +81,6 @@ main = do
                             sdlLog "Renderer destroyed."
         pure ()
 
--- case window of
---     Nothing -> do
---         sdlLog "Failed to create window!"
---         sdlQuit
---         exitFailure
---     Just win -> do
---         sdlLog "Window created successfully!"
-
---         -- Create a Renderer
---         renderer <- sdlCreateRenderer win Nothing -- Let SDL choose
---         case renderer of
---             Nothing -> do
---                 sdlLog "Failed to create default renderer!"
---                 err <- sdlGetError
---                 sdlLog $ "SDL Error: " ++ err
---                 sdlDestroyWindow win
---                 sdlQuit
---                 exitFailure
---             Just ren -> do
---                 mRendererName <- sdlGetRendererName ren
---                 sdlLog $ "Created renderer: " ++ fromMaybe "Unknown" mRendererName
---                 runApp win ren -- Pass window and renderer to runApp
--- sdlLog "Shutting down SDL..."
--- sdlQuit
--- sdlLog "Application terminated successfully"
--- exitSuccess
-
 -- | Encapsulate the application logic with window and renderer
 runApp :: SDLWindow -> SDLRenderer -> IO ()
 runApp win renderer = do
