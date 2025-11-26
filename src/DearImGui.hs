@@ -221,6 +221,7 @@ module DearImGui
   , inputText
   , inputTextMultiline
   , inputTextWithHint
+  , inputPassword
   , inputFloat
   , inputFloat2
   , inputFloat3
@@ -1462,6 +1463,16 @@ inputTextWithHint label hint ref bufSize =
           bufPtrLen
           ImGuiInputTextFlags_None
 
+
+-- | Wraps @ImGui::InputText()@ and sets a `ImGuiInputTextFlags_Password` flag.
+inputPassword :: (MonadIO m, HasSetter ref Text, HasGetter ref Text) => Text -> ref -> Int -> m Bool
+inputPassword label ref bufSize =
+  withInputString ref bufSize \bufPtrLen ->
+      Text.withCString label \labelPtr ->
+        Raw.inputText
+          labelPtr
+          bufPtrLen
+          ImGuiInputTextFlags_Password
 
 -- | Internal helper to prepare appropriately sized and encoded input buffer.
 withInputString
