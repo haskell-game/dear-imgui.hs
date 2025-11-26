@@ -1,5 +1,9 @@
 # Changelog for dear-imgui
 
+## UNRELEASED
+
+- Added `inputPassword` wrapper for text input, which sets the flag.
+
 ## [2.4.1]
 
 - Fixed builds on GHC-9.10+.
