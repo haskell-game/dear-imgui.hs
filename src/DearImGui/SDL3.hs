@@ -50,7 +50,7 @@ import Control.Monad.IO.Class (
   MonadIO,
   liftIO,
  )
-import SDL.Events
+import SDL3.Events
 
 C.context (Cpp.cppCtx <> C.bsCtx)
 C.include "imgui.h"

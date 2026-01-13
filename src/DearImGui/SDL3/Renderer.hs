@@ -43,7 +43,7 @@ import DearImGui (
     DrawData (..),
  )
 import Foreign.Ptr
-import SDL (SDLRenderer (SDLRenderer), SDLWindow (SDLWindow))
+import SDL3 (SDLRenderer (SDLRenderer), SDLWindow (SDLWindow))
 
 C.context (Cpp.cppCtx <> C.bsCtx)
 C.include "imgui.h"
