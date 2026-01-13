@@ -327,6 +327,7 @@ module DearImGui
   , Raw.endMenu
 
   , menuItem
+  , menuItemChecked
 
     -- ** Tabs, tab bar
   , withTabBar
@@ -2146,6 +2147,26 @@ menuItem :: MonadIO m => Text -> m Bool
 menuItem label = liftIO do
   Text.withCString label Raw.menuItem
 
+-- | Menu item with checkmark
+--
+-- Returns True when activated (clicked). The ref's value will be updated to match the checkmark state.
+menuItemChecked
+  :: MonadIO m
+  => Text
+  -> Maybe Text
+  -> Bool
+  -> m (Bool, Bool)
+menuItemChecked label maybeShortcut isChecked = liftIO do
+  let shortcut = case maybeShortcut of
+                   Nothing -> ""
+                   Just s -> s
+  Text.withCString label $ \labelPtr ->
+    Text.withCString shortcut $ \shortcutPtr ->
+      alloca $ \ptr -> do
+        poke ptr (fromBool isChecked)
+        activated <- Raw.menuItemBool labelPtr shortcutPtr ptr
+        newChecked <- toBool <$> peek ptr
+        pure (activated, newChecked)
 
 -- | Create a @TabBar@ and start appending to it.
 --
