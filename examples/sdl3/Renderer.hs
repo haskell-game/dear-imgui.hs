@@ -12,7 +12,7 @@ import Data.Word (Word64)
 import DearImGui
 import DearImGui.SDL3
 import DearImGui.SDL3.Renderer
-import SDL
+import SDL3
 import System.Exit (exitFailure, exitSuccess)
 import Text.Printf (printf)
 
@@ -80,33 +80,6 @@ main = do
                             sdlDestroyRenderer ren
                             sdlLog "Renderer destroyed."
         pure ()
-
--- case window of
---     Nothing -> do
---         sdlLog "Failed to create window!"
---         sdlQuit
---         exitFailure
---     Just win -> do
---         sdlLog "Window created successfully!"
-
---         -- Create a Renderer
---         renderer <- sdlCreateRenderer win Nothing -- Let SDL choose
---         case renderer of
---             Nothing -> do
---                 sdlLog "Failed to create default renderer!"
---                 err <- sdlGetError
---                 sdlLog $ "SDL Error: " ++ err
---                 sdlDestroyWindow win
---                 sdlQuit
---                 exitFailure
---             Just ren -> do
---                 mRendererName <- sdlGetRendererName ren
---                 sdlLog $ "Created renderer: " ++ fromMaybe "Unknown" mRendererName
---                 runApp win ren -- Pass window and renderer to runApp
--- sdlLog "Shutting down SDL..."
--- sdlQuit
--- sdlLog "Application terminated successfully"
--- exitSuccess
 
 -- | Encapsulate the application logic with window and renderer
 runApp :: SDLWindow -> SDLRenderer -> IO ()
