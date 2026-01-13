@@ -12,7 +12,7 @@ import Data.Word (Word64)
 import DearImGui
 import DearImGui.SDL3
 import DearImGui.SDL3.Renderer
-import SDL
+import SDL3
 import System.Exit (exitFailure, exitSuccess)
 import Text.Printf (printf)
 
