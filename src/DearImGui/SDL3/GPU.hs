@@ -43,7 +43,7 @@ import DearImGui (
  )
 import Foreign.C.Types (CInt (..))
 import Foreign.Ptr
-import SDL (
+import SDL3 (
     SDLGPUCommandBuffer (SDLGPUCommandBuffer),
     SDLGPUDevice (SDLGPUDevice),
     SDLGPUGraphicsPipeline (SDLGPUGraphicsPipeline),

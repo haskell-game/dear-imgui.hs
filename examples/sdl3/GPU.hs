@@ -49,7 +49,7 @@ import Control.Exception.Base (IOException)
 import DearImGui.SDL3 (pollEventWithImGui, sdl3NewFrame)
 import GHC.Exception (SomeException)
 import Linear
-import SDL hiding (cos, sin)
+import SDL3 hiding (cos, sin)
 import System.Exit (exitFailure, exitSuccess)
 import System.FilePath ((</>))
 
