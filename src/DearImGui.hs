@@ -2164,7 +2164,7 @@ menuItemChecked label maybeShortcut isChecked = liftIO do
     Text.withCString shortcut $ \shortcutPtr ->
       alloca $ \ptr -> do
         poke ptr (fromBool isChecked)
-        activated <- Raw.menuItemBool labelPtr shortcutPtr ptr
+        activated <- Raw.menuItemChecked labelPtr shortcutPtr ptr
         newChecked <- toBool <$> peek ptr
         pure (activated, newChecked)
 

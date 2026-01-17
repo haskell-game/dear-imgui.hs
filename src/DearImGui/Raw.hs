@@ -276,7 +276,7 @@ module DearImGui.Raw
   , beginMenu
   , endMenu
   , menuItem
-  , menuItemBool
+  , menuItemChecked
 
     -- ** Tabs, tab bar
   , beginTabBar
@@ -1680,8 +1680,8 @@ menuItem labelPtr = liftIO do
 -- Return true when activated. The bool pointer will be updated to reflect the new state.
 --
 -- Wraps @ImGui::MenuItem()@ with bool* parameter
-menuItemBool :: (MonadIO m) => CString -> CString -> Ptr CBool -> m Bool
-menuItemBool labelPtr shortcutPtr selectedPtr = liftIO do
+menuItemChecked :: (MonadIO m) => CString -> CString -> Ptr CBool -> m Bool
+menuItemChecked labelPtr shortcutPtr selectedPtr = liftIO do
   (0 /=) <$> [C.exp| bool { 
     MenuItem(
       $(char* labelPtr), 
