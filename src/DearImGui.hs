@@ -326,6 +326,7 @@ module DearImGui
   , beginMenu
   , Raw.endMenu
 
+  , menuItemEx
   , menuItem
   , menuItemChecked
 
@@ -2139,34 +2140,76 @@ withMenuOpen :: MonadUnliftIO m => Text -> m () -> m ()
 withMenuOpen label action =
   withMenu label (`when` action)
 
--- | Return true when activated. Shortcuts are displayed for convenience but not
--- processed by ImGui at the moment
+-- | Menu item with optional shortcut and checkmark.
+--
+-- Returns whether the item was activated (clicked). 
+-- If a checkmark is provided, it will be updated to reflect 
+-- the new state.
+--
+-- Note that shortcuts are displayed for convenience only and 
+-- are not automatically handled by ImGui.
+--
+-- Wraps @ImGui::MenuItem()@
+menuItemEx
+  :: MonadIO m
+  => Text
+  -> Maybe Text
+  -> Maybe Bool
+  -> m (Bool, Maybe Bool)
+menuItemEx label maybeShortcut maybeChecked = liftIO do
+  Text.withCString label $ \labelPtr ->
+    case maybeShortcut of
+      Nothing ->
+        withCString "" $ \shortcutPtr ->
+          go labelPtr shortcutPtr
+      Just shortcut ->
+        Text.withCString shortcut $ \shortcutPtr ->
+          go labelPtr shortcutPtr
+  where
+    go labelPtr shortcutPtr =
+      case maybeChecked of
+        Nothing -> do
+          activated <- Raw.menuItemEx labelPtr shortcutPtr nullPtr
+          pure (activated, Nothing)
+
+        Just checked ->
+          alloca $ \ptr -> do
+            poke ptr (fromBool checked)
+            activated <- Raw.menuItemEx labelPtr shortcutPtr ptr
+            newChecked <- toBool <$> peek ptr
+            pure (activated, Just newChecked)
+
+-- | Simple menu item without shortcut or checkmark.
+--
+-- Returns True when activated.
+-- This is a convenience wrapper over 'menuItemEx'.
 --
 -- Wraps @ImGui::MenuItem()@
 menuItem :: MonadIO m => Text -> m Bool
-menuItem label = liftIO do
-  Text.withCString label Raw.menuItem
+menuItem label = do
+  (activated, _) <- menuItemEx label Nothing Nothing
+  pure activated
 
 -- | Menu item with checkmark
 --
--- Returns True when activated (clicked). The ref's value will be updated to match the checkmark state.
+-- Returns (activated, newCheckedState) for whether the item 
+-- was activated and the updated checkmark state.
+-- This is a convenience wrapper over 'menuItemEx'.
 menuItemChecked
   :: MonadIO m
   => Text
   -> Maybe Text
   -> Bool
   -> m (Bool, Bool)
-menuItemChecked label maybeShortcut isChecked = liftIO do
-  let shortcut = case maybeShortcut of
-                   Nothing -> ""
-                   Just s -> s
-  Text.withCString label $ \labelPtr ->
-    Text.withCString shortcut $ \shortcutPtr ->
-      alloca $ \ptr -> do
-        poke ptr (fromBool isChecked)
-        activated <- Raw.menuItemChecked labelPtr shortcutPtr ptr
-        newChecked <- toBool <$> peek ptr
-        pure (activated, newChecked)
+menuItemChecked label maybeShortcut isChecked = do
+  (activated, mChecked) <-
+    menuItemEx label maybeShortcut (Just isChecked)
+  case mChecked of
+    Just newChecked ->
+      pure (activated, newChecked)
+    Nothing ->
+      -- This should be impossible, but keeps the function total
+      pure (activated, isChecked)
 
 -- | Create a @TabBar@ and start appending to it.
 --
