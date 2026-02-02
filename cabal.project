@@ -1,6 +1,6 @@
 packages: *.cabal
 package dear-imgui
-  flags: +sdl +sdl3 +sdl-renderer +glfw +opengl2 +opengl3 +vulkan +examples
+  flags: +sdl -sdl3 +sdl-renderer +glfw +opengl2 +opengl3 +vulkan +examples
   ghc-options: -Wall -Wcompat -fno-warn-unused-do-bind
 
 

@@ -98,7 +98,7 @@ flag sdl3
   description:
     Enable SDL3 backend.
   default:
-    True
+    False
   manual:
     True
 
