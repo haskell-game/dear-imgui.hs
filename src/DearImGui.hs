@@ -29,6 +29,11 @@ module DearImGui
   , Raw.DrawData(..)
   , Raw.getDrawData
   , Raw.checkVersion
+ 
+    -- * Configuration
+  , enableKeyboardNav 
+  , disableKeyboardNav
+  , isKeyboardNavEnabled
 
     -- * Demo, Debug, Information
   , Raw.showDemoWindow
@@ -457,6 +462,7 @@ import Control.Monad
 import Data.Bool
 import Data.Foldable
   ( foldl', for_, traverse_ )
+import Data.Bits ((.&.))
 import Foreign
 import Foreign.C
 
@@ -495,6 +501,23 @@ import qualified Data.Vector.Unboxed as VU
 getVersion :: MonadIO m => m Text
 getVersion = liftIO do
   Raw.getVersion >>= Text.peekCString
+
+-- | Enable keyboard navigation
+enableKeyboardNav :: MonadIO m => m ()
+enableKeyboardNav = 
+  Raw.addConfigFlags Raw.ImGuiConfigFlags_NavEnableKeyboard
+
+-- | Disable keyboard navigation
+disableKeyboardNav :: MonadIO m => m ()
+disableKeyboardNav = 
+  Raw.removeConfigFlags Raw.ImGuiConfigFlags_NavEnableKeyboard
+
+-- | Check if keyboard navigation is enabled
+isKeyboardNavEnabled :: MonadIO m => m Bool
+isKeyboardNavEnabled = liftIO do
+  Raw.ImGuiConfigFlags flags <- Raw.getConfigFlags
+  let Raw.ImGuiConfigFlags navFlag = Raw.ImGuiConfigFlags_NavEnableKeyboard
+  pure $ (flags .&. navFlag) /= 0
 
 -- | Send text to logs.
 logText :: MonadIO m => Text -> m ()

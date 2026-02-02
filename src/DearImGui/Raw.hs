@@ -32,6 +32,12 @@ module DearImGui.Raw
   , getDrawData
   , checkVersion
 
+    -- ** Configuration
+  , getConfigFlags
+  , setConfigFlags
+  , addConfigFlags
+  , removeConfigFlags
+
     -- * Demo, Debug, Information
   , showDemoWindow
   , showMetricsWindow
@@ -449,6 +455,27 @@ getDrawData = liftIO do
 checkVersion :: (MonadIO m) => m ()
 checkVersion = liftIO do
   [C.exp| void { IMGUI_CHECKVERSION(); } |]
+
+
+-- | Get the current ImGuiIO ConfigFlags
+getConfigFlags :: MonadIO m => m ImGuiConfigFlags
+getConfigFlags = liftIO do
+  [C.exp| ImGuiConfigFlags { GetIO().ConfigFlags } |]
+
+-- | Set the ImGuiIO ConfigFlags
+setConfigFlags :: MonadIO m => ImGuiConfigFlags -> m ()
+setConfigFlags flags = liftIO do
+  [C.block| void { GetIO().ConfigFlags = $(ImGuiConfigFlags flags); } |]
+
+-- | Modify ConfigFlags by OR-ing with additional flags
+addConfigFlags :: MonadIO m => ImGuiConfigFlags -> m ()
+addConfigFlags flags = liftIO do
+  [C.block| void { GetIO().ConfigFlags |= $(ImGuiConfigFlags flags); } |]
+
+-- | Remove flags from ConfigFlags
+removeConfigFlags :: MonadIO m => ImGuiConfigFlags -> m ()
+removeConfigFlags flags = liftIO do
+  [C.block| void { GetIO().ConfigFlags &= ~$(ImGuiConfigFlags flags); } |]
 
 
 -- | Create demo window. Demonstrate most ImGui features. Call this to learn
