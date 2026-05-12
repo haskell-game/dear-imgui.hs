@@ -63,6 +63,7 @@ module DearImGui
   , fullscreenFlags
 
   , begin
+  , beginWithClose
   , Raw.end
 
     -- ** Utilities
@@ -535,6 +536,21 @@ begin :: MonadIO m => Text -> m Bool
 begin name = liftIO do
   Text.withCString name \namePtr ->
     Raw.begin namePtr Nothing Nothing
+
+-- | Begin a window with a close button.
+--
+-- Returns (whether window is visible, whether window is still open).
+-- The close button appears in the upper-right corner.
+--
+-- Always call 'end' regardless of return values.
+beginWithClose :: MonadIO m => Text -> m (Bool, Bool)
+beginWithClose name = liftIO $
+  alloca $ \openPtr ->
+    Text.withCString name $ \namePtr -> do
+      poke openPtr 1
+      visible <- Raw.begin namePtr (Just openPtr) Nothing
+      stillOpen <- toBool <$> peek openPtr
+      pure (visible, stillOpen)
 
 -- | Append items to a window.
 --
