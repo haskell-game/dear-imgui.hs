@@ -392,7 +392,7 @@ executable sdlrenderer
 executable vulkan
   import: common, exe-flags
   main-is: Main.hs
-  other-modules: Attachments, Backend, Input, Util
+  other-modules: Render
   hs-source-dirs: examples/vulkan
   default-language: Haskell2010
   if (!flag(examples) || !flag(sdl) || !flag(vulkan))
@@ -424,6 +424,7 @@ executable vulkan
          >= 3.20
       , vulkan-utils
          >= 0.5
+      , vulkan-init-sdl2
       , VulkanMemoryAllocator
          >= 0.7.1
       , JuicyPixels
