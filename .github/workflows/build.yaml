@@ -4,19 +4,18 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v2.4.0
+    - uses: actions/checkout@v6
       with:
-          persist-credentials: false
-          submodules: true
+        persist-credentials: false
+        submodules: true
 
-    - uses: cachix/install-nix-action@v27
+    - uses: cachix/install-nix-action@v31
       with:
-        nix_path: nixpkgs=channel:nixos-unstable
+        github_access_token: ${{ secrets.GITHUB_TOKEN }}
 
-    - uses: cachix/cachix-action@v15
+    - uses: cachix/cachix-action@v17
       with:
         name: hs-dear-imgui
         authToken: '${{ secrets.CACHIX_AUTH_TOKEN }}'
 
-    - run: nix-build --version
-    - run: nix-build -A hsPkgs.dear-imgui.components.exes
+    - run: nix build
