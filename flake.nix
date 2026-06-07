@@ -37,7 +37,11 @@
               modules = [
                 ({ pkgs, ... }: {
                   packages.dear-imgui.components.library.pkgconfig = pkgs.lib.optionals pkgs.stdenv.isLinux [
-                    [ pkgs.libx11 ]
+                    [
+                      pkgs.libx11
+                      pkgs.libxrender
+                      pkgs.wayland
+                    ]
                   ];
                 })
               ];
@@ -67,7 +71,9 @@
                   libxi
                   libxinerama
                   libxrandr
+                  libxrender
                   libxxf86vm
+                  wayland
                 ]
                 ++ lib.optionals stdenv.isDarwin (
                   with darwin.apple_sdk.frameworks;
