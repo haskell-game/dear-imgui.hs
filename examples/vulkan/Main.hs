@@ -423,9 +423,6 @@ app = do
     logDebug "Recording one-shot commands"
     beginCommandBuffer oneshotCommandBuffer
 
-    logDebug "ImGui preparing fonts texture"
-    _ <- ImGui.Vulkan.vulkanCreateFontsTexture
-
     logDebug "Uploading texture"
     let textureSubresource = Vulkan.ImageSubresourceRange
           { Vulkan.aspectMask     = Vulkan.IMAGE_ASPECT_COLOR_BIT

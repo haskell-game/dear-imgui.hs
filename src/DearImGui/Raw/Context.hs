@@ -33,7 +33,6 @@ imguiContext = mempty
       [ ( TypeName "ImDrawList", [t| ImDrawList |] )
       , ( TypeName "ImFont", [t| ImFont |] )
       , ( TypeName "ImFontConfig", [t| ImFontConfig |] )
-      , ( TypeName "ImFontGlyphRangesBuilder", [t| ImFontGlyphRangesBuilder |] )
       , ( TypeName "ImGuiContext", [t| ImGuiContext |] )
       , ( TypeName "ImGuiID", [t| ImGuiID |] )
       , ( TypeName "ImGuiKeyChord", [t| Int |] )

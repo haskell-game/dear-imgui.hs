@@ -29,11 +29,11 @@ module DearImGui.Raw.Font.Config
   , setPixelSnapH
   , setGlyphExtraAdvanceX
   , setGlyphOffset
-  , setGlyphRanges
+  , setGlyphExcludeRanges
   , setGlyphMinAdvanceX
   , setGlyphMaxAdvanceX
   , setMergeMode
-  , setFontBuilderFlags
+  , setFontLoaderFlags
   , setRasterizerMultiply
   , setEllipsisChar
   )
@@ -179,11 +179,11 @@ setGlyphOffset (FontConfig fc) value = liftIO do
 -- | Pointer to a user-provided list of Unicode range (2 value per range, values are inclusive, zero-terminated list). THE ARRAY DATA NEEDS TO PERSIST AS LONG AS THE FONT IS ALIVE.
 --
 -- By default, it is @NULL@
-setGlyphRanges :: MonadIO m => FontConfig -> GlyphRanges -> m ()
-setGlyphRanges (FontConfig fc) (GlyphRanges value) = liftIO do
+setGlyphExcludeRanges :: MonadIO m => FontConfig -> GlyphRanges -> m ()
+setGlyphExcludeRanges (FontConfig fc) (GlyphRanges value) = liftIO do
   [C.block|
     void {
-      $(ImFontConfig* fc)->GlyphRanges = $(ImWchar* value);
+      $(ImFontConfig* fc)->GlyphExcludeRanges = $(ImWchar* value);
     }
   |]
 
@@ -220,15 +220,15 @@ setMergeMode (FontConfig fc) value = liftIO do
     }
   |]
 
--- | Settings for custom font builder.
--- THIS IS BUILDER IMPLEMENTATION DEPENDENT.
+-- | Settings for custom font loader.
+-- THIS IS LOADER IMPLEMENTATION DEPENDENT.
 --
 -- By default, it is @0@. Leave it so if unsure.
-setFontBuilderFlags :: MonadIO m => FontConfig -> CUInt -> m ()
-setFontBuilderFlags (FontConfig fc) value = liftIO do
+setFontLoaderFlags :: MonadIO m => FontConfig -> CUInt -> m ()
+setFontLoaderFlags (FontConfig fc) value = liftIO do
   [C.block|
     void {
-      $(ImFontConfig* fc)->FontBuilderFlags = $(unsigned int value);
+      $(ImFontConfig* fc)->FontLoaderFlags = $(unsigned int value);
     }
   |]
 

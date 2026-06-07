@@ -123,7 +123,7 @@ headers = do
   _ <- skipManyTill anySingle ( namedSection "Forward declarations and basic types" )
   ( _structNames, enumNamesAndTypes ) <- forwardDeclarations
 
-  _ <- skipManyTill anySingle ( namedSection "Texture identifier (ImTextureID)" )
+  _ <- skipManyTill anySingle ( namedSection "Texture identifiers (ImTextureID, ImTextureRef)" )
 
   _ <- skipManyTill anySingle ( namedSection "Dear ImGui end-user API functions" )
 
@@ -160,6 +160,8 @@ headers = do
   _ <- skipManyTill anySingle ( namedSection "Drawing API (ImDrawCmd, ImDrawIdx, ImDrawVert, ImDrawChannel, ImDrawListSplitter, ImDrawListFlags, ImDrawList, ImDrawData)" )
   skipManyTill anySingle ( try . lookAhead $ many comment *> keyword "enum" )
   drawingEnums <- many ( enumeration enumNamesAndTypes )
+
+  _ <- skipManyTill anySingle ( namedSection "Texture API (ImTextureFormat, ImTextureStatus, ImTextureRect, ImTextureData)" )
 
   _ <- skipManyTill anySingle ( namedSection "Font API (ImFontConfig, ImFontGlyph, ImFontAtlasFlags, ImFontAtlas, ImFontGlyphRangesBuilder, ImFont)" )
   skipManyTill anySingle ( try . lookAhead $ many comment *> keyword "enum" )

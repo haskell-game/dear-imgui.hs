@@ -96,9 +96,6 @@ data ImFont
 -- | Font configuration handle.
 data ImFontConfig
 
--- | Glyph ranges builder handle.
-data ImFontGlyphRangesBuilder
-
 -- | Opaque DrawList handle.
 data ImDrawList
 

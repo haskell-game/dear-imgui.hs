@@ -112,7 +112,13 @@ module DearImGui
   , Raw.popTabStop
 
   , withFont
+  , withFontWithSize
+  , withFontLegacySize
+  , withFontSize
   , Raw.Font.pushFont
+  , Raw.Font.pushFontWithSize
+  , Raw.Font.pushFontLegacySize
+  , Raw.Font.pushFontSize
   , Raw.Font.popFont
   , Raw.Font.Font
 
@@ -462,8 +468,7 @@ import Control.Monad
   ( when )
 import Data.Bool
 import Data.Foldable
-  ( foldl', for_, traverse_ )
-import Data.Bits ((.&.))
+  ( for_, traverse_ )
 import Foreign
 import Foreign.C
 
@@ -2669,9 +2674,21 @@ popStyleVar :: (MonadIO m) => Int -> m ()
 popStyleVar n = liftIO do
   Raw.popStyleVar (fromIntegral n)
 
--- | Render widgets inside the block using provided font.
+-- | Render widgets inside the block using provided font by keeping the current size.
 withFont :: MonadUnliftIO m => Raw.Font.Font -> m a -> m a
 withFont font = bracket_ (Raw.Font.pushFont font) Raw.Font.popFont
+
+-- | Render widgets inside the block using provided font at an explicit size.
+withFontWithSize :: MonadUnliftIO m => Raw.Font.Font -> CFloat -> m a -> m a
+withFontWithSize font size = bracket_ (Raw.Font.pushFontWithSize font size) Raw.Font.popFont
+
+-- | Render widgets inside the block using provided font at the size it was added before.
+withFontLegacySize :: MonadUnliftIO m => Raw.Font.Font -> m a -> m a
+withFontLegacySize font = bracket_ (Raw.Font.pushFontLegacySize font) Raw.Font.popFont
+
+-- | Render widgets inside the block by keeping the current font, but setting an explicit size.
+withFontSize :: MonadUnliftIO m => CFloat -> m a -> m a
+withFontSize size = bracket_ (Raw.Font.pushFontSize size) Raw.Font.popFont
 
 -- | Attach drag-n-drop source with a payload to a preceding item.
 --

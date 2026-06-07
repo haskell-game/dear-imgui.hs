@@ -16,8 +16,6 @@ module DearImGui.Vulkan
   , vulkanShutdown
   , vulkanNewFrame
   , vulkanRenderDrawData
-  , vulkanCreateFontsTexture
-  , vulkanDestroyFontsTexture
   , vulkanSetMinImageCount
 
   , vulkanAddTexture
@@ -184,23 +182,6 @@ vulkanRenderDrawData (DrawData dataPtr) commandBuffer mbPipeline = liftIO do
   [C.block| void {
     VkCommandBuffer commandBuffer = { $( VkCommandBuffer_T* commandBufferPtr ) };
     ImGui_ImplVulkan_RenderDrawData((ImDrawData*) $(void* dataPtr), commandBuffer, $(VkPipeline pipeline));
-  }|]
-
--- | Wraps @ImGui_ImplVulkan_CreateFontsTexture@.
-vulkanCreateFontsTexture :: MonadIO m => m Bool
-vulkanCreateFontsTexture = liftIO do
-  res <-
-    [C.block| bool {
-      return ImGui_ImplVulkan_CreateFontsTexture();
-    }|]
-  pure ( res /= 0 )
-
--- | You probably never need to call this, as it is called by ImGui_ImplVulkan_CreateFontsTexture() and ImGui_ImplVulkan_Shutdown().
--- | Wraps @ImGui_ImplVulkan_DestroyFontsTexture@.
-vulkanDestroyFontsTexture :: MonadIO m => m ()
-vulkanDestroyFontsTexture = liftIO do
-  [C.block| void {
-    return ImGui_ImplVulkan_DestroyFontsTexture();
   }|]
 
 -- | Wraps @ImGui_ImplVulkan_SetMinImageCount@.
