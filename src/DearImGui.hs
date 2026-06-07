@@ -184,6 +184,7 @@ module DearImGui
   , invisibleButton
   , arrowButton
   , Raw.image
+  , Raw.imageWithBg
   , checkbox
   , checkboxFlags
   , checkboxFlagsU

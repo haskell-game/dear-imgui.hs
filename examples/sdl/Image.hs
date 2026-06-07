@@ -153,8 +153,9 @@ mainLoop window textures flag = unlessQuit do
           Foreign.with (ImVec2 1 1) \uv1Ptr ->
             Foreign.with (ImVec4 1 1 1 1) \tintColPtr ->
               Foreign.with (ImVec4 1 1 1 1) \bgColPtr ->
-                withCString "##btn" \idPtr ->
-                  Raw.imageButton idPtr openGLtextureID sizePtr uv0Ptr uv1Ptr bgColPtr tintColPtr
+                Foreign.with (textureRefFromID openGLtextureID) \texRefPtr ->
+                  withCString "##btn" \idPtr ->
+                    Raw.imageButton idPtr texRefPtr sizePtr uv0Ptr uv1Ptr bgColPtr tintColPtr
     else
       pure False
 
@@ -164,12 +165,13 @@ mainLoop window textures flag = unlessQuit do
     Foreign.with (ImVec2 200 200) \pMax ->
       Foreign.with (ImVec2 0.25 0.25) \uvMin ->
         Foreign.with (ImVec2 0.75 0.75) \uvMax ->
-          DrawList.addImageRounded
-            bg
-            openGLtextureID
-            pMin pMax uvMin uvMax
-            (Raw.imCol32 0 255 0 0xFF) -- Extract green channel
-            32 ImDrawFlags_RoundCornersBottom
+          Foreign.with (textureRefFromID openGLtextureID) \texRefPtr ->
+            DrawList.addImageRounded
+              bg
+              texRefPtr
+              pMin pMax uvMin uvMax
+              (Raw.imCol32 0 255 0 0xFF) -- Extract green channel
+              32 ImDrawFlags_RoundCornersBottom
 
   -- Render
   glClear GL_COLOR_BUFFER_BIT

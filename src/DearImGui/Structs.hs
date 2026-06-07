@@ -114,7 +114,42 @@ type ImU32 = Word32
 
 type ImU64 = Word64
 
+-- | low-level identifier for a texture uploaded in GPU/graphics system. Up to 64-bits.
 type ImTextureID = ImU64
+
+-- | Higher-level texture identifier.
+--
+-- It carry a `ImTextureID` OR a pointer to internal texture atlas.
+-- 
+-- Use @textureRefFromID@ to construct `ImTextureRef` from `ImTextureID`.
+data ImTextureRef = ImTextureRef
+  { texData :: Ptr ()       -- ^ User-provided textures
+  , texID   :: ImTextureID  -- ^ Low-level backend texture identifier
+  } deriving (Show)
+
+instance Storable ImTextureRef where
+  sizeOf _ =
+    sizeOf (undefined :: Ptr ()) +
+    sizeOf (undefined :: ImTextureID)
+
+  alignment _ =
+    alignment nullPtr
+
+  poke ptr ImTextureRef{..} = do
+    poke (castPtr ptr) texData
+    poke (castPtr ptr `plusPtr` sizeOf texData) texID
+
+  peek ptr = do
+    texData <- peek (castPtr ptr)
+    texID   <- peek (castPtr ptr `plusPtr` sizeOf texData)
+    pure ImTextureRef{..}
+
+-- | Helper to construct `ImTextureRef` from `ImTextureID`
+--
+-- It follows guidance for binding generators in "What are ImTextureID/ImTextureRef?"
+-- see https://github.com/ocornut/imgui/blob/master/docs/FAQ.md#q-what-are-imtextureidimtextureref
+textureRefFromID :: ImTextureID -> ImTextureRef
+textureRefFromID tid = ImTextureRef{ texData = nullPtr, texID = tid }
 
 type ImS16 = Int16
 

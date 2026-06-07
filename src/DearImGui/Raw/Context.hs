@@ -40,6 +40,7 @@ imguiContext = mempty
       , ( TypeName "ImGuiPayload", [t| ImGuiPayload |] )
       , ( TypeName "ImGuiTableSortSpecs", [t| ImGuiTableSortSpecs |] )
       , ( TypeName "ImTextureID", [t| ImTextureID |] )
+      , ( TypeName "ImTextureRef", [t| ImTextureRef |] )
       , ( TypeName "ImU32", [t| ImU32 |] )
       , ( TypeName "ImU64", [t| ImU64 |] )
       , ( TypeName "ImVec2", [t| ImVec2 |] )

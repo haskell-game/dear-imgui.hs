@@ -111,15 +111,16 @@ gui texture = do
           with (ImGui.Raw.ImVec2 1 1) \uv1Ptr ->
             with (ImGui.Raw.ImVec4 1 1 1 1) \tintColPtr ->
               with (ImGui.Raw.ImVec4 1 1 1 1) \bgColPtr ->
-                withCString "##btn" \idPtr ->
-                  ImGui.Raw.imageButton
-                    idPtr
-                    (snd texture)
-                    sizePtr
-                    uv0Ptr
-                    uv1Ptr
-                    bgColPtr
-                    tintColPtr
+                with (ImGui.Raw.textureRefFromID (snd texture)) \texRefPtr ->
+                  withCString "##btn" \idPtr ->
+                    ImGui.Raw.imageButton
+                      idPtr
+                      texRefPtr
+                      sizePtr
+                      uv0Ptr
+                      uv1Ptr
+                      bgColPtr
+                      tintColPtr
 
     when clicked $
       ImGui.text "clicky click!"

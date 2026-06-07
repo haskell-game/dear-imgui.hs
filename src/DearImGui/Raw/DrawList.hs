@@ -104,8 +104,8 @@ module DearImGui.Raw.DrawList
   , getClipRectMin
   , getClipRectMax
 
-  , pushTextureID
-  , popTextureID
+  , pushTexture
+  , popTexture
   )
   where
 
@@ -199,21 +199,21 @@ getClipRectMax (DrawList drawList) = liftIO do
     |]
 
 
-pushTextureID :: MonadIO m => DrawList -> ImTextureID -> m ()
-pushTextureID (DrawList drawList) userTextureID = liftIO do
+pushTexture :: MonadIO m => DrawList -> Ptr ImTextureRef -> m ()
+pushTexture (DrawList drawList) texRefPtr = liftIO do
   [C.block|
     void {
-      $(ImDrawList* drawList)->PushTextureID(
-        $(ImTextureID userTextureID)
+      $(ImDrawList* drawList)->PushTexture(
+        *$(ImTextureRef* texRefPtr)
       );
     }
   |]
 
-popTextureID :: MonadIO m => DrawList -> m ()
-popTextureID (DrawList drawList) = liftIO do
+popTexture :: MonadIO m => DrawList -> m ()
+popTexture (DrawList drawList) = liftIO do
   [C.block|
     void {
-      $(ImDrawList* drawList)->PopTextureID();
+      $(ImDrawList* drawList)->PopTexture();
     }
   |]
 
@@ -504,7 +504,7 @@ addBezierQuadratic (DrawList drawList) p1 p2 p3 col thickness numSegments = lift
 
 
 {- $image
-* Read FAQ to understand what @ImTextureID@ is.
+* Read FAQ to understand what @ImTextureID@ and @ImTextureRef@ are: https://github.com/ocornut/imgui/blob/master/docs/FAQ.md#q-what-are-imtextureidimtextureref
 * @p_min@ and @p_max@ represent the upper-left and lower-right corners of the rectangle.
 * @uv_min@ and @uv_max@ represent the normalized texture coordinates to use for those corners.
   Using @(0,0)->(1,1)@ texture coordinates will generally display the entire texture.
@@ -513,16 +513,16 @@ addBezierQuadratic (DrawList drawList) p1 p2 p3 col thickness numSegments = lift
 addImage
   :: MonadIO m
   => DrawList
-  -> ImTextureID
+  -> Ptr ImTextureRef
   -> Ptr ImVec2 -> Ptr ImVec2 -- Positions
   -> Ptr ImVec2 -> Ptr ImVec2 -- UVs
   -> ImU32
   -> m ()
-addImage (DrawList drawList) userTextureID p_min p_max uv_min uv_max col = liftIO do
+addImage (DrawList drawList) texRefPtr p_min p_max uv_min uv_max col = liftIO do
   [C.block|
     void {
       $(ImDrawList* drawList)->AddImage(
-        $(ImTextureID userTextureID),
+        *$(ImTextureRef* texRefPtr),
         *$(ImVec2* p_min),
         *$(ImVec2* p_max),
         *$(ImVec2* uv_min),
@@ -535,16 +535,16 @@ addImage (DrawList drawList) userTextureID p_min p_max uv_min uv_max col = liftI
 addImageQuad
   :: MonadIO m
   => DrawList
-  -> ImTextureID
+  -> Ptr ImTextureRef
   -> Ptr ImVec2 -> Ptr ImVec2 -> Ptr ImVec2 -> Ptr ImVec2 -- Positions
   -> Ptr ImVec2 -> Ptr ImVec2 -> Ptr ImVec2 -> Ptr ImVec2 -- UVs
   -> ImU32
   -> m ()
-addImageQuad (DrawList drawList) userTextureID p1 p2 p3 p4 uv1 uv2 uv3 uv4 col = liftIO do
+addImageQuad (DrawList drawList) texRefPtr p1 p2 p3 p4 uv1 uv2 uv3 uv4 col = liftIO do
   [C.block|
     void {
       $(ImDrawList* drawList)->AddImageQuad(
-        $(ImTextureID userTextureID),
+        *$(ImTextureRef* texRefPtr),
         *$(ImVec2* p1),
         *$(ImVec2* p2),
         *$(ImVec2* p3),
@@ -561,18 +561,18 @@ addImageQuad (DrawList drawList) userTextureID p1 p2 p3 p4 uv1 uv2 uv3 uv4 col =
 addImageRounded
   :: MonadIO m
   => DrawList
-  -> ImTextureID
+  -> Ptr ImTextureRef
   -> Ptr ImVec2 -> Ptr ImVec2 -- Positions
   -> Ptr ImVec2 -> Ptr ImVec2 -- UVs
   -> ImU32
   -> CFloat
   -> ImDrawFlags
   -> m ()
-addImageRounded (DrawList drawList) userTextureID p_min p_max uv_min uv_max col rounding flags = liftIO do
+addImageRounded (DrawList drawList) texRefPtr p_min p_max uv_min uv_max col rounding flags = liftIO do
   [C.block|
     void {
       $(ImDrawList* drawList)->AddImageRounded(
-        $(ImTextureID userTextureID),
+        *$(ImTextureRef* texRefPtr),
         *$(ImVec2* p_min),
         *$(ImVec2* p_max),
         *$(ImVec2* uv_min),
