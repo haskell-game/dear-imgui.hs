@@ -21,6 +21,8 @@ module DearImGui.Raw.Font
     Font(..)
     -- * Adding fonts
   , addFontDefault
+  , addFontDefaultVector
+  , addFontDefaultBitmap
   , addFontFromFileTTF
   , addFontFromMemoryTTF
     -- * Using fonts
@@ -65,13 +67,33 @@ Cpp.using "namespace ImGui"
 -- Wraps @ImFont*@.
 newtype Font = Font (Ptr ImFont)
 
--- | Add the default font (@ProggyClean.ttf@, 13 px) to the atlas.
+-- | Add the default font to the atlas. Selects between 'AddFontDefaultVector' and 'AddFontDefaultBitmap'.
 addFontDefault :: MonadIO m
   => m Font   -- ^ Returns font handle for future usage
 addFontDefault = liftIO do
   Font <$> [C.block|
     ImFont* {
       return GetIO().Fonts->AddFontDefault();
+    }
+  |]
+
+-- | Add the embedded scalable vector font. Recommended at any higher size.
+addFontDefaultVector :: MonadIO m
+  => m Font
+addFontDefaultVector = liftIO do
+  Font <$> [C.block|
+    ImFont* {
+      return GetIO().Fonts->AddFontDefaultVector();
+    }
+  |]
+
+-- | Add the embedded classic pixel-clean bitmap font. Recommended at 13px with no scaling.
+addFontDefaultBitmap :: MonadIO m
+  => m Font
+addFontDefaultBitmap = liftIO do
+  Font <$> [C.block|
+    ImFont* {
+      return GetIO().Fonts->AddFontDefaultBitmap();
     }
   |]
 
