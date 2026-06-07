@@ -469,7 +469,7 @@ import Control.Monad
   ( when )
 import Data.Bool
 import Data.Foldable
-  ( for_, traverse_ )
+  ( foldl', for_, traverse_ )
 import Foreign
 import Foreign.C
 
