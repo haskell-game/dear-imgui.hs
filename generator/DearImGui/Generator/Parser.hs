@@ -422,8 +422,17 @@ symbol s = token ( \ case { Symbolic s' | s == s' -> Just (); _ -> Nothing } ) m
   <?> ( Text.unpack s <> " (symbol)" )
 
 integerExpression :: MonadParsec e [ Tok ] m => HashMap Text Integer -> m Integer
-integerExpression enums = try integerPower <|> try integerAdd <|> try integerSub <|> integer
+integerExpression enums = try integerCast <|> try integerPower <|> try integerAdd <|> try integerSub <|> integer
   where
+    -- Strip C-style cast to get the value only
+    -- Example: `(ImDrawFlags)0x8000000F` -> `0x8000000F`
+    integerCast :: MonadParsec e [ Tok ] m => m Integer
+    integerCast = do
+      reservedSymbol '('
+      _ <- identifier
+      reservedSymbol ')'
+      integer
+
     integerPower :: MonadParsec e [ Tok ] m => m Integer
     integerPower = do
       a <- integer

@@ -240,8 +240,8 @@ addLine (DrawList drawList) p1 p2 col thickness = liftIO do
   |]
 
 
-addRect :: MonadIO m => DrawList -> Ptr ImVec2 -> Ptr ImVec2 -> ImU32 -> CFloat -> ImDrawFlags -> CFloat -> m ()
-addRect (DrawList drawList) p_min p_max col rounding flags thickness = liftIO do
+addRect :: MonadIO m => DrawList -> Ptr ImVec2 -> Ptr ImVec2 -> ImU32 -> CFloat -> CFloat -> ImDrawFlags -> m ()
+addRect (DrawList drawList) p_min p_max col rounding thickness flags = liftIO do
   [C.block|
     void {
       $(ImDrawList* drawList)->AddRect(
@@ -249,8 +249,8 @@ addRect (DrawList drawList) p_min p_max col rounding flags thickness = liftIO do
         *$(ImVec2* p_max),
         $(ImU32 col),
         $(float rounding),
-        $(ImDrawFlags flags),
-        $(float thickness)
+        $(float thickness),
+        $(ImDrawFlags flags)
       );
     }
   |]
@@ -430,16 +430,16 @@ addText (DrawList drawList) fontPtr font_size pos col text_begin text_end wrap_w
   |]
 
 
-addPolyLine :: MonadIO m => DrawList -> Ptr ImVec2 -> CInt -> ImU32 -> ImDrawFlags -> CFloat -> m ()
-addPolyLine (DrawList drawList) points num_points col flags thickness = liftIO do
+addPolyLine :: MonadIO m => DrawList -> Ptr ImVec2 -> CInt -> ImU32 -> CFloat -> ImDrawFlags -> m ()
+addPolyLine (DrawList drawList) points num_points col thickness flags = liftIO do
   [C.block|
     void {
       $(ImDrawList* drawList)->AddPolyline(
         $(ImVec2* points),
         $(int num_points),
         $(ImU32 col),
-        $(ImDrawFlags flags),
-        $(float thickness)
+        $(float thickness),
+        $(ImDrawFlags flags)
       );
     }
   |]
@@ -627,14 +627,14 @@ pathFillConvex (DrawList drawList) col = liftIO do
     }
   |]
 
-pathStroke :: MonadIO m => DrawList -> ImU32 -> ImDrawFlags -> CFloat -> m ()
-pathStroke (DrawList drawList) col flags thickness = liftIO do
+pathStroke :: MonadIO m => DrawList -> ImU32 -> CFloat -> ImDrawFlags -> m ()
+pathStroke (DrawList drawList) col thickness flags = liftIO do
   [C.block|
     void {
       $(ImDrawList* drawList)->PathStroke(
         $(ImU32 col),
-        $(ImDrawFlags flags),
-        $(float thickness)
+        $(float thickness),
+        $(ImDrawFlags flags)
       );
     }
   |]

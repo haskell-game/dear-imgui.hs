@@ -373,8 +373,6 @@ app = do
 
   VMA.flushAllocation vma stageAllocation 0 Vulkan.WHOLE_SIZE
 
-  logDebug "Allocating sampler"
-  (_key, sampler) <- Vulkan.withSampler device Vulkan.zero Nothing ResourceT.allocate
   logDebug "Allocating image view"
   (_key, imageView) <- createImageView
     device
@@ -501,7 +499,7 @@ app = do
     traverse_ ResourceT.release [ fenceKey, oneshotCommandBufferKey, stageKey ]
 
     logDebug "Adding imgui texture"
-    Vulkan.DescriptorSet ds <- ImGui.Vulkan.vulkanAddTexture sampler imageView Vulkan.IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
+    Vulkan.DescriptorSet ds <- ImGui.Vulkan.vulkanAddTexture imageView Vulkan.IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
     let textureSize = ImGui.Raw.ImVec2 (fromIntegral textureWidth) (fromIntegral textureHeight)
     let texture = (textureSize, fromIntegral ds)
 

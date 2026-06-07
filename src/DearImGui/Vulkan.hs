@@ -190,12 +190,11 @@ vulkanSetMinImageCount minImageCount = liftIO do
   [C.exp| void { ImGui_ImplVulkan_SetMinImageCount($(uint32_t minImageCount)); } |]
 
 -- | Wraps @ImGui_ImplVulkan_AddTexture@.
-vulkanAddTexture :: MonadIO m => Vulkan.Sampler -> Vulkan.ImageView -> Vulkan.ImageLayout -> m Vulkan.DescriptorSet
-vulkanAddTexture sampler imageView imageLayout = liftIO do
+vulkanAddTexture :: MonadIO m => Vulkan.ImageView -> Vulkan.ImageLayout -> m Vulkan.DescriptorSet
+vulkanAddTexture imageView imageLayout = liftIO do
   [C.block|
     VkDescriptorSet {
       return ImGui_ImplVulkan_AddTexture(
-        $(VkSampler sampler),
         $(VkImageView imageView),
         $(VkImageLayout imageLayout)
       );
