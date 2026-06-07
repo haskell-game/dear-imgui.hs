@@ -122,16 +122,32 @@ mainLoop window = unlessQuit $ do
 If you would like to help `dear-imgui`, here's how you can get started.
 
 The best path to development is using
-[Nix](https://nixos.org/guides/install-nix.html). Once you have Nix installed
-(either in your operating system, or by running NixOS), you can enter a
-development shell:
+[Nix](https://nixos.org/download/#download-nix) with [Nix flakes](https://nixos.wiki/wiki/Flakes) enabled.
 
-```
-$ nix-shell
+### With [`direnv`](https://direnv.net/)
+
+```sh
+direnv allow
 ```
 
-You should now be in a `bash` shell where you can run `cabal build all`,
-`cabal run readme`, etc.
+It initialises git `submodules` and enters `nix develop` automatically.
+
+### Without `direnv`
+
+```sh
+# run BEFORE entering `nix develop` shell
+git submodule update --init --recursive
+# make sure to include submodules needed for the build process
+nix develop "git+file:.?submodules=1" --impure
+```
+
+### Building
+
+```sh
+nix build .
+```
+
+Inside the dev shell, `cabal build all` and `cabal run readme` work as usual.
 
 If you experience any difficulties, please don't hesistate to raise an issue.
 
