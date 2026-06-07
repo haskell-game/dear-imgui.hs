@@ -143,17 +143,17 @@ vulkanInit ( InitInfo {..} ) = liftIO do
           initInfo.Queue = queue;
           initInfo.PipelineCache = $(VkPipelineCache pipelineCache);
           initInfo.DescriptorPool = $(VkDescriptorPool descriptorPool);
-          initInfo.Subpass = $(uint32_t subpass);
+          initInfo.PipelineInfoMain.Subpass = $(uint32_t subpass);
           initInfo.MinImageCount = $(uint32_t minImageCount);
           initInfo.ImageCount = $(uint32_t imageCount);
-          initInfo.MSAASamples = $(VkSampleCountFlagBits msaaSamples);
+          initInfo.PipelineInfoMain.MSAASamples = $(VkSampleCountFlagBits msaaSamples);
           initInfo.Allocator = $(VkAllocationCallbacks* callbacksPtr);
           initInfo.CheckVkResultFn = $( void (*checkResultFunPtr)(VkResult) );
 
           initInfo.UseDynamicRendering = $(bool useDynamicRendering');
-          initInfo.RenderPass = $(VkRenderPass renderPass);
+          initInfo.PipelineInfoMain.RenderPass = $(VkRenderPass renderPass);
           if ($(VkPipelineRenderingCreateInfo* pipelineRenderingCIPtr))
-            memcpy(&initInfo.PipelineRenderingCreateInfo, $(VkPipelineRenderingCreateInfo* pipelineRenderingCIPtr), sizeof(VkPipelineRenderingCreateInfo));
+            memcpy(&initInfo.PipelineInfoMain.PipelineRenderingCreateInfo, $(VkPipelineRenderingCreateInfo* pipelineRenderingCIPtr), sizeof(VkPipelineRenderingCreateInfo));
           return ImGui_ImplVulkan_Init(&initInfo);
         }|]
     pure ( checkResultFunPtr, initResult /= 0 )
