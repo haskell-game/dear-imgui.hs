@@ -61,9 +61,8 @@ main = do
         droidFont =
           FontAtlas.FromTTF
             "./imgui/misc/fonts/DroidSans.ttf"
-            15
+            (Just 15)
             Nothing
-            FontAtlas.Cyrillic
 
         -- You also may use a default hardcoded font for
         -- some purposes (i.e. as fallback)
@@ -75,14 +74,8 @@ main = do
       , notoFont =
           FontAtlas.FromTTF
             "./examples/fonts/NotoSansJP-Regular.otf"
-            20
+            (Just 15)
             Nothing
-            ( FontAtlas.RangesBuilder $ mconcat
-                [ FontAtlas.addRanges FontAtlas.Latin
-                , FontAtlas.addText "私をクリックしてください"
-                , FontAtlas.addText "こんにちは"
-                ]
-            )
       }
 
     liftIO $ do
@@ -102,7 +95,7 @@ main = do
           toggled <- readIORef fontFlag
 
           when toggled $
-            pushFont notoFont
+            pushFontLegacySize notoFont
 
           -- Some of those are only present in Noto font range
           -- and will render as `?`s.

@@ -26,7 +26,7 @@ in pkgs.haskell-nix.project {
     packages.bindings-GLFW.components.library.libs =
       pkgs.lib.mkForce (
         pkgs.lib.optionals   pkgs.stdenv.isDarwin  (with pkgs.darwin.apple_sdk.frameworks; [ AGL Cocoa OpenGL IOKit Kernel CoreVideo pkgs.darwin.CF ]) ++
-        pkgs.lib.optionals (!pkgs.stdenv.isDarwin) (with pkgs.xorg; [ libXext libXi libXrandr libXxf86vm libXcursor libXinerama pkgs.libGL ])
+        pkgs.lib.optionals (!pkgs.stdenv.isDarwin) (with pkgs.xorg; [ libXext libXi libXrandr libXrender libXxf86vm libXcursor libXinerama pkgs.libGL ])
       );
 
     # Depends on libX11 but doesn't state it in the .cabal file.

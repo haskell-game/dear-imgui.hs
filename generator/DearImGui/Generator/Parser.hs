@@ -123,7 +123,7 @@ headers = do
   _ <- skipManyTill anySingle ( namedSection "Forward declarations and basic types" )
   ( _structNames, enumNamesAndTypes ) <- forwardDeclarations
 
-  _ <- skipManyTill anySingle ( namedSection "Texture identifier (ImTextureID)" )
+  _ <- skipManyTill anySingle ( namedSection "Texture identifiers (ImTextureID, ImTextureRef)" )
 
   _ <- skipManyTill anySingle ( namedSection "Dear ImGui end-user API functions" )
 
@@ -160,6 +160,8 @@ headers = do
   _ <- skipManyTill anySingle ( namedSection "Drawing API (ImDrawCmd, ImDrawIdx, ImDrawVert, ImDrawChannel, ImDrawListSplitter, ImDrawListFlags, ImDrawList, ImDrawData)" )
   skipManyTill anySingle ( try . lookAhead $ many comment *> keyword "enum" )
   drawingEnums <- many ( enumeration enumNamesAndTypes )
+
+  _ <- skipManyTill anySingle ( namedSection "Texture API (ImTextureFormat, ImTextureStatus, ImTextureRect, ImTextureData)" )
 
   _ <- skipManyTill anySingle ( namedSection "Font API (ImFontConfig, ImFontGlyph, ImFontAtlasFlags, ImFontAtlas, ImFontGlyphRangesBuilder, ImFont)" )
   skipManyTill anySingle ( try . lookAhead $ many comment *> keyword "enum" )
@@ -420,8 +422,17 @@ symbol s = token ( \ case { Symbolic s' | s == s' -> Just (); _ -> Nothing } ) m
   <?> ( Text.unpack s <> " (symbol)" )
 
 integerExpression :: MonadParsec e [ Tok ] m => HashMap Text Integer -> m Integer
-integerExpression enums = try integerPower <|> try integerAdd <|> try integerSub <|> integer
+integerExpression enums = try integerCast <|> try integerPower <|> try integerAdd <|> try integerSub <|> integer
   where
+    -- Strip C-style cast to get the value only
+    -- Example: `(ImDrawFlags)0x8000000F` -> `0x8000000F`
+    integerCast :: MonadParsec e [ Tok ] m => m Integer
+    integerCast = do
+      reservedSymbol '('
+      _ <- identifier
+      reservedSymbol ')'
+      integer
+
     integerPower :: MonadParsec e [ Tok ] m => m Integer
     integerPower = do
       a <- integer

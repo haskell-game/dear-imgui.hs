@@ -16,8 +16,6 @@ module DearImGui.Vulkan
   , vulkanShutdown
   , vulkanNewFrame
   , vulkanRenderDrawData
-  , vulkanCreateFontsTexture
-  , vulkanDestroyFontsTexture
   , vulkanSetMinImageCount
 
   , vulkanAddTexture
@@ -145,17 +143,17 @@ vulkanInit ( InitInfo {..} ) = liftIO do
           initInfo.Queue = queue;
           initInfo.PipelineCache = $(VkPipelineCache pipelineCache);
           initInfo.DescriptorPool = $(VkDescriptorPool descriptorPool);
-          initInfo.Subpass = $(uint32_t subpass);
+          initInfo.PipelineInfoMain.Subpass = $(uint32_t subpass);
           initInfo.MinImageCount = $(uint32_t minImageCount);
           initInfo.ImageCount = $(uint32_t imageCount);
-          initInfo.MSAASamples = $(VkSampleCountFlagBits msaaSamples);
+          initInfo.PipelineInfoMain.MSAASamples = $(VkSampleCountFlagBits msaaSamples);
           initInfo.Allocator = $(VkAllocationCallbacks* callbacksPtr);
           initInfo.CheckVkResultFn = $( void (*checkResultFunPtr)(VkResult) );
 
           initInfo.UseDynamicRendering = $(bool useDynamicRendering');
-          initInfo.RenderPass = $(VkRenderPass renderPass);
+          initInfo.PipelineInfoMain.RenderPass = $(VkRenderPass renderPass);
           if ($(VkPipelineRenderingCreateInfo* pipelineRenderingCIPtr))
-            memcpy(&initInfo.PipelineRenderingCreateInfo, $(VkPipelineRenderingCreateInfo* pipelineRenderingCIPtr), sizeof(VkPipelineRenderingCreateInfo));
+            memcpy(&initInfo.PipelineInfoMain.PipelineRenderingCreateInfo, $(VkPipelineRenderingCreateInfo* pipelineRenderingCIPtr), sizeof(VkPipelineRenderingCreateInfo));
           return ImGui_ImplVulkan_Init(&initInfo);
         }|]
     pure ( checkResultFunPtr, initResult /= 0 )
@@ -186,35 +184,17 @@ vulkanRenderDrawData (DrawData dataPtr) commandBuffer mbPipeline = liftIO do
     ImGui_ImplVulkan_RenderDrawData((ImDrawData*) $(void* dataPtr), commandBuffer, $(VkPipeline pipeline));
   }|]
 
--- | Wraps @ImGui_ImplVulkan_CreateFontsTexture@.
-vulkanCreateFontsTexture :: MonadIO m => m Bool
-vulkanCreateFontsTexture = liftIO do
-  res <-
-    [C.block| bool {
-      return ImGui_ImplVulkan_CreateFontsTexture();
-    }|]
-  pure ( res /= 0 )
-
--- | You probably never need to call this, as it is called by ImGui_ImplVulkan_CreateFontsTexture() and ImGui_ImplVulkan_Shutdown().
--- | Wraps @ImGui_ImplVulkan_DestroyFontsTexture@.
-vulkanDestroyFontsTexture :: MonadIO m => m ()
-vulkanDestroyFontsTexture = liftIO do
-  [C.block| void {
-    return ImGui_ImplVulkan_DestroyFontsTexture();
-  }|]
-
 -- | Wraps @ImGui_ImplVulkan_SetMinImageCount@.
 vulkanSetMinImageCount :: MonadIO m => Word32 -> m ()
 vulkanSetMinImageCount minImageCount = liftIO do
   [C.exp| void { ImGui_ImplVulkan_SetMinImageCount($(uint32_t minImageCount)); } |]
 
 -- | Wraps @ImGui_ImplVulkan_AddTexture@.
-vulkanAddTexture :: MonadIO m => Vulkan.Sampler -> Vulkan.ImageView -> Vulkan.ImageLayout -> m Vulkan.DescriptorSet
-vulkanAddTexture sampler imageView imageLayout = liftIO do
+vulkanAddTexture :: MonadIO m => Vulkan.ImageView -> Vulkan.ImageLayout -> m Vulkan.DescriptorSet
+vulkanAddTexture imageView imageLayout = liftIO do
   [C.block|
     VkDescriptorSet {
       return ImGui_ImplVulkan_AddTexture(
-        $(VkSampler sampler),
         $(VkImageView imageView),
         $(VkImageLayout imageLayout)
       );

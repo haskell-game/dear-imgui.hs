@@ -111,15 +111,16 @@ gui texture = do
           with (ImGui.Raw.ImVec2 1 1) \uv1Ptr ->
             with (ImGui.Raw.ImVec4 1 1 1 1) \tintColPtr ->
               with (ImGui.Raw.ImVec4 1 1 1 1) \bgColPtr ->
-                withCString "##btn" \idPtr ->
-                  ImGui.Raw.imageButton
-                    idPtr
-                    (snd texture)
-                    sizePtr
-                    uv0Ptr
-                    uv1Ptr
-                    bgColPtr
-                    tintColPtr
+                with (ImGui.Raw.textureRefFromID (snd texture)) \texRefPtr ->
+                  withCString "##btn" \idPtr ->
+                    ImGui.Raw.imageButton
+                      idPtr
+                      texRefPtr
+                      sizePtr
+                      uv0Ptr
+                      uv1Ptr
+                      bgColPtr
+                      tintColPtr
 
     when clicked $
       ImGui.text "clicky click!"
@@ -372,8 +373,6 @@ app = do
 
   VMA.flushAllocation vma stageAllocation 0 Vulkan.WHOLE_SIZE
 
-  logDebug "Allocating sampler"
-  (_key, sampler) <- Vulkan.withSampler device Vulkan.zero Nothing ResourceT.allocate
   logDebug "Allocating image view"
   (_key, imageView) <- createImageView
     device
@@ -422,9 +421,6 @@ app = do
 
     logDebug "Recording one-shot commands"
     beginCommandBuffer oneshotCommandBuffer
-
-    logDebug "ImGui preparing fonts texture"
-    _ <- ImGui.Vulkan.vulkanCreateFontsTexture
 
     logDebug "Uploading texture"
     let textureSubresource = Vulkan.ImageSubresourceRange
@@ -503,7 +499,7 @@ app = do
     traverse_ ResourceT.release [ fenceKey, oneshotCommandBufferKey, stageKey ]
 
     logDebug "Adding imgui texture"
-    Vulkan.DescriptorSet ds <- ImGui.Vulkan.vulkanAddTexture sampler imageView Vulkan.IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
+    Vulkan.DescriptorSet ds <- ImGui.Vulkan.vulkanAddTexture imageView Vulkan.IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
     let textureSize = ImGui.Raw.ImVec2 (fromIntegral textureWidth) (fromIntegral textureHeight)
     let texture = (textureSize, fromIntegral ds)
 
