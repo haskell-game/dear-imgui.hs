@@ -1,7 +1,13 @@
 # Changelog for dear-imgui
 
-## UNRELEASED
+## [2.5.0]
 
+- `imgui` updated to [1.92.8].
+  * `image`: drops `border` and `tint` colors. Use `imageWithBg` instead.
+  * textures funcs: Change params `ImTextureID` to `ImTextureRef`
+  * rename: `pushTextureID` -> `pushTexture`, `popTextureID` -> `popTexture`
+  * new: `addFontDefaultBitmap|Vector`
+  * swap arguments in `addRect`, `addPolyLine`, `pathStroke`
 - Added `inputPassword` wrapper for text input, which sets the flag.
 
 ## [2.4.1]
@@ -165,7 +171,9 @@ Initial Hackage release based on [1.83].
 [2.3.1]: https://github.com/haskell-game/dear-imgui.hs/tree/v2.3.1
 [2.4.0]: https://github.com/haskell-game/dear-imgui.hs/tree/v2.4.0
 [2.4.1]: https://github.com/haskell-game/dear-imgui.hs/tree/v2.4.1
+[2.5.0]: https://github.com/haskell-game/dear-imgui.hs/tree/v2.5.0
 
+[1.92.8]: https://github.com/ocornut/imgui/releases/tag/v1.92.8
 [1.91.9b]: https://github.com/ocornut/imgui/releases/tag/v1.91.9b
 [1.90.9]: https://github.com/ocornut/imgui/releases/tag/v1.90.9
 [1.89.9]: https://github.com/ocornut/imgui/releases/tag/v1.89.9
