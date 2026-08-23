@@ -1,613 +1,253 @@
 {-# LANGUAGE BlockArguments #-}
-{-# LANGUAGE DataKinds #-}
-{-# LANGUAGE DerivingVia #-}
 {-# LANGUAGE DuplicateRecordFields #-}
-{-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE LambdaCase #-}
-{-# LANGUAGE MonoLocalBinds #-}
 {-# LANGUAGE NamedFieldPuns #-}
+{-# LANGUAGE OverloadedLists #-}
 {-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE RecordWildCards #-}
-{-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE StandaloneDeriving #-}
-{-# LANGUAGE TupleSections #-}
-{-# LANGUAGE TypeApplications #-}
-
-{-# OPTIONS_GHC -fno-warn-name-shadowing #-}
-{-# OPTIONS_GHC -fno-warn-orphans        #-}
+{-# LANGUAGE PatternSynonyms #-}
 
 module Main where
 
--- base
-import Control.Arrow
-  ( second )
-import Control.Exception
-  ( throw )
-import Control.Monad
-  ( unless, void, when )
-import Data.Bits
-  ( (.|.) )
-import Data.Foldable
-  ( traverse_ )
-import Data.String
-  ( IsString )
-import Data.Traversable
-  ( for )
-import Data.Word
-  ( Word32 )
-
--- logging-effect
-import Control.Monad.Log
-  ( LoggingT(..), logDebug, runLoggingT )
-
--- resource-t
+import Control.Exception (throwIO)
+import Control.Monad (void, when)
+import Control.Monad.IO.Class (liftIO)
 import Control.Monad.Trans.Resource
-  ( ResourceT, MonadResource, runResourceT )
-import qualified Control.Monad.Trans.Resource as ResourceT
-  ( allocate, release )
-
--- sdl
-import qualified SDL
-
--- transformers
-import Control.Monad.Trans.Reader
-  ( ReaderT(..) )
-import Control.Monad.IO.Class
-  ( MonadIO(..) )
-
--- unliftio
-import UnliftIO.Exception
-  ( handleJust )
-
--- vector
-import qualified Data.Vector as Boxed
-  ( Vector )
-import qualified Data.Vector as Boxed.Vector
-  ( (!), head, singleton, unzip )
-import qualified Data.Vector.Storable as Storable.Vector
-
--- vulkan
-import qualified Vulkan
-import qualified Vulkan.Exception      as Vulkan
-import qualified Vulkan.Zero           as Vulkan
-import qualified VulkanMemoryAllocator as VMA
-
--- dear-imgui
-import Attachments
-import Backend
-import Input
-import qualified DearImGui            as ImGui
-import qualified DearImGui.Vulkan     as ImGui.Vulkan
-import qualified DearImGui.SDL        as ImGui.SDL
-import qualified DearImGui.SDL.Vulkan as ImGui.SDL.Vulkan
-import Util (vmaVulkanFunctions)
+  ( MonadResource, ReleaseKey, ResourceT, allocate, allocate_, register, release, runResourceT )
+import Data.Word (Word32)
+import Data.Bits ((.|.))
+import Data.Foldable (traverse_)
+import qualified Data.Vector as V
+import qualified Data.Vector.Storable as SV
 import Foreign (castPtr, copyBytes, with, withForeignPtr)
 import Foreign.C.String (withCString)
-import qualified DearImGui.Raw as ImGui.Raw
-import UnliftIO (MonadUnliftIO)
-import qualified Vulkan.CStruct.Extends as Vulkan
+import qualified Graphics.UI.GLFW as GLFW
 
 import qualified Codec.Picture as Picture
 
---------------------------------------------------------------------------------
+import Vulkan (pattern API_VERSION_1_3)
+import qualified Vulkan as Vk
+import Vulkan.CStruct.Extends (SomeStruct (..))
+import Vulkan.Exception (VulkanException (..))
+import qualified Vulkan.Extensions.VK_KHR_surface as SurfaceFormatKHR (SurfaceFormatKHR (..))
+import Vulkan.Zero (zero)
+import Vulkan.Utils.Barrier (imageBarrier)
+import Vulkan.Utils.Frame
+import Vulkan.Utils.Framebuffer (allocateFramebuffer)
+import qualified Vulkan.Utils.Init.GLFW as Init
+import Vulkan.Utils.Init.GLFW.Window (createWindow, drawableSize, showWindow, withGLFW)
+import Vulkan.Utils.QueueAssignment (QueueFamilyIndex (..))
+import Vulkan.Utils.Queues (Queues (..), allocateDevice)
+import Vulkan.Utils.RenderPass (allocateColorRenderPass)
+import Vulkan.Utils.Swapchain
+import Vulkan.Utils.VulkanContext (VulkanContext (..), mkVulkanContext)
+import Vulkan.Utils.WindowLoop
+import qualified VulkanMemoryAllocator as VMA
+import VulkanMemoryAllocator.Utils (allocatorCreateInfo)
 
-type Handler    = LogMessage -> ResourceT IO ()
-deriving via ( ReaderT Handler (ResourceT IO) )
-  instance MonadResource ( LoggingT LogMessage (ResourceT IO) )
+import qualified DearImGui as ImGui
+import qualified DearImGui.GLFW as ImGui.GLFW
+import qualified DearImGui.GLFW.Vulkan as ImGui.GLFW.Vulkan
+import qualified DearImGui.Raw as ImGui.Raw
+import qualified DearImGui.Vulkan as ImGui.Vulkan
 
-gui :: MonadUnliftIO m => (ImGui.Raw.ImVec2, ImGui.Raw.ImTextureID) ->  m ImGui.DrawData
-gui texture = do
-  -- Prepare frame
+main :: IO ()
+main = runResourceT do
+  withGLFW
+  window <- createWindow "DearImGui - Vulkan" 1280 720
+
+  inst <- Init.allocateInstance window (Just appInfo) frameInstanceRequirements []
+  surface <- Init.allocateSurface inst window
+  (phys, dev, queues) <- allocateDevice inst (Just surface) frameDeviceRequirements
+  vc <- liftIO $ mkVulkanContext inst phys dev queues
+
+  windowSize <- drawableSize window
+  swapchain <- allocateSwapchain phys dev defaultSwapchainConfig Vk.NULL_HANDLE windowSize surface
+  (_, renderPass) <- allocateColorRenderPass dev (SurfaceFormatKHR.format (sFormat swapchain)) Vk.IMAGE_LAYOUT_PRESENT_SRC_KHR
+
+  (_, vma) <- VMA.withAllocator (allocatorCreateInfo zero apiVersion inst phys dev) allocate
+  (textureSize, textureView) <- uploadTexture vc vma "Example.png"
+
+  descriptorPool <- allocateImGuiDescriptorPool dev
+  void $ allocate ImGui.createContext ImGui.destroyContext
+  void $ allocate_ (ImGui.GLFW.Vulkan.glfwInitForVulkan window True) ImGui.GLFW.glfwShutdown
+  let (QueueFamilyIndex graphicsFamily, graphicsQueue) = qGraphics queues
+  void $ allocate
+    ( ImGui.Vulkan.vulkanInit ImGui.Vulkan.InitInfo
+        { instance' = inst
+        , physicalDevice = phys
+        , device = dev
+        , queueFamily = graphicsFamily
+        , queue = graphicsQueue
+        , pipelineCache = Vk.NULL_HANDLE
+        , descriptorPool
+        , subpass = 0
+        , minImageCount = swapchainImageCount swapchain
+        , imageCount = swapchainImageCount swapchain
+        , msaaSamples = Vk.SAMPLE_COUNT_1_BIT
+        , rendering = Left renderPass
+        , mbAllocator = Nothing
+        , checkResult = \case { Vk.SUCCESS -> pure (); e -> throwIO (VulkanException e) }
+        }
+    )
+    ImGui.Vulkan.vulkanShutdown
+  Vk.DescriptorSet textureSet <- ImGui.Vulkan.vulkanAddTexture textureView Vk.IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
+
+  showWindow window
+  runWindowLoop vc swapchain (drawableSize window) (windowClosed window) WindowLoop
+    { wlMkState = allocateFramebuffers dev renderPass
+    , wlMkRecycled = noRecycledResources
+    , wlRender = renderFrame vc renderPass textureSize (fromIntegral textureSet)
+    , wlOnFrame = noOnFrame
+    , wlOnExit = noOnExit
+    }
+  where
+    apiVersion = API_VERSION_1_3
+    appInfo = zero { Vk.applicationName = Just "DearImGui - Vulkan", Vk.apiVersion = apiVersion }
+
+swapchainImageCount :: Swapchain -> Word32
+swapchainImageCount = fromIntegral . length . sImages
+
+windowClosed :: GLFW.Window -> IO Bool
+windowClosed window = GLFW.pollEvents *> GLFW.windowShouldClose window
+
+allocateFramebuffers :: Vk.Device -> Vk.RenderPass -> Swapchain -> ResourceT IO (V.Vector Vk.Framebuffer, ReleaseKey)
+allocateFramebuffers dev renderPass swapchain@Swapchain{sImageViews, sExtent} = do
+  ImGui.Vulkan.vulkanSetMinImageCount (swapchainImageCount swapchain)
+  (keys, framebuffers) <- V.unzip <$> traverse (\view -> allocateFramebuffer dev renderPass view sExtent) sImageViews
+  key <- register (traverse_ release keys)
+  pure (framebuffers, key)
+
+renderFrame :: VulkanContext () -> Vk.RenderPass -> ImGui.Raw.ImVec2 -> ImGui.Raw.ImTextureID -> V.Vector Vk.Framebuffer -> Frame () -> ResourceT IO ()
+renderFrame vc renderPass textureSize textureId framebuffers frame = do
+  (acquireResult, imageIndex) <- acquireFrameImage vc frame
+  let
+    renderPassBegin = zero
+      { Vk.renderPass = renderPass
+      , Vk.framebuffer = framebuffers V.! fromIntegral imageIndex
+      , Vk.renderArea = Vk.Rect2D zero (sExtent (fSwapchain frame))
+      , Vk.clearValues = [Vk.Color (Vk.Float32 0.5 0.2 0 1)]
+      }
+  commandBuffer <- recordCommands vc frame \cb ->
+    Vk.cmdUseRenderPass cb renderPassBegin Vk.SUBPASS_CONTENTS_INLINE do
+      drawData <- gui textureSize textureId
+      ImGui.Vulkan.vulkanRenderDrawData drawData cb Nothing
+  queueSubmitFrame vc frame imageIndex [commandBuffer]
+  presentFrameImage vc frame acquireResult imageIndex
+
+gui :: ImGui.Raw.ImVec2 -> ImGui.Raw.ImTextureID -> ResourceT IO ImGui.DrawData
+gui textureSize textureId = do
   ImGui.Vulkan.vulkanNewFrame
-  ImGui.SDL.sdl2NewFrame
+  ImGui.GLFW.glfwNewFrame
   ImGui.newFrame
 
-  -- Run your windows
   ImGui.showDemoWindow
   ImGui.withWindowOpen "Vulkan demo" do
     clicked <- liftIO do
-      with (fst texture) \sizePtr ->
+      with textureSize \sizePtr ->
         with (ImGui.Raw.ImVec2 0 0) \uv0Ptr ->
           with (ImGui.Raw.ImVec2 1 1) \uv1Ptr ->
-            with (ImGui.Raw.ImVec4 1 1 1 1) \tintColPtr ->
-              with (ImGui.Raw.ImVec4 1 1 1 1) \bgColPtr ->
-                with (ImGui.Raw.textureRefFromID (snd texture)) \texRefPtr ->
-                  withCString "##btn" \idPtr ->
-                    ImGui.Raw.imageButton
-                      idPtr
-                      texRefPtr
-                      sizePtr
-                      uv0Ptr
-                      uv1Ptr
-                      bgColPtr
-                      tintColPtr
-
+            with (ImGui.Raw.ImVec4 1 1 1 1) \whitePtr ->
+              with (ImGui.Raw.textureRefFromID textureId) \texRefPtr ->
+                withCString "##btn" \idPtr ->
+                  ImGui.Raw.imageButton idPtr texRefPtr sizePtr uv0Ptr uv1Ptr whitePtr whitePtr
     when clicked $
       ImGui.text "clicky click!"
 
-
-  -- Process ImGui state into draw commands
   ImGui.render
   ImGui.getDrawData
 
-main :: IO ()
-main = runResourceT . ( `runLoggingT` logHandler ) $ app @( LoggingT LogMessage ( ResourceT IO ) )
-
-appName :: IsString a => a
-appName = "DearImGui - Vulkan"
-
-app :: forall m. MonadVulkan m => m ()
-app = do
-
-  -------------------------------------------
-  -- Initialise window, Vulkan and Dear ImGui contexts.
-
-  ( window, windowExtensions ) <-
-    initialiseWindow
-      WindowInfo
-        { width      = 1280
-        , height     = 720
-        , windowName = appName
-        , mouseMode  = SDL.AbsoluteLocation
-        }
-  let
-    compatExtensions =
-      [ Vulkan.KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME
-      ]
-    vulkanReqs :: VulkanRequirements
-    vulkanReqs =
-      VulkanRequirements
-        { instanceRequirements = instanceExtensions windowExtensions
-        , instanceRequirementsOpt = instanceExtensions compatExtensions
-        , deviceRequirements   = []
-        , queueFlags           = Vulkan.QUEUE_GRAPHICS_BIT
-        }
-  VulkanContext {..} <- initialiseVulkanContext NormalInstance appName vulkanReqs
-
-  surface <- logDebug "Creating SDL surface" *> createSurface window instance'
-  assertSurfacePresentable physicalDevice queueFamily surface
-
-  void $ ResourceT.allocate
-    ImGui.createContext
-    ImGui.destroyContext
-
-  let
-    preferredFormat :: Vulkan.SurfaceFormatKHR
-    preferredFormat =
-      Vulkan.SurfaceFormatKHR
-        Vulkan.FORMAT_B8G8R8A8_UNORM
-        Vulkan.COLOR_SPACE_SRGB_NONLINEAR_KHR
-    surfaceUsage :: Vulkan.ImageUsageFlagBits
-    surfaceUsage = Vulkan.IMAGE_USAGE_COLOR_ATTACHMENT_BIT
-
-  commandPool  <- createCommandPool device Vulkan.COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT queueFamily
-  nextImageSem <- snd <$> Vulkan.withSemaphore device Vulkan.zero Nothing ResourceT.allocate
-  submitted    <- snd <$> Vulkan.withSemaphore device Vulkan.zero Nothing ResourceT.allocate
-
-  let
-    imGuiDescriptorTypes :: [ ( Vulkan.DescriptorType, Int ) ]
-    imGuiDescriptorTypes = map (, 1000)
-      [ Vulkan.DESCRIPTOR_TYPE_SAMPLER
-      , Vulkan.DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER
-      , Vulkan.DESCRIPTOR_TYPE_SAMPLED_IMAGE
-      , Vulkan.DESCRIPTOR_TYPE_STORAGE_IMAGE
-      , Vulkan.DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER
-      , Vulkan.DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER
-      , Vulkan.DESCRIPTOR_TYPE_UNIFORM_BUFFER
-      , Vulkan.DESCRIPTOR_TYPE_STORAGE_BUFFER
-      , Vulkan.DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC
-      , Vulkan.DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC
-      , Vulkan.DESCRIPTOR_TYPE_INPUT_ATTACHMENT
-      ]
-
-  ( _imGuiPoolKey, imGuiDescriptorPool ) <- createDescriptorPool device 1000 imGuiDescriptorTypes
-
-  ---------------------------------------------------------------------------
-  -- Handle swapchain creation (and resources that depend on the swapchain).
-
-  surfaceCapabilities <- Vulkan.getPhysicalDeviceSurfaceCapabilitiesKHR physicalDevice ( Vulkan.SurfaceKHR surface )
-
-  let
-    Vulkan.SurfaceCapabilitiesKHR{minImageCount, maxImageCount} = surfaceCapabilities
-    imageCount
-      | maxImageCount == 0 =   minImageCount + 1
-      | otherwise          = ( minImageCount + 1 ) `min` maxImageCount
-
-    clearValues :: [ Vulkan.ClearValue ]
-    clearValues = [ Vulkan.Color $ Vulkan.Float32 0.5 0.2 0 1.0 ]
-
-    swapchainResources :: Maybe SwapchainResources -> m ( m (), SwapchainResources )
-    swapchainResources mbOldResources = do
-      ( colFmt, surfaceFormat, imGuiRenderPass ) <- case mbOldResources of
-        Nothing -> do
-          logDebug "Choosing swapchain format & color space"
-          surfaceFormat <- chooseSwapchainFormat preferredFormat physicalDevice surface
-          let Vulkan.SurfaceFormatKHR{format=colFmt} = surfaceFormat
-          logDebug "Creating Dear ImGui render pass"
-          ( _, imGuiRenderPass ) <-
-            simpleRenderPass device
-              ( noAttachments
-                { colorAttachments = Boxed.Vector.singleton $ presentableColorAttachmentDescription colFmt }
-              )
-          pure ( colFmt, surfaceFormat, imGuiRenderPass )
-        Just oldResources -> do
-          let surFmt = surfaceFormat oldResources
-          let Vulkan.SurfaceFormatKHR{format=colFmt} = surFmt
-          pure ( colFmt, surFmt, imGuiRenderPass oldResources )
-
-      logDebug "Creating swapchain"
-      ( swapchainKey, swapchain, swapchainExtent ) <-
-        createSwapchain
-          physicalDevice
-          device
-          surface
-          surfaceFormat
-          surfaceUsage
-          imageCount
-          ( swapchain <$> mbOldResources )
-
-      logDebug "Getting swapchain images"
-      swapchainImages <- snd <$> Vulkan.getSwapchainImagesKHR device swapchain
-
-      -------------------------------------------
-      -- Create framebuffer attachments.
-
-{-
-      let
-        width, height :: Num a => a
-        width  = fromIntegral $ ( Vulkan.width  :: Vulkan.Extent2D -> Word32 ) swapchainExtent
-        height = fromIntegral $ ( Vulkan.height :: Vulkan.Extent2D -> Word32 ) swapchainExtent
-
-        extent3D :: Vulkan.Extent3D
-        extent3D
-          = Vulkan.Extent3D
-              { Vulkan.width  = width
-              , Vulkan.height = height
-              , Vulkan.depth  = 1
-              }
--}
-
-      logDebug "Creating framebuffers"
-      ( fbKeys, framebuffersWithAttachments ) <-
-          fmap Boxed.Vector.unzip . for swapchainImages $ \ swapchainImage -> do
-              ( imageViewKey, colorImageView )
-                <- createImageView
-                      device swapchainImage
-                      Vulkan.IMAGE_VIEW_TYPE_2D
-                      colFmt
-                      Vulkan.IMAGE_ASPECT_COLOR_BIT
-              let attachment = (swapchainImage, colorImageView)
-              ( framebufferKey, framebuffer ) <- createFramebuffer device imGuiRenderPass swapchainExtent [colorImageView]
-              pure ( [ imageViewKey, framebufferKey ], ( framebuffer, attachment ) )
-
-      -------------------------------------------
-      -- Create descriptor sets.
-
-      -- Application doesn't have any descriptor sets of its own yet.
-
-      -------------------------------------------
-      -- Create pipelines.
-
-      -- Application doesn't have any pipelines of its own yet.
-
-      -------------------------------------------
-      -- Return the resources and free method.
-
-      pure
-        ( do
-            traverse_ ( traverse_ ResourceT.release ) fbKeys
-            traverse_ ResourceT.release
-              [ swapchainKey ]
-        , SwapchainResources {..}
-        )
-
-  ( freeResources, resources@( SwapchainResources {..} ) ) <- swapchainResources Nothing
-  let
-    imageCount :: Word32
-    imageCount = fromIntegral $ length swapchainImages
-
-  logDebug "Allocating command buffers"
-  commandBuffers <- snd <$> allocatePrimaryCommandBuffers device commandPool imageCount
-
-  logDebug "Allocating VMA"
-  (_key, vma) <- VMA.withAllocator
-    Vulkan.zero
-      { VMA.instance'       = Vulkan.instanceHandle instance'
-      , VMA.device          = Vulkan.deviceHandle device
-      , VMA.physicalDevice  = Vulkan.physicalDeviceHandle physicalDevice
-      , VMA.vulkanFunctions = Just $ vmaVulkanFunctions device instance'
-      }
-    ResourceT.allocate
-
-  logDebug "Loading image data"
-  picture <- liftIO (Picture.readImage "Example.png") >>= either error (pure . Picture.convertRGBA8)
-
-  logDebug "Allocating image"
-  let textureWidth = Picture.imageWidth picture
-  let textureHeight = Picture.imageHeight picture
-
-  (_key, (image, _imageAllocation, _imageAllocationInfo)) <- VMA.withImage
-    vma
-    ( Vulkan.zero
-        { Vulkan.imageType     = Vulkan.IMAGE_TYPE_2D
-        , Vulkan.mipLevels     = 1
-        , Vulkan.arrayLayers   = 1
-        , Vulkan.format        = Vulkan.FORMAT_R8G8B8A8_SRGB
-        , Vulkan.extent        = Vulkan.Extent3D (fromIntegral textureWidth) (fromIntegral textureHeight) 1
-        , Vulkan.tiling        = Vulkan.IMAGE_TILING_OPTIMAL
-        , Vulkan.initialLayout = Vulkan.IMAGE_LAYOUT_UNDEFINED
-        , Vulkan.usage         = Vulkan.IMAGE_USAGE_SAMPLED_BIT .|. Vulkan.IMAGE_USAGE_TRANSFER_DST_BIT
-        , Vulkan.sharingMode   = Vulkan.SHARING_MODE_EXCLUSIVE
-        , Vulkan.samples       = Vulkan.SAMPLE_COUNT_1_BIT
-        }
-    )
-    ( Vulkan.zero
-        { VMA.flags         = Vulkan.zero
-        , VMA.usage         = VMA.MEMORY_USAGE_GPU_ONLY
-        , VMA.requiredFlags = Vulkan.MEMORY_PROPERTY_DEVICE_LOCAL_BIT
-        }
-    )
-    ResourceT.allocate
-
-  let (pictureF, pictureSize) = Storable.Vector.unsafeToForeignPtr0 (Picture.imageData picture)
-
-  let stageBufferCI = Vulkan.zero
-        { Vulkan.size        = fromIntegral pictureSize
-        , Vulkan.usage       = Vulkan.BUFFER_USAGE_TRANSFER_SRC_BIT
-        , Vulkan.sharingMode = Vulkan.SHARING_MODE_EXCLUSIVE
-        }
-  let stageAllocationCI = Vulkan.zero
-        { VMA.flags         = VMA.ALLOCATION_CREATE_MAPPED_BIT
-        , VMA.usage         = VMA.MEMORY_USAGE_CPU_TO_GPU
-        , VMA.requiredFlags = Vulkan.MEMORY_PROPERTY_HOST_VISIBLE_BIT
-        }
-
-  (stageKey, (stage, stageAllocation, stageAllocationInfo)) <- VMA.withBuffer
-    vma
-    stageBufferCI
-    stageAllocationCI
-    ResourceT.allocate
-
-  liftIO $ withForeignPtr pictureF \srcPtr ->
-    copyBytes (VMA.mappedData stageAllocationInfo) (castPtr srcPtr) pictureSize
-
-  VMA.flushAllocation vma stageAllocation 0 Vulkan.WHOLE_SIZE
-
-  logDebug "Allocating image view"
-  (_key, imageView) <- createImageView
-    device
-    image
-    Vulkan.IMAGE_VIEW_TYPE_2D
-    Vulkan.FORMAT_R8G8B8A8_SRGB
-    Vulkan.IMAGE_ASPECT_COLOR_BIT
-
-  -------------------------------------------
-  -- Initialise Dear ImGui.
-
-  let
-    initInfo :: ImGui.Vulkan.InitInfo
-    initInfo = ImGui.Vulkan.InitInfo
-      { instance'
-      , physicalDevice
-      , device
-      , queueFamily
-      , queue
-      , pipelineCache  = Vulkan.NULL_HANDLE
-      , descriptorPool = imGuiDescriptorPool
-      , subpass        = 0
-      , minImageCount
-      , imageCount
-      , msaaSamples    = Vulkan.SAMPLE_COUNT_1_BIT
-      , mbAllocator    = Nothing
-      , rendering      = Left imGuiRenderPass
-      , checkResult    = \case { Vulkan.SUCCESS -> pure (); e -> throw $ Vulkan.VulkanException e }
+allocateImGuiDescriptorPool :: MonadResource m => Vk.Device -> m Vk.DescriptorPool
+allocateImGuiDescriptorPool dev =
+  snd <$> Vk.withDescriptorPool dev createInfo Nothing allocate
+  where
+    createInfo = zero
+      { Vk.flags = Vk.DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT
+      , Vk.maxSets = 1000
+      , Vk.poolSizes = V.fromList
+          [ Vk.DescriptorPoolSize ty 1000
+          | ty <-
+              [ Vk.DESCRIPTOR_TYPE_SAMPLER
+              , Vk.DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER
+              , Vk.DESCRIPTOR_TYPE_SAMPLED_IMAGE
+              , Vk.DESCRIPTOR_TYPE_STORAGE_IMAGE
+              , Vk.DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER
+              , Vk.DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER
+              , Vk.DESCRIPTOR_TYPE_UNIFORM_BUFFER
+              , Vk.DESCRIPTOR_TYPE_STORAGE_BUFFER
+              , Vk.DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC
+              , Vk.DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC
+              , Vk.DESCRIPTOR_TYPE_INPUT_ATTACHMENT
+              ]
+          ]
       }
 
-  logDebug "Initialising ImGui SDL2 for Vulkan"
-  void $ ResourceT.allocate
-    ( ImGui.SDL.Vulkan.sdl2InitForVulkan window )
-    ( const ImGui.SDL.sdl2Shutdown )
+uploadTexture :: VulkanContext rr -> VMA.Allocator -> FilePath -> ResourceT IO (ImGui.Raw.ImVec2, Vk.ImageView)
+uploadTexture vc vma path = do
+  picture <- liftIO (Picture.readImage path) >>= either (liftIO . fail) (pure . Picture.convertRGBA8)
+  let
+    width = fromIntegral (Picture.imageWidth picture)
+    height = fromIntegral (Picture.imageHeight picture)
+    format = Vk.FORMAT_R8G8B8A8_SRGB
+    extent = Vk.Extent3D width height 1
+    (pixels, pixelBytes) = SV.unsafeToForeignPtr0 (Picture.imageData picture)
+    dev = vcDevice vc
+    copyRegion = Vk.BufferImageCopy 0 0 0 (Vk.ImageSubresourceLayers Vk.IMAGE_ASPECT_COLOR_BIT 0 0 1) zero extent
 
-  logDebug "Initialising ImGui for Vulkan"
-  ImGui.Vulkan.withVulkan initInfo \ _ -> do
+  (_, (image, _, _)) <- VMA.withImage vma
+    zero
+      { Vk.imageType = Vk.IMAGE_TYPE_2D
+      , Vk.mipLevels = 1
+      , Vk.arrayLayers = 1
+      , Vk.format = format
+      , Vk.extent = extent
+      , Vk.tiling = Vk.IMAGE_TILING_OPTIMAL
+      , Vk.usage = Vk.IMAGE_USAGE_SAMPLED_BIT .|. Vk.IMAGE_USAGE_TRANSFER_DST_BIT
+      , Vk.samples = Vk.SAMPLE_COUNT_1_BIT
+      }
+    zero { VMA.usage = VMA.MEMORY_USAGE_GPU_ONLY, VMA.requiredFlags = Vk.MEMORY_PROPERTY_DEVICE_LOCAL_BIT }
+    allocate
 
-    logDebug "Running one-shot commands to upload ImGui textures"
-    logDebug "Creating fence"
-    ( fenceKey, fence ) <- createFence device
-    logDebug "Allocating one-shot command buffer"
-    ( oneshotCommandBufferKey, oneshotCommandBuffer ) <-
-      second Boxed.Vector.head <$>
-        allocatePrimaryCommandBuffers device commandPool 1
-
-    logDebug "Recording one-shot commands"
-    beginCommandBuffer oneshotCommandBuffer
-
-    logDebug "Uploading texture"
-    let textureSubresource = Vulkan.ImageSubresourceRange
-          { Vulkan.aspectMask     = Vulkan.IMAGE_ASPECT_COLOR_BIT
-          , Vulkan.baseMipLevel   = 0
-          , Vulkan.levelCount     = 1
-          , Vulkan.baseArrayLayer = 0
-          , Vulkan.layerCount     = 1
-          }
-
-    let uploadBarrier = Vulkan.zero
-          { Vulkan.srcAccessMask       = Vulkan.zero
-          , Vulkan.dstAccessMask       = Vulkan.ACCESS_TRANSFER_WRITE_BIT
-          , Vulkan.oldLayout           = Vulkan.IMAGE_LAYOUT_UNDEFINED
-          , Vulkan.newLayout           = Vulkan.IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL
-          , Vulkan.srcQueueFamilyIndex = Vulkan.QUEUE_FAMILY_IGNORED
-          , Vulkan.dstQueueFamilyIndex = Vulkan.QUEUE_FAMILY_IGNORED
-          , Vulkan.image               = image
-          , Vulkan.subresourceRange    = textureSubresource
-          } :: Vulkan.ImageMemoryBarrier '[]
-    Vulkan.cmdPipelineBarrier
-      oneshotCommandBuffer
-      Vulkan.PIPELINE_STAGE_TOP_OF_PIPE_BIT
-      Vulkan.PIPELINE_STAGE_TRANSFER_BIT
-      Vulkan.zero
-      mempty
-      mempty
-      (Boxed.Vector.singleton $ Vulkan.SomeStruct uploadBarrier)
-
-    Vulkan.cmdCopyBufferToImage oneshotCommandBuffer stage image Vulkan.IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL $
-      Boxed.Vector.singleton Vulkan.BufferImageCopy
-        { Vulkan.bufferOffset      = 0
-        , Vulkan.bufferRowLength   = Vulkan.zero
-        , Vulkan.bufferImageHeight = Vulkan.zero
-        , Vulkan.imageSubresource = Vulkan.ImageSubresourceLayers
-            { aspectMask     = Vulkan.IMAGE_ASPECT_COLOR_BIT
-            , mipLevel       = 0
-            , baseArrayLayer = 0
-            , layerCount     = 1
-            }
-        , Vulkan.imageOffset = Vulkan.zero
-        , Vulkan.imageExtent = Vulkan.Extent3D
-            { width  = fromIntegral textureWidth
-            , height = fromIntegral textureHeight
-            , depth  = 1
-            }
+  liftIO $ runResourceT do
+    (_, (staging, stagingAllocation, stagingInfo)) <- VMA.withBuffer vma
+      zero { Vk.size = fromIntegral pixelBytes, Vk.usage = Vk.BUFFER_USAGE_TRANSFER_SRC_BIT }
+      zero
+        { VMA.flags = VMA.ALLOCATION_CREATE_MAPPED_BIT
+        , VMA.usage = VMA.MEMORY_USAGE_CPU_TO_GPU
+        , VMA.requiredFlags = Vk.MEMORY_PROPERTY_HOST_VISIBLE_BIT
         }
+      allocate
+    liftIO $ withForeignPtr pixels \src -> copyBytes (VMA.mappedData stagingInfo) (castPtr src) pixelBytes
+    VMA.flushAllocation vma stagingAllocation 0 Vk.WHOLE_SIZE
 
-    logDebug "Transitioning texture"
-    let transitionBarrier = Vulkan.zero
-          { Vulkan.srcAccessMask       = Vulkan.ACCESS_TRANSFER_WRITE_BIT
-          , Vulkan.dstAccessMask       = Vulkan.ACCESS_SHADER_READ_BIT
-          , Vulkan.oldLayout           = Vulkan.IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL
-          , Vulkan.newLayout           = Vulkan.IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
-          , Vulkan.srcQueueFamilyIndex = Vulkan.QUEUE_FAMILY_IGNORED
-          , Vulkan.dstQueueFamilyIndex = Vulkan.QUEUE_FAMILY_IGNORED
-          , Vulkan.image               = image
-          , Vulkan.subresourceRange    = textureSubresource
-          } :: Vulkan.ImageMemoryBarrier '[]
-    Vulkan.cmdPipelineBarrier
-      oneshotCommandBuffer
-      Vulkan.PIPELINE_STAGE_TRANSFER_BIT
-      Vulkan.PIPELINE_STAGE_FRAGMENT_SHADER_BIT
-      Vulkan.zero
-      mempty
-      mempty
-      (Boxed.Vector.singleton $ Vulkan.SomeStruct transitionBarrier)
+    oneShot vc \cb -> do
+      Vk.cmdPipelineBarrier cb Vk.PIPELINE_STAGE_TOP_OF_PIPE_BIT Vk.PIPELINE_STAGE_TRANSFER_BIT zero [] []
+        [ imageBarrier Vk.IMAGE_ASPECT_COLOR_BIT zero Vk.ACCESS_TRANSFER_WRITE_BIT
+            Vk.IMAGE_LAYOUT_UNDEFINED Vk.IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL image
+        ]
+      Vk.cmdCopyBufferToImage cb staging image Vk.IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL (V.singleton copyRegion)
+      Vk.cmdPipelineBarrier cb Vk.PIPELINE_STAGE_TRANSFER_BIT Vk.PIPELINE_STAGE_FRAGMENT_SHADER_BIT zero [] []
+        [ imageBarrier Vk.IMAGE_ASPECT_COLOR_BIT Vk.ACCESS_TRANSFER_WRITE_BIT Vk.ACCESS_SHADER_READ_BIT
+            Vk.IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL Vk.IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL image
+        ]
 
-    endCommandBuffer oneshotCommandBuffer
+  (_, view) <- Vk.withImageView dev
+    zero
+      { Vk.image = image
+      , Vk.viewType = Vk.IMAGE_VIEW_TYPE_2D
+      , Vk.format = format
+      , Vk.subresourceRange = zero { Vk.aspectMask = Vk.IMAGE_ASPECT_COLOR_BIT, Vk.levelCount = 1, Vk.layerCount = 1 }
+      }
+    Nothing
+    allocate
+  pure (ImGui.Raw.ImVec2 (fromIntegral width) (fromIntegral height), view)
 
-    logDebug "Submitting one-shot commands"
-    submitCommandBuffer queue oneshotCommandBuffer [] [] ( Just fence )
-    waitForFences device ( WaitAll [ fence ] )
-
-    logDebug "Finished uploading font objects"
-    traverse_ ResourceT.release [ fenceKey, oneshotCommandBufferKey, stageKey ]
-
-    logDebug "Adding imgui texture"
-    Vulkan.DescriptorSet ds <- ImGui.Vulkan.vulkanAddTexture imageView Vulkan.IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
-    let textureSize = ImGui.Raw.ImVec2 (fromIntegral textureWidth) (fromIntegral textureHeight)
-    let texture = (textureSize, fromIntegral ds)
-
-    let
-      mainLoop :: AppState m -> m ()
-      mainLoop ( AppState {..} ) = do
-
-        ( freeResources, resources@( SwapchainResources {..} ), freeOldResources ) <-
-          if reloadSwapchain
-          then do
-            logDebug "Reloading swapchain and associated resources"
-            ( freeNewResources, newResources ) <- swapchainResources ( Just resources )
-            pure ( freeNewResources, newResources, freeOldResources *> freeResources )
-          else pure ( freeResources, resources, freeOldResources )
-
-        inputEvents <- map SDL.eventPayload <$> pollEventsWithImGui
-        inputState  <- pure $ onSDLInputs inputState inputEvents
-
-        unless ( quitAction inputState ) do
-          ( acquireResult, nextImageIndex ) <-
-            handleJust vulkanException ( \ e -> pure ( e, 0 ) )
-              ( Vulkan.acquireNextImageKHR device swapchain maxBound nextImageSem Vulkan.NULL_HANDLE )
-          let
-            reloadSwapchain, quit :: Bool
-            ( reloadSwapchain, quit ) = reloadQuit acquireResult
-          unless quit do
-            ( reloadSwapchain, quit ) <-
-              if reloadSwapchain
-              then do
-                pure ( True, False )
-              else
-                handleJust vulkanException ( pure . reloadQuit ) do
-                  let
-                    commandBuffer :: Vulkan.CommandBuffer
-                    commandBuffer = commandBuffers Boxed.Vector.! fromIntegral nextImageIndex
-                    framebuffer :: Vulkan.Framebuffer
-                    framebuffer = fst $ framebuffersWithAttachments Boxed.Vector.! fromIntegral nextImageIndex
-                  Vulkan.resetCommandBuffer commandBuffer Vulkan.zero
-                  beginCommandBuffer commandBuffer
-                  cmdBeginRenderPass commandBuffer imGuiRenderPass framebuffer clearValues swapchainExtent
-
-                  drawData <- gui texture
-                  ImGui.Vulkan.vulkanRenderDrawData drawData commandBuffer Nothing
-
-                  cmdEndRenderPass commandBuffer
-                  endCommandBuffer commandBuffer
-                  submitCommandBuffer
-                    queue
-                    commandBuffer
-                    [ ( nextImageSem, Vulkan.PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT ) ]
-                    [ submitted ]
-                    Nothing
-                  presentResult <- present queue swapchain nextImageIndex [submitted]
-                  Vulkan.queueWaitIdle queue
-                  pure ( reloadQuit presentResult )
-            freeOldResources
-            let
-              freeOldResources :: m ()
-              freeOldResources = pure ()
-            unless quit $ mainLoop ( AppState {..} )
-
-    let
-      reloadSwapchain :: Bool
-      reloadSwapchain = False
-      freeOldResources :: m ()
-      freeOldResources = pure ()
-      inputState :: Input
-      inputState = nullInput
-
-    logDebug "Starting main loop."
-    mainLoop ( AppState {..} )
-
-
-data SwapchainResources = SwapchainResources
-  { swapchain       :: !Vulkan.SwapchainKHR
-  , swapchainExtent :: !Vulkan.Extent2D
-  , swapchainImages :: !( Boxed.Vector Vulkan.Image )
-  , surfaceFormat   :: !Vulkan.SurfaceFormatKHR
-  , imGuiRenderPass :: !Vulkan.RenderPass
-  , framebuffersWithAttachments :: !( Boxed.Vector ( Vulkan.Framebuffer, ( Vulkan.Image, Vulkan.ImageView ) ) )
-  }
-
-data AppState m
-  = AppState
-    { reloadSwapchain  :: !Bool
-    , freeResources    :: !( m () )
-    , resources        :: !SwapchainResources
-    , freeOldResources :: !( m () )
-    , inputState       :: !Input
-    }
-
-pollEventsWithImGui :: MonadIO m => m [ SDL.Event ]
-pollEventsWithImGui = do
-  e <- ImGui.SDL.pollEventWithImGui
-  case e of
-    Nothing -> pure []
-    Just e' -> ( e' : ) <$> pollEventsWithImGui
-
-vulkanException :: Vulkan.VulkanException -> Maybe Vulkan.Result
-vulkanException ( Vulkan.VulkanException e )
-  | e >= Vulkan.SUCCESS
-  = Nothing
-  | otherwise
-  = Just e
-
-reloadQuit :: Vulkan.Result -> ( Bool, Bool )
-reloadQuit = \ case
-  Vulkan.ERROR_OUT_OF_DATE_KHR -> ( True , False )
-  Vulkan.SUBOPTIMAL_KHR        -> ( True , False )
-  e | e >= Vulkan.SUCCESS      -> ( False, False )
-  _                            -> ( False, True  )
+oneShot :: VulkanContext rr -> (Vk.CommandBuffer -> IO ()) -> ResourceT IO ()
+oneShot VulkanContext{vcDevice, vcQueues} record = do
+  let (QueueFamilyIndex family, queue) = qGraphics vcQueues
+  pool <- allocateCommandPool vcDevice family
+  cb <- allocatePrimary vcDevice pool
+  liftIO (record cb)
+  Vk.endCommandBuffer cb
+  (_, fence) <- Vk.withFence vcDevice zero Nothing allocate
+  Vk.queueSubmit queue [SomeStruct zero { Vk.commandBuffers = [Vk.commandBufferHandle cb] }] fence
+  void $ Vk.waitForFences vcDevice [fence] True maxBound
