@@ -4,12 +4,12 @@ haskellNix ? (import (import ./nix/sources.nix)."haskell.nix" { })
 # haskell.nix provides access to the nixpkgs pins which are used by our CI,
 # hence you will be more likely to get cache hits when using these.
 # But you can also just use your own, e.g. '<nixpkgs>'.
-, nixpkgsSrc ? haskellNix.sources.nixpkgs-2305
+, nixpkgsSrc ? haskellNix.sources.nixpkgs-unstable
 
   # haskell.nix provides some arguments to be passed to nixpkgs, including some
   # patches and also the haskell.nix functionality itself as an overlay.
 , nixpkgsArgs ? haskellNix.nixpkgsArgs
-, compiler-nix-name ? "ghc8107"
+, compiler-nix-name ? "ghc967"
 }:
 let
   pkgs = import nixpkgsSrc nixpkgsArgs;
@@ -21,17 +21,18 @@ in pkgs.haskell-nix.project {
     src = ./.;
   };
   modules = [ {
+    packages.dear-imgui.components.library.libs = [ pkgs.libx11 pkgs.xorgproto ];
+
     # This library needs libXext to build, but doesn't explicitly state it in
     # its .cabal file.
     packages.bindings-GLFW.components.library.libs =
       pkgs.lib.mkForce (
         pkgs.lib.optionals   pkgs.stdenv.isDarwin  (with pkgs.darwin.apple_sdk.frameworks; [ AGL Cocoa OpenGL IOKit Kernel CoreVideo pkgs.darwin.CF ]) ++
-        pkgs.lib.optionals (!pkgs.stdenv.isDarwin) (with pkgs.xorg; [ libXext libXi libXrandr libXrender libXxf86vm libXcursor libXinerama pkgs.libGL ])
+        pkgs.lib.optionals (!pkgs.stdenv.isDarwin) (with pkgs; [ libxext libxi libxrandr libxrender libxxf86vm libxcursor libxinerama libGL ])
       );
 
     # Depends on libX11 but doesn't state it in the .cabal file.
     packages.GLFW-b.components.library.libs =
-      with pkgs.xorg;
-      pkgs.lib.mkForce [ libX11 ];
+      pkgs.lib.mkForce [ pkgs.libx11 ];
   } ];
 }
