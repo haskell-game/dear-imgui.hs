@@ -123,8 +123,15 @@ If you would like to help `dear-imgui`, here's how you can get started.
 
 The best path to development is using
 [Nix](https://nixos.org/guides/install-nix.html). Once you have Nix installed
-(either in your operating system, or by running NixOS), you can enter a
-development shell:
+(either in your operating system, or by running NixOS), add the haskell.nix
+binary caches to your `nix.conf` so you don't end up building GHC from source:
+
+```
+extra-substituters = https://cache.zw3rk.com https://cache.iog.io
+extra-trusted-public-keys = loony-tools:pr9m4BkM/5/eSTZlkQyRt57Jz7OMBxNSUiMC4FkcNfk= hydra.iohk.io:f/Ea+s+dFdN+3Y/G+FDgSq+a5NEWhJGzdjvKNGv0/EQ=
+```
+
+Then you can enter a development shell:
 
 ```
 $ nix-shell
