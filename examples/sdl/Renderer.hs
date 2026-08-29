@@ -11,17 +11,14 @@
 
 module Main ( main ) where
 
-import Control.Exception (bracket, bracket_)
+import Control.Exception (bracket)
 import Control.Monad.IO.Class (MonadIO(liftIO))
 import Control.Monad.Managed (managed, managed_, runManaged)
 import Data.IORef (IORef, newIORef)
 import Data.Text (pack)
 import DearImGui
-import DearImGui.SDL (pollEventWithImGui, sdl2NewFrame, sdl2Shutdown)
-import DearImGui.SDL.Renderer
-  ( sdl2InitForSDLRenderer, sdlRendererInit, sdlRendererNewFrame, sdlRendererRenderDrawData
-  , sdlRendererShutdown
-  )
+import qualified DearImGui.Impl.SDL2 as ImplSDL2
+import qualified DearImGui.Impl.SDLRenderer2 as ImplSDLRenderer2
 import SDL (V4(V4), ($=), ($~), get)
 import Text.Printf (printf)
 import qualified SDL
@@ -53,11 +50,10 @@ main = do
     _ <- managed $ bracket createContext destroyContext
 
     -- Initialize ImGui's SDL2 backend
-    _ <- managed_ do
-      bracket_ (sdl2InitForSDLRenderer window renderer) sdl2Shutdown
+    _ <- managed_ $ ImplSDL2.withInitForSDLRenderer window renderer
 
     -- Initialize ImGui's SDL2 renderer backend
-    _ <- managed_ $ bracket_ (sdlRendererInit renderer) sdlRendererShutdown
+    _ <- managed_ $ ImplSDLRenderer2.withInit renderer
 
     liftIO $ mainLoop renderer
 
@@ -69,8 +65,8 @@ mainLoop renderer = do
   where
   go refs = unlessQuit do
     -- Tell ImGui we're starting a new frame
-    sdlRendererNewFrame
-    sdl2NewFrame
+    ImplSDLRenderer2.newFrame
+    ImplSDL2.newFrame
     newFrame
 
     -- Show the ImGui demo window
@@ -109,7 +105,7 @@ mainLoop renderer = do
     SDL.rendererDrawColor renderer $= V4 0 0 0 255
     SDL.clear renderer
     render
-    sdlRendererRenderDrawData renderer =<< getDrawData
+    getDrawData >>= \drawData -> ImplSDLRenderer2.renderDrawData drawData renderer
     SDL.present renderer
 
     go refs
@@ -120,7 +116,7 @@ mainLoop renderer = do
     if shouldQuit then pure () else action
 
   checkEvents = do
-    pollEventWithImGui >>= \case
+    ImplSDL2.pollEvent >>= \case
       Nothing ->
         return False
       Just event ->

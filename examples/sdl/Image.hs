@@ -13,17 +13,16 @@ import Control.Exception
 import Control.Monad.IO.Class (MonadIO(..))
 import Control.Monad.Managed (managed, managed_, runManaged)
 import DearImGui
-import qualified DearImGui.Raw as Raw
-import qualified DearImGui.Raw.DrawList as DrawList
-import DearImGui.OpenGL3
-import DearImGui.SDL
-import DearImGui.SDL.OpenGL
+import qualified DearImGui.Raw.Enums.ImDrawFlags as ImDrawFlags
+import qualified DearImGui.Raw.ImDrawList as ImDrawList
+import qualified DearImGui.Impl.OpenGL3 as ImplGL3
+import qualified DearImGui.Impl.SDL2 as ImplSDL2
 import Graphics.GL
 import qualified SDL as SDL
 
 --  For the texture creation
+import Data.Fixed (mod')
 import Foreign
-import Foreign.C.String
 import qualified Data.Vector.Storable as VS
 
 data Texture = Texture
@@ -72,20 +71,57 @@ bindTexture texture dataPtr = do
     GL_UNSIGNED_BYTE
     (castPtr dataPtr)
 
-fill :: Texture -> (GLubyte, GLubyte, GLubyte) -> VS.Vector GLubyte
-fill texture (r, g, b) =
-  VS.generate
-    (3 * width * height)
-    (\i ->
-        case i `mod` 3 of
-          0 -> r
-          1 -> g
-          2 -> b
-          _ -> error "assert: 3-byte pitch"
-    )
+type RGB = (GLubyte, GLubyte, GLubyte)
+
+fill :: Texture -> (Double -> Double -> RGB) -> VS.Vector GLubyte
+fill texture pixel =
+  VS.fromListN (3 * width * height)
+    [ channel
+    | py <- [0 .. height - 1]
+    , px <- [0 .. width - 1]
+    , let (r, g, b) = pixel (fromIntegral px / fromIntegral width) (fromIntegral py / fromIntegral height)
+    , channel <- [r, g, b]
+    ]
   where
     width  = fromIntegral (textureWidth texture)
     height = fromIntegral (textureHeight texture)
+
+plasma :: Double -> Double -> RGB
+plasma u v = (sinePalette 0, sinePalette 2, sinePalette 4)
+  where
+    sinePalette phase = round (128 + 127 * sin (interference + phase))
+    interference =
+      sin (10 * u)
+        + sin (8 * v + 1)
+        + sin (6 * (u + v))
+        + sin (20 * sqrt ((u - 0.5) ^ (2 :: Int) + (v - 0.5) ^ (2 :: Int)))
+
+colourWheel :: Double -> Double -> Double -> RGB
+colourWheel aspect u v
+  | radius <= 1 = hsvToRgb hue radius 1
+  | even (floor (u * 12) + floor (v * 16) :: Int) = (0x30, 0x30, 0x30)
+  | otherwise = (0x50, 0x50, 0x50)
+  where
+    dx = (u - 0.5) * 2
+    dy = (v - 0.5) * 2 / aspect
+    radius = sqrt (dx * dx + dy * dy)
+    hue = atan2 dy dx / (2 * pi) + 0.5
+
+hsvToRgb :: Double -> Double -> Double -> RGB
+hsvToRgb h s v = (byte (r + m), byte (g + m), byte (b + m))
+  where
+    chroma = v * s
+    sector = h * 6
+    secondary = chroma * (1 - abs (sector `mod'` 2 - 1))
+    m = v - chroma
+    byte = round . (* 255)
+    (r, g, b) = case floor sector :: Int of
+      0 -> (chroma, secondary, 0)
+      1 -> (secondary, chroma, 0)
+      2 -> (0, chroma, secondary)
+      3 -> (0, secondary, chroma)
+      4 -> (secondary, 0, chroma)
+      _ -> (chroma, 0, secondary)
 
 
 main :: IO ()
@@ -107,33 +143,31 @@ main = do
     _dearContext <- managed $ bracket createContext destroyContext
 
     -- Initialize ImGui's SDL2 backend
-    managed_ $ bracket_ (sdl2InitForOpenGL window glContext) sdl2Shutdown
+    managed_ $ ImplSDL2.withInitForOpenGL window glContext
 
     -- Initialize ImGui's OpenGL backend
-    managed_ $ bracket_ openGL3Init do
-      putStrLn "ImguiOpenGL shut down"
-      openGL3Shutdown
+    managed_ $ ImplGL3.withInit Nothing
 
     liftIO do
-      blueish <- create2DTexture 320 240
-      VS.unsafeWith (fill blueish (0x00, 0x7F, 0xFF)) $
-        bindTexture blueish
+      plasmaTexture <- create2DTexture 320 240
+      VS.unsafeWith (fill plasmaTexture plasma) $
+        bindTexture plasmaTexture
 
-      pinkish <- create2DTexture 240 320
-      VS.unsafeWith (fill pinkish (0xFF, 0x00, 0x7F)) $
-        bindTexture pinkish
+      wheelTexture <- create2DTexture 240 320
+      VS.unsafeWith (fill wheelTexture (colourWheel (240 / 320))) $
+        bindTexture wheelTexture
 
       err <- glGetError
       putStrLn $ "Error-code: " ++ show err
 
-      print (blueish, pinkish)
-      mainLoop window (blueish, pinkish) False
+      print (plasmaTexture, wheelTexture)
+      mainLoop window (plasmaTexture, wheelTexture) False
 
 mainLoop :: SDL.Window -> (Texture, Texture) -> Bool -> IO ()
 mainLoop window textures flag = unlessQuit do
   -- Tell ImGui we're starting a new frame
-  openGL3NewFrame
-  sdl2NewFrame
+  ImplGL3.newFrame
+  ImplSDL2.newFrame
   newFrame
 
   let texture = if flag then fst textures else snd textures
@@ -148,36 +182,32 @@ mainLoop window textures flag = unlessQuit do
       newLine
 
       -- Using imageButton
-      Foreign.with (textureSize texture) \sizePtr ->
-        Foreign.with (ImVec2 0 0) \uv0Ptr ->
-          Foreign.with (ImVec2 1 1) \uv1Ptr ->
-            Foreign.with (ImVec4 1 1 1 1) \tintColPtr ->
-              Foreign.with (ImVec4 1 1 1 1) \bgColPtr ->
-                Foreign.with (textureRefFromID openGLtextureID) \texRefPtr ->
-                  withCString "##btn" \idPtr ->
-                    Raw.imageButton idPtr texRefPtr sizePtr uv0Ptr uv1Ptr bgColPtr tintColPtr
+      imageButton
+        "##btn"
+        (textureRefFromID openGLtextureID)
+        (textureSize texture)
+        (ImVec2 0 0)
+        (ImVec2 1 1)
+        (ImVec4 1 1 1 1)
+        (ImVec4 1 1 1 1)
     else
       pure False
 
   -- Using DrawList
   bg <- getBackgroundDrawList
-  Foreign.with (ImVec2 100 100) \pMin ->
-    Foreign.with (ImVec2 200 200) \pMax ->
-      Foreign.with (ImVec2 0.25 0.25) \uvMin ->
-        Foreign.with (ImVec2 0.75 0.75) \uvMax ->
-          Foreign.with (textureRefFromID openGLtextureID) \texRefPtr ->
-            DrawList.addImageRounded
-              bg
-              texRefPtr
-              pMin pMax uvMin uvMax
-              (Raw.imCol32 0 255 0 0xFF) -- Extract green channel
-              32 ImDrawFlags_RoundCornersBottom
+  ImDrawList.addImageRounded
+    bg
+    (textureRefFromID openGLtextureID)
+    (ImVec2 100 100) (ImVec2 200 200)
+    (ImVec2 0.25 0.25) (ImVec2 0.75 0.75)
+    (imCol32 0 255 0 0xFF) -- Extract green channel
+    32 ImDrawFlags.RoundCornersBottom
 
   -- Render
   glClear GL_COLOR_BUFFER_BIT
 
   DearImGui.render
-  DearImGui.getDrawData >>= openGL3RenderDrawData
+  DearImGui.getDrawData >>= ImplGL3.renderDrawData
 
   SDL.glSwapWindow window
 
@@ -189,7 +219,7 @@ mainLoop window textures flag = unlessQuit do
       if shouldQuit then pure () else action
 
     checkEvents = do
-      pollEventWithImGui >>= \case
+      ImplSDL2.pollEvent >>= \case
         Nothing ->
           return False
         Just event ->

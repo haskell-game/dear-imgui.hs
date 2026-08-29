@@ -9,10 +9,13 @@ import Control.Monad
 import Data.IORef
 import qualified Data.Vector as Vector
 import DearImGui
-import DearImGui.OpenGL3
+import qualified DearImGui.Raw.Enums.ImGuiCond as ImGuiCond
+import qualified DearImGui.Raw.Enums.ImGuiDir as ImGuiDir
+import qualified DearImGui.Raw.Enums.ImGuiTabBarFlags as ImGuiTabBarFlags
+import qualified DearImGui.Raw.Enums.ImGuiTabItemFlags as ImGuiTabItemFlags
+import qualified DearImGui.Impl.OpenGL3 as ImplGL3
+import qualified DearImGui.Impl.SDL2 as ImplSDL2
 import DearImGui.Internal.Text (pack)
-import DearImGui.SDL
-import DearImGui.SDL.OpenGL
 import Control.Exception
 import Graphics.GL
 import SDL
@@ -24,8 +27,8 @@ main = do
   bracket (createWindow "Hello, Dear ImGui!" defaultWindow { windowGraphicsContext = OpenGLContext defaultOpenGL }) destroyWindow \w ->
     bracket (glCreateContext w) glDeleteContext \glContext ->
     bracket createContext destroyContext \_imguiContext ->
-    bracket_ (sdl2InitForOpenGL w glContext) sdl2Shutdown $
-    bracket_ openGL3Init openGL3Shutdown do
+    ImplSDL2.withInitForOpenGL w glContext $
+    ImplGL3.withInit Nothing do
       checkVersion
       styleColorsLight
 
@@ -56,8 +59,8 @@ loop
 loop window checked color slider r pos size' selected tab1Ref tab2Ref = do
   shouldQuit <- checkEvents
 
-  openGL3NewFrame
-  sdl2NewFrame
+  ImplGL3.newFrame
+  ImplSDL2.newFrame
   newFrame
 
   -- showDemoWindow
@@ -65,12 +68,12 @@ loop window checked color slider r pos size' selected tab1Ref tab2Ref = do
   -- showAboutWindow
   -- showUserGuide
 
-  setNextWindowPos pos ImGuiCond_Once Nothing
-  setNextWindowSize size' ImGuiCond_Once
+  setNextWindowPos pos ImGuiCond.Once Nothing
+  setNextWindowSize size' ImGuiCond.Once
   -- Works, but will make the window contents illegible without doing something more involved.
   -- setNextWindowContentSize size'
   -- setNextWindowSizeConstraints size' size'
-  setNextWindowCollapsed False ImGuiCond_Once
+  setNextWindowCollapsed False ImGuiCond.Once
 
   setNextWindowBgAlpha 0.42
 
@@ -78,14 +81,14 @@ loop window checked color slider r pos size' selected tab1Ref tab2Ref = do
 
   text "Hello!"
 
-  beginTabBar "My tab bar" ImGuiTabBarFlags_Reorderable >>= whenTrue do
-    beginTabItem "Tab 1" tab1Ref ImGuiTabItemFlags_None >>= whenTrue do
+  beginTabBar "My tab bar" ImGuiTabBarFlags.Reorderable >>= whenTrue do
+    beginTabItem "Tab 1" tab1Ref 0 >>= whenTrue do
       text "Tab 1 is currently selected."
       endTabItem
-    beginTabItem "Tab 2" tab2Ref ImGuiTabItemFlags_None >>= whenTrue do
+    beginTabItem "Tab 2" tab2Ref 0 >>= whenTrue do
       text "Tab 2 is selected now."
       endTabItem
-    reOpen <- tabItemButton "ReopenTabs" ImGuiTabItemFlags_Trailing
+    reOpen <- tabItemButton "ReopenTabs" ImGuiTabItemFlags.Trailing
     when reOpen do
       writeIORef tab1Ref True
       writeIORef tab2Ref True
@@ -110,7 +113,7 @@ loop window checked color slider r pos size' selected tab1Ref tab2Ref = do
     True  -> putStrLn "Oh hi Mark"
     False -> return ()
 
-  sameLine >> arrowButton "Arrow" ImGuiDir_Up
+  sameLine >> arrowButton "Arrow" ImGuiDir.Up
 
   sameLine >> checkbox "Check!" checked >>= \case
     True  -> readIORef checked >>= print
@@ -122,7 +125,7 @@ loop window checked color slider r pos size' selected tab1Ref tab2Ref = do
 
   progressBar 0.314 (Just "Pi")
 
-  beginChild "Child" (ImVec2 0 0) True ImGuiWindowFlags_None
+  beginChild "Child" (ImVec2 0 0) True 0
 
   beginCombo "Label" "Preview" >>= whenTrue do
     selectable "Testing 1"
@@ -134,17 +137,17 @@ loop window checked color slider r pos size' selected tab1Ref tab2Ref = do
   endChild
 
   text "ListClipper"
-  withChildOpen "##fixed" (ImVec2 0 200) True ImGuiWindowFlags_None do
+  withChildOpen "##fixed" (ImVec2 0 200) True 0 do
     let lotsOfItems = Vector.generate 50 (pack . mappend "Item " . show)
     withListClipper Nothing lotsOfItems text
 
   text "ListClipper, Haskell-powered"
-  withChildOpen "##infinite" (ImVec2 0 200) True ImGuiWindowFlags_None do
+  withChildOpen "##infinite" (ImVec2 0 200) True 0 do
     let infiniteItems = map (pack . mappend "Item " . show) [0 :: Int ..]
     withListClipper Nothing infiniteItems text
 
   text "Ethereal ListClipper"
-  withChildOpen "##ethereal" (ImVec2 0 200) True ImGuiWindowFlags_None do
+  withChildOpen "##ethereal" (ImVec2 0 200) True 0 do
     withListClipper Nothing (ClipRange (0 :: Int) 1000) $
       text . pack . mappend "Item " . show
 
@@ -177,7 +180,7 @@ loop window checked color slider r pos size' selected tab1Ref tab2Ref = do
   render
 
   glClear GL_COLOR_BUFFER_BIT
-  openGL3RenderDrawData =<< getDrawData
+  ImplGL3.renderDrawData =<< getDrawData
 
   glSwapWindow window
 
@@ -188,7 +191,7 @@ loop window checked color slider r pos size' selected tab1Ref tab2Ref = do
   where
 
     checkEvents = do
-      ev <- pollEventWithImGui
+      ev <- ImplSDL2.pollEvent
 
       case ev of
         Nothing -> return False

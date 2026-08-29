@@ -1,7 +1,7 @@
 cabal-version: 3.0
 
 name: dear-imgui
-version: 2.5.0
+version: 3.0.0
 author: Oliver Charles
 maintainer: ollie@ocharles.org.uk, aenor.realm@gmail.com
 license: BSD-3-Clause
@@ -9,46 +9,19 @@ license: BSD-3-Clause
 category: Graphics
 synopsis: Haskell bindings for Dear ImGui.
 description:
-  The package supports multiple rendering backends.
-  Set package flags according to your needs.
+  High-level layer over the generated dear-imgui-raw bindings.
+  Platform and renderer backends are provided by the dear-imgui-impl-<backend> packages.
 
 build-type: Simple
-extra-source-files:
+extra-doc-files:
   README.md,
   ChangeLog.md
 
-extra-source-files:
-  imgui/*.h,
-  imgui/backends/*.h,
-  imgui/backends/*.mm,
-  imgui/imconfig.h,
-  imgui/LICENSE.txt
-
 common exe-flags
   if flag(debug)
-    if os(linux)
-      ghc-options: -Wall -g -rtsopts -dcore-lint -debug
-      cc-options: -g -O0 -fsanitize=address -fno-omit-frame-pointer
-      cxx-options: -g -O0 -fsanitize=address -fno-omit-frame-pointer -std=c++11
-    if os(darwin)
-      ghc-options: -Wall -g -rtsopts -dcore-lint -debug
-      cc-options: -g -O0 -fsanitize=address -fno-omit-frame-pointer
-      cxx-options: -g -O0 -fsanitize=address -fno-omit-frame-pointer -std=c++11
-    if os(windows)
-      ghc-options: -Wall -g -rtsopts -dcore-lint -debug
-      cc-options: -g -O0
-      cxx-options: -g -O0 -std=c++11
+    ghc-options: -Wall -g -rtsopts -dcore-lint -debug
   else
-    if os(linux)
-      ghc-options: -Wall -O2
-      cc-options: -O2
-      cxx-options: -std=c++11 -O2
-    if os(darwin)
-      ghc-options: -Wall -O2
-      cc-options: -O2
-    if os(windows)
-      ghc-options: -Wall -O2
-      cc-options: -O2
+    ghc-options: -Wall -O2
 
 source-repository head
   type: git
@@ -62,55 +35,6 @@ flag debug
   manual:
     True
 
-flag opengl2
-  description:
-    Enable OpenGL 2 backend.
-  default:
-    False
-  manual:
-    True
-
-flag opengl3
-  description:
-    Enable OpenGL 3 backend.
-  default:
-    True
-  manual:
-    True
-
-flag vulkan
-  description:
-    Enable Vulkan backend.
-  default:
-    False
-  manual:
-    True
-
-flag sdl
-  description:
-    Enable SDL backend.
-  default:
-    True
-  manual:
-    True
-
-flag sdl-renderer
-  description:
-    Enable SDL Renderer backend (requires the SDL_RenderGeometry function available in SDL 2.0.18+).
-    The sdl configuration flag must also be enabled when using this flag.
-  default:
-    False
-  manual:
-    True
-
-flag glfw
-  description:
-    Enable GLFW backend.
-  default:
-    False
-  manual:
-    True
-
 flag examples
   description:
     Build executable examples.
@@ -119,37 +43,10 @@ flag examples
   manual:
     True
 
-flag disable-obsolete
-  description:
-    Don't define obsolete functions/enums/behaviors. Consider enabling from time to time after updating to avoid using soon-to-be obsolete function/names.
-  default:
-    False
-  manual:
-    True
-
-flag use-wchar32
-  description:
-    Use 32-bit for ImWchar (default is 16-bit) to support unicode planes 1-16. (e.g. point beyond 0xFFFF like emoticons, dingbats, symbols, shapes, ancient languages, etc...)
-  default:
-    True
-  manual:
-    True
-
-flag use-ImDrawIdx32
-  description:
-    Use 32-bit vertex indices (default is 16-bit) is one way to allow large meshes with more than 64K vertices.
-    Your renderer backend will need to support it (most example renderer backends support both 16/32-bit indices).
-    Another way to allow large meshes while keeping 16-bit indices is to handle ImDrawCmd::VtxOffset in your renderer.
-    Read about ImGuiBackendFlags_RendererHasVtxOffset for details.
-  default:
-    True
-  manual:
-    True
-
 common common
   build-depends:
       base
-        >= 4.12 && < 4.22
+        >= 4.16 && < 5
   default-language:
       Haskell2010
 
@@ -159,246 +56,124 @@ library
     src
   exposed-modules:
     DearImGui
+    DearImGui.Enums
     DearImGui.FontAtlas
     DearImGui.Internal.Text
-    DearImGui.Raw
-    DearImGui.Raw.DragDrop
-    DearImGui.Raw.DrawList
-    DearImGui.Raw.Font
-    DearImGui.Raw.Font.Config
-    DearImGui.Raw.Font.GlyphRanges
-    DearImGui.Raw.IO
-    DearImGui.Raw.ListClipper
-    DearImGui.Raw.Context
-  other-modules:
-    DearImGui.Enums
     DearImGui.Structs
-  cxx-options: -std=c++11
-  cxx-sources:
-    imgui/imgui.cpp
-    imgui/imgui_demo.cpp
-    imgui/imgui_draw.cpp
-    imgui/imgui_tables.cpp
-    imgui/imgui_widgets.cpp
-  if impl(ghc >= 9.4)
-    build-depends: system-cxx-std-lib
-  else
-    extra-libraries: stdc++
-  include-dirs:
-    imgui
   build-depends:
-      dear-imgui-generator
-    , containers
+      dear-imgui-raw
     , managed
-    , inline-c
-    , inline-c-cpp
     , StateVar
     , unliftio
     , vector
     , text
 
-  if os(darwin)
-    ghc-options:
-      -optcxx-std=c++11
-
-  if flag(disable-obsolete)
-    if impl(ghc >= 9.10)
-      ghc-options: -optcxx-DIMGUI_DISABLE_OBSOLETE_FUNCTIONS
-    cxx-options: -DIMGUI_DISABLE_OBSOLETE_FUNCTIONS
-    cpp-options: -DIMGUI_DISABLE_OBSOLETE_FUNCTIONS
-
-  if flag(use-wchar32)
-    if impl(ghc >= 9.10)
-      ghc-options: -optcxx-DIMGUI_USE_WCHAR32
-    cxx-options: -DIMGUI_USE_WCHAR32
-    cpp-options: -DIMGUI_USE_WCHAR32
-
-  if flag(use-ImDrawIdx32)
-    cxx-options: "-DImDrawIdx=unsigned int"
-    cpp-options: "-DImDrawIdx=unsigned int"
-
-  if flag(opengl2)
-    exposed-modules:
-      DearImGui.OpenGL2
-    cxx-sources:
-      imgui/backends/imgui_impl_opengl2.cpp
-    build-depends:
-      gl
-
-  if flag(opengl3)
-    exposed-modules:
-      DearImGui.OpenGL3
-    cxx-sources:
-      imgui/backends/imgui_impl_opengl3.cpp
-    pkgconfig-depends:
-      glew
-
-  if flag(vulkan)
-    exposed-modules:
-      DearImGui.Vulkan
-    other-modules:
-      DearImGui.Vulkan.Types
-    build-depends:
-        vulkan >= 3.20
-      , unliftio
-    cxx-sources:
-      imgui/backends/imgui_impl_vulkan.cpp
-    if os(windows)
-      extra-libraries:
-        vulkan-1
-    else
-      if os(darwin)
-        extra-libraries:
-          vulkan
-      else
-        pkgconfig-depends:
-          vulkan
-
-  if flag(sdl)
-    exposed-modules:
-      DearImGui.SDL
-    build-depends:
-      sdl2 >= 2
-    cxx-sources:
-      imgui/backends/imgui_impl_sdl2.cpp
-
-    if os(windows) || os(darwin)
-      extra-libraries:
-        SDL2
-    else
-      pkgconfig-depends:
-        sdl2
-
-    if flag(opengl2) || flag(opengl3)
-      exposed-modules:
-        DearImGui.SDL.OpenGL
-
-    if flag(vulkan)
-      exposed-modules:
-        DearImGui.SDL.Vulkan
-
-    if flag(sdl-renderer)
-      exposed-modules:
-        DearImGui.SDL.Renderer
-      cxx-sources:
-        imgui/backends/imgui_impl_sdlrenderer2.cpp
-
-  if flag(glfw)
-    exposed-modules:
-      DearImGui.GLFW
-    build-depends:
-      GLFW-b,
-      bindings-GLFW
-    cxx-sources:
-      imgui/backends/imgui_impl_glfw.cpp
-
-    if os(linux) || os(darwin)
-      pkgconfig-depends:
-        glfw3
-
-    if flag(opengl2) || flag(opengl3)
-      exposed-modules:
-        DearImGui.GLFW.OpenGL
-
-    if flag(vulkan)
-      exposed-modules:
-        DearImGui.GLFW.Vulkan
-
-library dear-imgui-generator
-  import: common
-  hs-source-dirs: generator
-  exposed-modules:
-      DearImGui.Generator
-    , DearImGui.Generator.Parser
-    , DearImGui.Generator.Tokeniser
-    , DearImGui.Generator.Types
-  build-depends:
-      template-haskell
-        >= 2.15 && < 2.24
-    , containers
-        >= 0.6.2.1 && < 1.0
-    , directory
-        >= 1.3 && < 2
-    , filepath
-        >= 1.4 && < 2
-    , inline-c
-        >= 0.9.0.0 && < 0.10
-    , megaparsec
-        >= 9.0 && < 10
-    , parser-combinators
-        >= 1.2.0 && < 1.4
-    , scientific
-        >= 0.3.6.2 && < 0.4
-    , text
-        >= 1.2.4 && < 3
-    , th-lift
-        >= 0.7 && < 0.9
-    , transformers
-        >= 0.5.6 && < 0.7
-    , unordered-containers
-        >= 0.2.11 && < 0.3
-
 executable test
   import: common, exe-flags
   main-is: Main.hs
-  default-language: Haskell2010
-  if (!flag(examples) || !flag(sdl) || !flag(opengl2))
+  if !flag(examples)
     buildable: False
   else
-    build-depends: base, sdl2, gl, dear-imgui, vector
+    build-depends:
+        sdl2
+      , gl
+      , dear-imgui
+      , dear-imgui-raw
+      , dear-imgui-impl-sdl2
+      , dear-imgui-impl-opengl3
+      , vector
 
 executable glfw
   import: common, exe-flags
   main-is: Main.hs
   hs-source-dirs: examples/glfw
-  default-language: Haskell2010
-  if (!flag(examples) || !flag(glfw) || !flag(opengl2))
+  if !flag(examples)
     buildable: False
   else
-    build-depends: base, GLFW-b, gl, dear-imgui, managed, text
+    build-depends:
+        GLFW-b
+      , gl
+      , dear-imgui
+      , dear-imgui-raw
+      , dear-imgui-impl-glfw
+      , dear-imgui-impl-opengl2
+      , managed
+      , text
 
 executable readme
   import: common, exe-flags
   main-is: Readme.hs
   hs-source-dirs: examples
-  build-depends: sdl2, gl, dear-imgui, managed
-  if (!flag(examples) || !flag(sdl) || !flag(opengl2))
+  if !flag(examples)
     buildable: False
+  else
+    build-depends:
+        sdl2
+      , gl
+      , dear-imgui
+      , dear-imgui-impl-sdl2
+      , dear-imgui-impl-opengl3
+      , managed
 
 executable fonts
   import: common, exe-flags
   main-is: Main.hs
   hs-source-dirs: examples/fonts
-  build-depends: sdl2, gl, dear-imgui, managed
-  if (!flag(examples) || !flag(sdl) || !flag(opengl2))
+  if !flag(examples)
     buildable: False
+  else
+    build-depends:
+        sdl2
+      , gl
+      , dear-imgui
+      , dear-imgui-impl-sdl2
+      , dear-imgui-impl-opengl2
+      , managed
 
 executable image
   import: common, exe-flags
   main-is: Image.hs
   hs-source-dirs: examples/sdl
-  build-depends: sdl2, gl, dear-imgui, managed, vector
-  if (!flag(examples) || !flag(sdl) || !flag(opengl3))
+  if !flag(examples)
     buildable: False
+  else
+    build-depends:
+        sdl2
+      , gl
+      , dear-imgui
+      , dear-imgui-raw
+      , dear-imgui-impl-sdl2
+      , dear-imgui-impl-opengl3
+      , managed
+      , vector
 
 executable sdlrenderer
   import: common, exe-flags
   main-is: Renderer.hs
   hs-source-dirs: examples/sdl
-  build-depends: sdl2, dear-imgui, managed, text
-  if (!flag(examples) || !flag(sdl) || !flag(sdl-renderer))
+  if !flag(examples)
     buildable: False
+  else
+    build-depends:
+        sdl2
+      , dear-imgui
+      , dear-imgui-impl-sdl2
+      , dear-imgui-impl-sdlrenderer2
+      , managed
+      , text
 
 executable vulkan
   import: common, exe-flags
   main-is: Main.hs
   hs-source-dirs: examples/vulkan
-  default-language: Haskell2010
-  if (!flag(examples) || !flag(glfw) || !flag(vulkan))
+  if !flag(examples)
     buildable: False
   else
     build-depends:
         dear-imgui
+      , dear-imgui-raw
+      , dear-imgui-impl-glfw
+      , dear-imgui-impl-vulkan
       , GLFW-b
       , JuicyPixels
       , resourcet

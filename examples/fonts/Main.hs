@@ -23,9 +23,8 @@ import Control.Monad.Managed
 import Data.IORef
 import DearImGui
 import qualified DearImGui.FontAtlas as FontAtlas
-import DearImGui.OpenGL2
-import DearImGui.SDL
-import DearImGui.SDL.OpenGL
+import qualified DearImGui.Impl.OpenGL2 as ImplGL2
+import qualified DearImGui.Impl.SDL2 as ImplSDL2
 import Graphics.GL
 import SDL
 
@@ -50,8 +49,8 @@ main = do
       managed $ bracket (createWindow title config) destroyWindow
     glContext <- managed $ bracket (glCreateContext window) glDeleteContext
     _ <- managed $ bracket createContext destroyContext
-    _ <- managed_ $ bracket_ (sdl2InitForOpenGL window glContext) sdl2Shutdown
-    _ <- managed_ $ bracket_ openGL2Init openGL2Shutdown
+    _ <- managed_ $ ImplSDL2.withInitForOpenGL window glContext
+    _ <- managed_ ImplGL2.withInit
 
     -- We use high-level syntax to build font atlas and
     -- get handles to use in the main loop.
@@ -60,7 +59,7 @@ main = do
         -- and set as a global default.
         droidFont =
           FontAtlas.FromTTF
-            "./imgui/misc/fonts/DroidSans.ttf"
+            "./examples/fonts/NotoSansJP-Regular.otf"
             (Just 15)
             Nothing
 
@@ -115,15 +114,15 @@ mainLoop :: Window -> IO () -> IO ()
 mainLoop window frameAction = loop
   where
   loop = unlessQuit do
-    openGL2NewFrame
-    sdl2NewFrame
+    ImplGL2.newFrame
+    ImplSDL2.newFrame
     newFrame
 
     frameAction
 
     glClear GL_COLOR_BUFFER_BIT
     render
-    openGL2RenderDrawData =<< getDrawData
+    ImplGL2.renderDrawData =<< getDrawData
     glSwapWindow window
 
     loop
@@ -133,7 +132,7 @@ mainLoop window frameAction = loop
     if shouldQuit then pure () else action
 
   checkEvents = do
-    pollEventWithImGui >>= \case
+    ImplSDL2.pollEvent >>= \case
       Nothing ->
         return False
       Just event ->

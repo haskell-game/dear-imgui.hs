@@ -21,7 +21,9 @@ in pkgs.haskell-nix.project {
     src = ./.;
   };
   modules = [ {
-    packages.dear-imgui.components.library.libs = [ pkgs.libx11 pkgs.xorgproto ];
+    packages.dear-imgui-impl-sdl2.components.library.libs = [ pkgs.libx11 pkgs.xorgproto ];
+
+    packages.dear-imgui-impl-glfw.components.library.libs = [ pkgs.libx11 pkgs.xorgproto ];
 
     # This library needs libXext to build, but doesn't explicitly state it in
     # its .cabal file.

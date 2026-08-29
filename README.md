@@ -17,15 +17,12 @@ To get started, we'll build the following:
 ![](./Example.png)
 
 `dear-imgui.hs` can be used like a normal Haskell library. If you use Cabal,
-simply add `dear-imgui` to your `build-depends`. ImGui supports a variety of
-backends, and you will need to choose your backend at configuration time.
-Backends can be enabled using Cabal flags, and these can be set through the
-`cabal.project` file. For example, if you want to use a combination of SDL and
-OpenGL:
+add `dear-imgui` to your `build-depends`, together with the
+`dear-imgui-impl-<backend>` package(s) for the platform and renderer backends
+you want to use. For example, for a combination of SDL2 and OpenGL 3:
 
 ```
-package dear-imgui
-  flags: +sdl +opengl3
+build-depends: dear-imgui, dear-imgui-impl-sdl2, dear-imgui-impl-opengl3
 ```
 
 With this done, the following module is the "Hello, World!" of ImGui:
@@ -36,9 +33,8 @@ With this done, the following module is the "Hello, World!" of ImGui:
 module Main ( main ) where
 
 import DearImGui
-import DearImGui.OpenGL3
-import DearImGui.SDL
-import DearImGui.SDL.OpenGL
+import qualified DearImGui.Impl.OpenGL3 as ImplGL3
+import qualified DearImGui.Impl.SDL2 as ImplSDL2
 
 import Graphics.GL
 import SDL
@@ -46,7 +42,7 @@ import SDL
 import Control.Monad.Managed
 import Control.Monad.IO.Class ()
 import Control.Monad (when, unless)
-import Control.Exception (bracket, bracket_)
+import Control.Exception (bracket)
 
 main :: IO ()
 main = do
@@ -66,17 +62,17 @@ main = do
     _ <- managed $ bracket createContext destroyContext
 
     -- Initialize ImGui's SDL2 backend
-    managed_ $ bracket_ (sdl2InitForOpenGL window glContext) sdl2Shutdown
+    managed_ $ ImplSDL2.withInitForOpenGL window glContext
     -- Initialize ImGui's OpenGL backend
-    managed_ $ bracket_ openGL3Init openGL3Shutdown
+    managed_ $ ImplGL3.withInit Nothing
 
     liftIO $ mainLoop window
 
 mainLoop :: Window -> IO ()
 mainLoop window = unlessQuit $ do
   -- Tell ImGui we're starting a new frame
-  openGL3NewFrame
-  sdl2NewFrame
+  ImplGL3.newFrame
+  ImplSDL2.newFrame
   newFrame
 
   -- Build the GUI
@@ -94,7 +90,7 @@ mainLoop window = unlessQuit $ do
   -- Render
   glClear GL_COLOR_BUFFER_BIT
   render
-  openGL3RenderDrawData =<< getDrawData
+  ImplGL3.renderDrawData =<< getDrawData
 
   glSwapWindow window
   mainLoop window
@@ -105,7 +101,7 @@ mainLoop window = unlessQuit $ do
     unless shouldQuit action
 
   gotQuitEvent = do
-    ev <- pollEventWithImGui
+    ev <- ImplSDL2.pollEvent
 
     case ev of
       Nothing ->
@@ -116,6 +112,31 @@ mainLoop window = unlessQuit $ do
   isQuit event =
     eventPayload event == QuitEvent
 ```
+
+# Raw access
+
+The high-level `DearImGui` module covers the common widgets. Everything else is
+reachable through the generated [`dear-imgui-raw`](https://gitlab.com/dpwiz/hsimgui)
+packages that `dear-imgui` is built on: one module per struct
+(`DearImGui.Raw.ImGui`, `DearImGui.Raw.ImDrawList`, ...), plain `IO` functions
+taking the full imgui argument list, and `OverloadedRecordDot` field accessors on
+struct pointers (`poke io.iniFilename ptr`). Enum values live in per-enum
+modules and are meant to be imported qualified:
+
+``` haskell
+import qualified DearImGui.Raw.Enums.ImGuiWindowFlags as ImGuiWindowFlags
+
+flags = ImGuiWindowFlags.NoTitleBar .|. ImGuiWindowFlags.NoResize
+```
+
+Renderer/platform backends live in the `dear-imgui-impl-<backend>` packages.
+Each one exposes a raw layer (`DearImGui.Raw.Impl.SDL2`,
+`DearImGui.Raw.Impl.OpenGL3`, ...) working on raw pointers, plus a bridge
+module (`DearImGui.Impl.SDL2`, `DearImGui.Impl.GLFW`, ...) that accepts the
+`sdl2`/`GLFW-b` handle types, feeds SDL events to ImGui (`pollEvent`) and
+provides `withInit*` brackets. For Vulkan, `DearImGui.Impl.Vulkan` covers the
+descriptor pool and `ImGui_ImplVulkan_Init` boilerplate, for both render-pass
+and dynamic-rendering targets.
 
 # Hacking
 
