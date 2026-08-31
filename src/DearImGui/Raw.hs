@@ -276,7 +276,7 @@ module DearImGui.Raw
   , endMainMenuBar
   , beginMenu
   , endMenu
-  , menuItem
+  , menuItemEx
 
     -- ** Tabs, tab bar
   , beginTabBar
@@ -1682,13 +1682,14 @@ endMenu = liftIO do
   [C.exp| void { EndMenu(); } |]
 
 
--- | Return true when activated. Shortcuts are displayed for convenience but not
--- processed by ImGui at the moment
+-- | Full MenuItem binding
 --
--- Wraps @ImGui::MenuItem()@
-menuItem :: (MonadIO m) => CString -> m Bool
-menuItem labelPtr = liftIO do
-  (0 /=) <$> [C.exp| bool { MenuItem($(char* labelPtr)) } |]
+-- Return true when activated. The bool pointer will be updated to reflect the new state.
+--
+-- Wraps @ImGui::MenuItem(const char*, const char*, bool*)@
+menuItemEx :: (MonadIO m) => CString -> CString -> Ptr CBool -> m Bool
+menuItemEx labelPtr shortcutPtr selectedPtr = liftIO do
+  (0 /=) <$> [C.exp| bool { MenuItem($(char* labelPtr), $(char* shortcutPtr), $(bool* selectedPtr) ) } |]
 
 
 -- | Create a @TabBar@ and start appending to it.
