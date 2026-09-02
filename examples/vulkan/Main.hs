@@ -9,17 +9,17 @@
 module Main where
 
 import Control.Exception (throwIO)
-import Control.Monad (void, when)
+import Control.Monad (unless, void, when)
 import Control.Monad.IO.Class (liftIO)
 import Control.Monad.Trans.Resource
-  ( MonadResource, ReleaseKey, ResourceT, allocate, allocate_, register, release, runResourceT )
+  ( ReleaseKey, ResourceT, allocate, allocate_, register, release, runResourceT )
 import Data.Word (Word32)
 import Data.Bits ((.|.))
+import Data.Complex (Complex (..), imagPart, realPart)
 import Data.Foldable (traverse_)
 import qualified Data.Vector as V
 import qualified Data.Vector.Storable as SV
-import Foreign (castPtr, copyBytes, with, withForeignPtr)
-import Foreign.C.String (withCString)
+import Foreign (castPtr, copyBytes, withForeignPtr)
 import qualified Graphics.UI.GLFW as GLFW
 
 import qualified Codec.Picture as Picture
@@ -27,7 +27,6 @@ import qualified Codec.Picture as Picture
 import Vulkan (pattern API_VERSION_1_3)
 import qualified Vulkan as Vk
 import Vulkan.CStruct.Extends (SomeStruct (..))
-import Vulkan.Exception (VulkanException (..))
 import qualified Vulkan.Extensions.VK_KHR_surface as SurfaceFormatKHR (SurfaceFormatKHR (..))
 import Vulkan.Zero (zero)
 import Vulkan.Utils.Barrier (imageBarrier)
@@ -44,11 +43,10 @@ import Vulkan.Utils.WindowLoop
 import qualified VulkanMemoryAllocator as VMA
 import VulkanMemoryAllocator.Utils (allocatorCreateInfo)
 
+import DearImGui.Impl.Init (InitFailed (..))
 import qualified DearImGui as ImGui
-import qualified DearImGui.GLFW as ImGui.GLFW
-import qualified DearImGui.GLFW.Vulkan as ImGui.GLFW.Vulkan
-import qualified DearImGui.Raw as ImGui.Raw
-import qualified DearImGui.Vulkan as ImGui.Vulkan
+import qualified DearImGui.Impl.GLFW as ImplGlfw
+import qualified DearImGui.Impl.Vulkan as ImplVulkan
 
 main :: IO ()
 main = runResourceT do
@@ -61,36 +59,35 @@ main = runResourceT do
   vc <- liftIO $ mkVulkanContext inst phys dev queues
 
   windowSize <- drawableSize window
-  swapchain <- allocateSwapchain phys dev defaultSwapchainConfig Vk.NULL_HANDLE windowSize surface
+  let swapchainConfig = defaultSwapchainConfig { scSurfaceFormatPreferences = [ImplVulkan.surfaceFormatPreference] }
+  swapchain <- allocateSwapchain phys dev swapchainConfig Vk.NULL_HANDLE windowSize surface
   (_, renderPass) <- allocateColorRenderPass dev (SurfaceFormatKHR.format (sFormat swapchain)) Vk.IMAGE_LAYOUT_PRESENT_SRC_KHR
 
   (_, vma) <- VMA.withAllocator (allocatorCreateInfo zero apiVersion inst phys dev) allocate
-  (textureSize, textureView) <- uploadTexture vc vma "Example.png"
+  (textureSize, textureView) <- uploadTexture vc vma (juliaSet 512 384)
 
-  descriptorPool <- allocateImGuiDescriptorPool dev
+  descriptorPool <- ImplVulkan.mkDescriptorPool dev 1
   void $ allocate ImGui.createContext ImGui.destroyContext
-  void $ allocate_ (ImGui.GLFW.Vulkan.glfwInitForVulkan window True) ImGui.GLFW.glfwShutdown
+  void $ allocate_
+    ( ImplGlfw.initForVulkan window True >>= \initialized ->
+        unless initialized $ throwIO (InitFailed "ImGui_ImplGlfw_InitForVulkan")
+    )
+    ImplGlfw.shutdown
   let (QueueFamilyIndex graphicsFamily, graphicsQueue) = qGraphics queues
-  void $ allocate
-    ( ImGui.Vulkan.vulkanInit ImGui.Vulkan.InitInfo
-        { instance' = inst
+  void $ allocate_
+    ( ImplVulkan.init descriptorPool ImplVulkan.InitArgs
+        { apiVersion
+        , inst
         , physicalDevice = phys
         , device = dev
         , queueFamily = graphicsFamily
         , queue = graphicsQueue
-        , pipelineCache = Vk.NULL_HANDLE
-        , descriptorPool
-        , subpass = 0
-        , minImageCount = swapchainImageCount swapchain
         , imageCount = swapchainImageCount swapchain
-        , msaaSamples = Vk.SAMPLE_COUNT_1_BIT
-        , rendering = Left renderPass
-        , mbAllocator = Nothing
-        , checkResult = \case { Vk.SUCCESS -> pure (); e -> throwIO (VulkanException e) }
+        , target = ImplVulkan.RenderPassTarget renderPass
         }
     )
-    ImGui.Vulkan.vulkanShutdown
-  Vk.DescriptorSet textureSet <- ImGui.Vulkan.vulkanAddTexture textureView Vk.IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
+    ImplVulkan.shutdown
+  Vk.DescriptorSet textureSet <- liftIO $ ImplVulkan.addTexture textureView Vk.IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
 
   showWindow window
   runWindowLoop vc swapchain (drawableSize window) (windowClosed window) WindowLoop
@@ -112,12 +109,12 @@ windowClosed window = GLFW.pollEvents *> GLFW.windowShouldClose window
 
 allocateFramebuffers :: Vk.Device -> Vk.RenderPass -> Swapchain -> ResourceT IO (V.Vector Vk.Framebuffer, ReleaseKey)
 allocateFramebuffers dev renderPass swapchain@Swapchain{sImageViews, sExtent} = do
-  ImGui.Vulkan.vulkanSetMinImageCount (swapchainImageCount swapchain)
+  liftIO $ ImplVulkan.setMinImageCount (swapchainImageCount swapchain)
   (keys, framebuffers) <- V.unzip <$> traverse (\view -> allocateFramebuffer dev renderPass view sExtent) sImageViews
   key <- register (traverse_ release keys)
   pure (framebuffers, key)
 
-renderFrame :: VulkanContext () -> Vk.RenderPass -> ImGui.Raw.ImVec2 -> ImGui.Raw.ImTextureID -> V.Vector Vk.Framebuffer -> Frame () -> ResourceT IO ()
+renderFrame :: VulkanContext () -> Vk.RenderPass -> ImGui.ImVec2 -> ImGui.ImTextureID -> V.Vector Vk.Framebuffer -> Frame () -> ResourceT IO ()
 renderFrame vc renderPass textureSize textureId framebuffers frame = do
   (acquireResult, imageIndex) <- acquireFrameImage vc frame
   let
@@ -130,60 +127,56 @@ renderFrame vc renderPass textureSize textureId framebuffers frame = do
   commandBuffer <- recordCommands vc frame \cb ->
     Vk.cmdUseRenderPass cb renderPassBegin Vk.SUBPASS_CONTENTS_INLINE do
       drawData <- gui textureSize textureId
-      ImGui.Vulkan.vulkanRenderDrawData drawData cb Nothing
+      liftIO $ ImplVulkan.renderDrawData drawData (Vk.commandBufferHandle cb) Vk.NULL_HANDLE
   queueSubmitFrame vc frame imageIndex [commandBuffer]
   presentFrameImage vc frame acquireResult imageIndex
 
-gui :: ImGui.Raw.ImVec2 -> ImGui.Raw.ImTextureID -> ResourceT IO ImGui.DrawData
+gui :: ImGui.ImVec2 -> ImGui.ImTextureID -> ResourceT IO ImGui.DrawData
 gui textureSize textureId = do
-  ImGui.Vulkan.vulkanNewFrame
-  ImGui.GLFW.glfwNewFrame
+  liftIO ImplVulkan.newFrame
+  liftIO ImplGlfw.newFrame
   ImGui.newFrame
 
   ImGui.showDemoWindow
   ImGui.withWindowOpen "Vulkan demo" do
-    clicked <- liftIO do
-      with textureSize \sizePtr ->
-        with (ImGui.Raw.ImVec2 0 0) \uv0Ptr ->
-          with (ImGui.Raw.ImVec2 1 1) \uv1Ptr ->
-            with (ImGui.Raw.ImVec4 1 1 1 1) \whitePtr ->
-              with (ImGui.Raw.textureRefFromID textureId) \texRefPtr ->
-                withCString "##btn" \idPtr ->
-                  ImGui.Raw.imageButton idPtr texRefPtr sizePtr uv0Ptr uv1Ptr whitePtr whitePtr
+    clicked <-
+      ImGui.imageButton
+        "##btn"
+        (ImGui.textureRefFromID textureId)
+        textureSize
+        (ImGui.ImVec2 0 0)
+        (ImGui.ImVec2 1 1)
+        (ImGui.ImVec4 0 0 0 0)
+        (ImGui.ImVec4 1 1 1 1)
     when clicked $
       ImGui.text "clicky click!"
 
   ImGui.render
   ImGui.getDrawData
 
-allocateImGuiDescriptorPool :: MonadResource m => Vk.Device -> m Vk.DescriptorPool
-allocateImGuiDescriptorPool dev =
-  snd <$> Vk.withDescriptorPool dev createInfo Nothing allocate
+juliaSet :: Int -> Int -> Picture.Image Picture.PixelRGBA8
+juliaSet width height = Picture.generateImage pixel width height
   where
-    createInfo = zero
-      { Vk.flags = Vk.DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT
-      , Vk.maxSets = 1000
-      , Vk.poolSizes = V.fromList
-          [ Vk.DescriptorPoolSize ty 1000
-          | ty <-
-              [ Vk.DESCRIPTOR_TYPE_SAMPLER
-              , Vk.DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER
-              , Vk.DESCRIPTOR_TYPE_SAMPLED_IMAGE
-              , Vk.DESCRIPTOR_TYPE_STORAGE_IMAGE
-              , Vk.DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER
-              , Vk.DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER
-              , Vk.DESCRIPTOR_TYPE_UNIFORM_BUFFER
-              , Vk.DESCRIPTOR_TYPE_STORAGE_BUFFER
-              , Vk.DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC
-              , Vk.DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC
-              , Vk.DESCRIPTOR_TYPE_INPUT_ATTACHMENT
-              ]
-          ]
-      }
+    pixel px py = maybe transparent cosinePalette (escapeTime 0 (plane px width 1.6 :+ plane py height 1.2))
+    plane i n half = (fromIntegral i / fromIntegral n * 2 - 1) * half
+    transparent = Picture.PixelRGBA8 0 0 0 0
+    c = (-0.7269) :+ 0.1889
+    maxIter = 128 :: Int
+    escapeTime :: Int -> Complex Double -> Maybe Double
+    escapeTime n z
+      | n >= maxIter = Nothing
+      | r2 > 16 = Just ((fromIntegral n + 1 - logBase 2 (logBase 2 (sqrt r2))) / fromIntegral maxIter)
+      | otherwise = escapeTime (n + 1) (z * z + c)
+      where
+        r2 = realPart z * realPart z + imagPart z * imagPart z
 
-uploadTexture :: VulkanContext rr -> VMA.Allocator -> FilePath -> ResourceT IO (ImGui.Raw.ImVec2, Vk.ImageView)
-uploadTexture vc vma path = do
-  picture <- liftIO (Picture.readImage path) >>= either (liftIO . fail) (pure . Picture.convertRGBA8)
+cosinePalette :: Double -> Picture.PixelRGBA8
+cosinePalette t = Picture.PixelRGBA8 (channel 0) (channel 0.1) (channel 0.2) 255
+  where
+    channel phase = round (255 * (0.5 + 0.5 * cos (2 * pi * (1.2 * sqrt t + phase))))
+
+uploadTexture :: VulkanContext rr -> VMA.Allocator -> Picture.Image Picture.PixelRGBA8 -> ResourceT IO (ImGui.ImVec2, Vk.ImageView)
+uploadTexture vc vma picture = do
   let
     width = fromIntegral (Picture.imageWidth picture)
     height = fromIntegral (Picture.imageHeight picture)
@@ -239,7 +232,7 @@ uploadTexture vc vma path = do
       }
     Nothing
     allocate
-  pure (ImGui.Raw.ImVec2 (fromIntegral width) (fromIntegral height), view)
+  pure (ImGui.ImVec2 (fromIntegral width) (fromIntegral height), view)
 
 oneShot :: VulkanContext rr -> (Vk.CommandBuffer -> IO ()) -> ResourceT IO ()
 oneShot VulkanContext{vcDevice, vcQueues} record = do

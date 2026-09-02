@@ -1,4 +1,18 @@
 packages: *.cabal
+
+source-repository-package
+  type: git
+  location: https://gitlab.com/dpwiz/hsimgui.git
+  tag: a10a145565e1b6a321e8a497e6c30e6126b1553d
+  subdir: generated-out/dear-imgui-raw
+          generated-out/backends/dear-imgui-impl-opengl2
+          generated-out/backends/dear-imgui-impl-opengl3
+          generated-out/backends/dear-imgui-impl-sdl2
+          generated-out/backends/dear-imgui-impl-sdlrenderer2
+          generated-out/backends/dear-imgui-impl-glfw
+          generated-out/backends/dear-imgui-impl-vulkan
+  --sha256: 1kwq5ppclydpy87w6l73cyld130na98drkbyd42gpy0rdcl9nvl6
+
 package dear-imgui
-  flags: +sdl +sdl-renderer +glfw +opengl2 +opengl3 +vulkan +examples
+  flags: +examples
   ghc-options: -Wall -Wcompat -fno-warn-unused-do-bind

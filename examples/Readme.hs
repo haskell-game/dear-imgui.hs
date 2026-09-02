@@ -6,9 +6,8 @@
 module Main ( main ) where
 
 import DearImGui
-import DearImGui.OpenGL3
-import DearImGui.SDL
-import DearImGui.SDL.OpenGL
+import qualified DearImGui.Impl.OpenGL3 as ImplGL3
+import qualified DearImGui.Impl.SDL2 as ImplSDL2
 
 import Graphics.GL
 import SDL
@@ -16,7 +15,7 @@ import SDL
 import Control.Monad.Managed
 import Control.Monad.IO.Class ()
 import Control.Monad (when, unless)
-import Control.Exception (bracket, bracket_)
+import Control.Exception (bracket)
 
 main :: IO ()
 main = do
@@ -36,17 +35,17 @@ main = do
     _ <- managed $ bracket createContext destroyContext
 
     -- Initialize ImGui's SDL2 backend
-    managed_ $ bracket_ (sdl2InitForOpenGL window glContext) sdl2Shutdown
+    managed_ $ ImplSDL2.withInitForOpenGL window glContext
     -- Initialize ImGui's OpenGL backend
-    managed_ $ bracket_ openGL3Init openGL3Shutdown
+    managed_ $ ImplGL3.withInit Nothing
 
     liftIO $ mainLoop window
 
 mainLoop :: Window -> IO ()
 mainLoop window = unlessQuit $ do
   -- Tell ImGui we're starting a new frame
-  openGL3NewFrame
-  sdl2NewFrame
+  ImplGL3.newFrame
+  ImplSDL2.newFrame
   newFrame
 
   -- Build the GUI
@@ -64,7 +63,7 @@ mainLoop window = unlessQuit $ do
   -- Render
   glClear GL_COLOR_BUFFER_BIT
   render
-  openGL3RenderDrawData =<< getDrawData
+  ImplGL3.renderDrawData =<< getDrawData
 
   glSwapWindow window
   mainLoop window
@@ -75,7 +74,7 @@ mainLoop window = unlessQuit $ do
     unless shouldQuit action
 
   gotQuitEvent = do
-    ev <- pollEventWithImGui
+    ev <- ImplSDL2.pollEvent
 
     case ev of
       Nothing ->

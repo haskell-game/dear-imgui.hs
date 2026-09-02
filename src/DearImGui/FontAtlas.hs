@@ -1,13 +1,6 @@
 {-# LANGUAGE BlockArguments #-}
-{-# LANGUAGE DuplicateRecordFields #-}
-{-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE LambdaCase #-}
-{-# LANGUAGE MultiParamTypeClasses #-}
-{-# LANGUAGE NamedFieldPuns #-}
-{-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE QuasiQuotes #-}
-{-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE OverloadedRecordDot #-}
 
 {-|
 Module: DearImGui.FontAtlas
@@ -22,8 +15,8 @@ import qualified DearImGui.FontAtlas as FontAtlas
 
 prepareAtlas =
   FontAtlas.rebuild
-    [ FontAtlas.FromTTF "comic-sans-mono.ttf" 13 csOptions
-    , FontAtlas.Default
+    [ FontAtlas.FromTTF "comic-sans-mono.ttf" (Just 13) (Just csOptions)
+    , FontAtlas.DefaultFont
     ]
   where
     csOptions = mconcat
@@ -36,7 +29,7 @@ prepareAtlas =
 
 module DearImGui.FontAtlas
   ( -- * Main types
-    Raw.Font(..)
+    Font
   , FontSource(..)
     -- * Building atlas
   , rebuild
@@ -59,8 +52,6 @@ module DearImGui.FontAtlas
   , ellipsisChar
 
     -- * Lower level types and functions
-  -- , Raw.FontConfig(..)
-  , build
   , clear
   , setupFont
   , withConfig
@@ -70,7 +61,8 @@ module DearImGui.FontAtlas
   where
 
 -- base
-import Data.Bool (bool)
+import Control.Exception (finally)
+import Control.Monad (unless)
 import Data.Maybe (fromMaybe)
 import Foreign
 import Foreign.C
@@ -85,17 +77,15 @@ import Control.Monad.Managed
 import qualified Control.Monad.Managed as Managed
 
 -- unlift
-import UnliftIO (MonadUnliftIO)
-import UnliftIO.Exception (bracket)
+import UnliftIO (MonadUnliftIO(..))
 
 -- dear-imgui
-import DearImGui.Raw.Font (Font(..))
-import qualified DearImGui.Raw.Font as Raw
-import DearImGui.Raw.Font.Config (FontConfig(..))
-import qualified DearImGui.Raw.Font.Config as FontConfig
-import DearImGui.Raw.Font.GlyphRanges (GlyphRanges(..))
+import DearImGui.Structs (Font, FontConfig, ImFontAtlas, ImVec2(..), ImWchar)
 
-import DearImGui.Structs (ImVec2(..), ImWchar)
+-- dear-imgui-raw
+import qualified DearImGui.Raw.ImFontAtlas as ImFontAtlas
+import qualified DearImGui.Raw.ImFontConfig as ImFontConfig
+import qualified DearImGui.Raw.ImGui as ImGui
 
 -- | Font setup data
 data FontSource
@@ -120,61 +110,60 @@ instance Monoid ConfigSetup where
 
 -- | Rebuild font atlas with provided configuration
 -- and return corresponding structure of font handles
--- to be used with 'withFont'.
+-- to be used with 'DearImGui.withFont'.
 --
 -- Accepts any 'Traversable' instance, so you are free to use
 -- lists, maps or custom structures.
+{-# INLINE rebuild #-}
 rebuild :: (MonadIO m, Traversable t) => t FontSource -> m (t Font)
 rebuild sources = liftIO $ Managed.with action pure
   where
     action = do
       clear
-      fonts <- traverse setupFont sources
-      build
-      return fonts
+      traverse setupFont sources
 
 -- | Reset font atlas, clearing internal data
---
--- Alias for 'Raw.clearFontAtlas'
+{-# INLINE clear #-}
 clear :: (MonadIO m) => m ()
-clear = Raw.clearFontAtlas
+clear = liftIO do
+  fontAtlas >>= ImFontAtlas.clear
 
--- | Build font atlas
---
--- Alias for 'Raw.buildFontAtlas'
-build :: (MonadIO m) => m ()
-build = Raw.buildFontAtlas
+fontAtlas :: IO (Ptr ImFontAtlas)
+fontAtlas = do
+  io <- ImGui.getIO
+  peek io.fonts
 
 -- | Load a font from TTF file.
 --
 -- Specify font path and optionally a size. Pass 'Nothing' to let imgui
 -- pick the size automatically (recommended since 1.92).
 --
--- Use 'Raw.addFontDefault' if you want to retain built-in font too.
---
--- Call 'build' after adding all the fonts,
--- particularly if you're loading them from memory or use custom glyphs.
--- Or stick to `rebuild` function.
+-- Use 'DefaultFont' source if you want to retain built-in font too.
+{-# INLINE addFontFromFileTTF #-}
 addFontFromFileTTF :: MonadIO m
   => FilePath               -- ^ Font file path
   -> Maybe Float            -- ^ Font size in pixels (Nothing = automatic)
   -> Maybe FontConfig       -- ^ Configuration data
-  -> m (Maybe Font)     -- ^ Returns font handle, if added successfully
+  -> m (Maybe Font)         -- ^ Returns font handle, if added successfully
 addFontFromFileTTF font size config = liftIO do
-  res@(Font ptr) <- withCString font \fontPtr ->
-    Raw.addFontFromFileTTF
+  atlas <- fontAtlas
+  ptr <- withCString font \fontPtr ->
+    ImFontAtlas.addFontFromFileTTF
+      atlas
       fontPtr
-      (CFloat $ fromMaybe 0 size)
-      (fromMaybe (FontConfig nullPtr) config)
+      (fromMaybe 0 size)
+      (fromMaybe nullPtr config)
+      nullPtr
   pure $
-    if castPtr ptr == nullPtr
+    if ptr == nullPtr
       then Nothing
-      else Just res
+      else Just ptr
       -- FIXME: turn off asserts, so it would work
 
+{-# INLINE addFontFromFileTTF_ #-}
 addFontFromFileTTF_ :: MonadIO m
-  => FilePath           -- ^ Font file path
-  -> m (Maybe Raw.Font) -- ^ Returns font handle, if added successfully
+  => FilePath       -- ^ Font file path
+  -> m (Maybe Font) -- ^ Returns font handle, if added successfully
 addFontFromFileTTF_ font =
   addFontFromFileTTF font Nothing Nothing
 
@@ -182,8 +171,9 @@ addFontFromFileTTF_ font =
 -- and defer config destructors, if needed.
 setupFont :: (MonadManaged m) => FontSource -> m Font
 setupFont = \case
-  DefaultFont ->
-    Raw.addFontDefault
+  DefaultFont -> liftIO do
+    atlas <- fontAtlas
+    ImFontAtlas.addFontDefault atlas nullPtr
   FromTTF path mbSize configSetup -> do
     config <- managed (withConfig configSetup)
     mFont <- addFontFromFileTTF path mbSize config
@@ -195,35 +185,38 @@ setupFont = \case
 
 -- | Configure font config with provided setup,
 -- and execute a computation with built object.
--- return its handle and list of resource destructors.
+{-# INLINE withConfig #-}
 withConfig :: (MonadUnliftIO m) => Maybe ConfigSetup -> (Maybe FontConfig -> m a) -> m a
 withConfig mSetup action =
   case mSetup of
     Nothing ->
       action Nothing
     Just (ConfigSetup setup) ->
-      bracket acquire (FontConfig.destroy) (action . Just)
-      where
-        acquire = do
-          config <- FontConfig.new
-          liftIO $ setup config
-          return config
+      withRunInIO \run ->
+        ImFontConfig.withDefault \config -> do
+          setup config
+          run (action (Just config)) `finally` freeGlyphExcludeRanges config
+
+freeGlyphExcludeRanges :: FontConfig -> IO ()
+freeGlyphExcludeRanges config = do
+  ranges <- peek config.glyphExcludeRanges
+  unless (ranges == nullPtr) (free ranges)
+
+setField :: Storable a => (FontConfig -> Ptr a) -> (v -> a) -> v -> ConfigSetup
+setField field convert value =
+  ConfigSetup \fc -> poke (field fc) (convert value)
 
 -- | TTF/OTF data ownership taken by the container ImFontAtlas (will delete memory itself).
 --
 -- By default, it is @true@
 fontDataOwnedByAtlas :: Bool -> ConfigSetup
-fontDataOwnedByAtlas value =
-  ConfigSetup \fc ->
-    FontConfig.setFontDataOwnedByAtlas fc (bool 0 1 value)
+fontDataOwnedByAtlas = setField (.fontDataOwnedByAtlas) fromBool
 
 -- | Index of font within TTF/OTF file.
 --
 -- By default, it is @0@
 fontNo :: Int -> ConfigSetup
-fontNo value =
-  ConfigSetup \fc ->
-    FontConfig.setFontNo fc (fromIntegral value)
+fontNo = setField (.fontNo) fromIntegral
 
 -- | Size in pixels for rasterizer
 --
@@ -231,9 +224,7 @@ fontNo value =
 --
 -- Implicitly set by @addFont...@ functions.
 sizePixels :: Float -> ConfigSetup
-sizePixels value =
-  ConfigSetup \fc ->
-    FontConfig.setSizePixels fc (CFloat value)
+sizePixels = setField (.sizePixels) id
 
 -- | Rasterize at higher quality for sub-pixel positioning.
 --
@@ -242,9 +233,7 @@ sizePixels value =
 --
 -- By default, it is @3@
 oversampleH :: Int -> ConfigSetup
-oversampleH value =
-  ConfigSetup \fc ->
-    FontConfig.setOversampleH fc (fromIntegral value)
+oversampleH = setField (.oversampleH) fromIntegral
 
 -- | Rasterize at higher quality for sub-pixel positioning.
 --
@@ -252,9 +241,7 @@ oversampleH value =
 --
 -- By default, it is @1@
 oversampleV :: Int -> ConfigSetup
-oversampleV value =
-  ConfigSetup \fc ->
-    FontConfig.setOversampleV fc (fromIntegral value)
+oversampleV = setField (.oversampleV) fromIntegral
 
 -- | Align every glyph to pixel boundary.
 --
@@ -263,17 +250,13 @@ oversampleV value =
 --
 -- By default, it is @false@
 pixelSnapH :: Bool -> ConfigSetup
-pixelSnapH value =
-  ConfigSetup \fc ->
-    FontConfig.setPixelSnapH fc (bool 0 1 value)
+pixelSnapH = setField (.pixelSnapH) fromBool
 
 -- | Offset all glyphs from this font input.
 --
 -- By default, it is @0, 0@
 glyphOffset :: (Float, Float) -> ConfigSetup
-glyphOffset (x, y) =
-  ConfigSetup \fc ->
-    Foreign.with (ImVec2 x y) (FontConfig.setGlyphOffset fc)
+glyphOffset = setField (.glyphOffset) (uncurry ImVec2)
 
 -- | Exclude specific Unicode ranges from this font source.
 -- Need in case you might have undesirable overlapping ranges by merging fonts.
@@ -289,15 +272,13 @@ glyphExcludeRanges :: [(ImWchar, ImWchar)] -> ConfigSetup
 glyphExcludeRanges pairs =
   ConfigSetup \fc -> do
     ptr <- newArray ([x | (start, end) <- pairs, x <- [start, end]] <> [0])
-    FontConfig.setGlyphExcludeRanges fc (GlyphRanges ptr)
+    poke fc.glyphExcludeRanges ptr
 
 -- | Extra spacing (in pixels) between glyphs.
 --
 -- By default, it is @0@
 glyphExtraAdvanceX :: Float -> ConfigSetup
-glyphExtraAdvanceX x =
-  ConfigSetup \fc ->
-    FontConfig.setGlyphExtraAdvanceX fc (CFloat x)
+glyphExtraAdvanceX = setField (.glyphExtraAdvanceX) id
 
 -- | Minimum AdvanceX for glyphs.
 --
@@ -305,17 +286,13 @@ glyphExtraAdvanceX x =
 --
 -- By default, it is @0@
 glyphMinAdvanceX :: Float -> ConfigSetup
-glyphMinAdvanceX value =
-  ConfigSetup \fc ->
-    FontConfig.setGlyphMinAdvanceX fc (CFloat value)
+glyphMinAdvanceX = setField (.glyphMinAdvanceX) id
 
 -- | Maximum AdvanceX for glyphs.
 --
 -- By default, it is @FLT_MAX@.
 glyphMaxAdvanceX :: Float -> ConfigSetup
-glyphMaxAdvanceX value =
-  ConfigSetup \fc ->
-    FontConfig.setGlyphMaxAdvanceX fc (CFloat value)
+glyphMaxAdvanceX = setField (.glyphMaxAdvanceX) id
 
 -- | Merge into previous ImFont, so you can combine multiple inputs font into one ImFont.
 --
@@ -324,9 +301,7 @@ glyphMaxAdvanceX value =
 --
 -- By default, it is @false@
 mergeMode :: Bool -> ConfigSetup
-mergeMode value =
-  ConfigSetup \fc ->
-    FontConfig.setMergeMode fc (bool 0 1 value)
+mergeMode = setField (.mergeMode) fromBool
 
 -- | Settings for custom font loader.
 --
@@ -334,9 +309,7 @@ mergeMode value =
 --
 -- By default, it is @0@. Leave it so if unsure.
 fontLoaderFlags :: Int -> ConfigSetup
-fontLoaderFlags value =
-  ConfigSetup \fc ->
-    FontConfig.setFontLoaderFlags fc (fromIntegral value)
+fontLoaderFlags = setField (.fontLoaderFlags) fromIntegral
 
 -- | Brighten (>1.0f) or darken (<1.0f) font output.
 --
@@ -344,9 +317,7 @@ fontLoaderFlags value =
 --
 -- By default, it is @1.0f@.
 rasterizerMultiply :: Float -> ConfigSetup
-rasterizerMultiply value =
-  ConfigSetup \fc ->
-    FontConfig.setRasterizerMultiply fc (CFloat value)
+rasterizerMultiply = setField (.rasterizerMultiply) id
 
 -- | Explicitly specify unicode codepoint of ellipsis character.
 --
@@ -354,6 +325,4 @@ rasterizerMultiply value =
 --
 -- By default, it is @-1@
 ellipsisChar :: ImWchar -> ConfigSetup
-ellipsisChar value =
-  ConfigSetup \fc ->
-    FontConfig.setEllipsisChar fc value
+ellipsisChar = setField (.ellipsisChar) id
