@@ -14,15 +14,16 @@ games and graphics intensive applications.
 
 To get started, we'll build the following:
 
-![](./Example.png)
+![](https://raw.githubusercontent.com/haskell-game/dear-imgui.hs/main/Example.png)
 
 `dear-imgui.hs` can be used like a normal Haskell library. If you use Cabal,
 add `dear-imgui` to your `build-depends`, together with the
 `dear-imgui-impl-<backend>` package(s) for the platform and renderer backends
-you want to use. For example, for a combination of SDL2 and OpenGL 3:
+you want to use. For example, for a combination of SDL2 and OpenGL 3, plus the
+`sdl2`, `gl` and `managed` packages the example below uses directly:
 
 ```
-build-depends: dear-imgui, dear-imgui-impl-sdl2, dear-imgui-impl-opengl3
+build-depends: dear-imgui, dear-imgui-impl-sdl2, dear-imgui-impl-opengl3, sdl2, gl, managed
 ```
 
 With this done, the following module is the "Hello, World!" of ImGui:
@@ -116,7 +117,7 @@ mainLoop window = unlessQuit $ do
 # Raw access
 
 The high-level `DearImGui` module covers the common widgets. Everything else is
-reachable through the generated [`dear-imgui-raw`](https://gitlab.com/dpwiz/hsimgui)
+reachable through the generated [`dear-imgui-raw`](https://hackage.haskell.org/package/dear-imgui-raw)
 packages that `dear-imgui` is built on: one module per struct
 (`DearImGui.Raw.ImGui`, `DearImGui.Raw.ImDrawList`, ...), plain `IO` functions
 taking the full imgui argument list, and `OverloadedRecordDot` field accessors on
@@ -161,7 +162,7 @@ $ nix-shell
 You should now be in a `bash` shell where you can run `cabal build all`,
 `cabal run readme`, etc.
 
-If you experience any difficulties, please don't hesistate to raise an issue.
+If you experience any difficulties, please don't hesitate to raise an issue.
 
 # Getting Help
 

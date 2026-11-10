@@ -1,16 +1,22 @@
 # Changelog for dear-imgui
 
-## [3.0.0] -- WIP
+## [3.0.0]
 
 The FFI layer is now provided by the generated [dear-imgui-raw] packages instead of hand-written inline-c wrappers.
 `dear-imgui` keeps the high-level `DearImGui` and `DearImGui.FontAtlas` modules on top of them.
 
 ### Build and packaging
 
-- Requires GHC 9.2+.
-- `imgui` updated to [1.92.9b] (docking branch; docking and viewports are runtime opt-in).
+- Requires GHC 9.6+.
+- `imgui` updated to [1.93.0] (docking branch; docking and viewports are runtime opt-in).
+  Consult the upstream [changelog](https://github.com/ocornut/imgui/blob/v1.93.0/docs/CHANGELOG.txt) for 1.92.9 to 1.93.0 migration hints. Notably:
+  * Breaking: `ImDrawFlags.RoundCorners*` flags are renamed to `Round*` (e.g. `RoundCornersBottom` -> `RoundBottom`).
+    Obsolete names are disabled, so the upstream redirects are not available.
+  * Numeric widgets (drag, slider, `inputFloat`, `inputInt`, `inputScalar`, ...) write a keyboard-entered value back
+    when it is confirmed (Enter, Tab, focus loss), not on every keystroke.
+    Push `ImGuiItemFlags.LiveEditOnInputScalar` with the raw `pushItemFlag` to restore the old behaviour.
 - The `imgui` git submodule is gone. Sources are bundled with `dear-imgui-raw`, so `--recurse-submodules` is no longer needed.
-  `dear-imgui-raw` and the backend packages are fetched from [dear-imgui-raw]; see `cabal.project` for the `source-repository-package` stanza.
+  `dear-imgui-raw` and the `dear-imgui-impl-<backend>` packages are on Hackage.
 - Breaking: cabal flags `opengl2`, `opengl3`, `vulkan`, `sdl`, `sdl-renderer` and `glfw` are gone.
   Platform and renderer backends are separate `dear-imgui-impl-<backend>` packages
   (`opengl2`, `opengl3`, `sdl2`, `sdlrenderer2`, `glfw`, `vulkan`); depend on the ones you use directly.
@@ -62,7 +68,7 @@ The FFI layer is now provided by the generated [dear-imgui-raw] packages instead
   `dear-imgui-impl-<backend>` packages (or the `DearImGui.Raw.Impl.*` modules underneath them for raw pointers)
   and see their documentation for the new APIs.
 
-[dear-imgui-raw]: https://gitlab.com/dpwiz/hsimgui
+[dear-imgui-raw]: https://hackage.haskell.org/package/dear-imgui-raw
 
 ## [2.5.0]
 
@@ -238,7 +244,7 @@ Initial Hackage release based on [1.83].
 [2.5.0]: https://github.com/haskell-game/dear-imgui.hs/tree/v2.5.0
 [3.0.0]: https://github.com/haskell-game/dear-imgui.hs/tree/v3.0.0
 
-[1.92.9b]: https://github.com/ocornut/imgui/releases/tag/v1.92.9b
+[1.93.0]: https://github.com/ocornut/imgui/releases/tag/v1.93.0
 [1.92.8]: https://github.com/ocornut/imgui/releases/tag/v1.92.8
 [1.91.9b]: https://github.com/ocornut/imgui/releases/tag/v1.91.9b
 [1.90.9]: https://github.com/ocornut/imgui/releases/tag/v1.90.9

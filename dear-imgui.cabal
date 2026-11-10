@@ -5,6 +5,7 @@ version: 3.0.0
 author: Oliver Charles
 maintainer: ollie@ocharles.org.uk, aenor.realm@gmail.com
 license: BSD-3-Clause
+license-file: LICENSE
 
 category: Graphics
 synopsis: Haskell bindings for Dear ImGui.
@@ -46,7 +47,7 @@ flag examples
 common common
   build-depends:
       base
-        >= 4.16 && < 5
+        >= 4.18 && < 5
   default-language:
       Haskell2010
 
@@ -62,6 +63,7 @@ library
     DearImGui.Structs
   build-depends:
       dear-imgui-raw
+        ^>= 1.0
     , managed
     , StateVar
     , unliftio
