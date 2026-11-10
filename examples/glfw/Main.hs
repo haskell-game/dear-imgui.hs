@@ -16,9 +16,9 @@ import Data.Foldable (traverse_)
 import Data.Text (Text, pack)
 
 import DearImGui
-import DearImGui.OpenGL2
-import DearImGui.GLFW
-import DearImGui.GLFW.OpenGL
+import qualified DearImGui.Raw.Enums.ImGuiTableFlags as ImGuiTableFlags
+import qualified DearImGui.Impl.GLFW as ImplGlfw
+import qualified DearImGui.Impl.OpenGL2 as ImplGL2
 import Graphics.GL
 import Graphics.UI.GLFW (Window)
 import qualified Graphics.UI.GLFW as GLFW
@@ -42,10 +42,10 @@ main = do
         _ <- managed $ bracket createContext destroyContext
 
         -- Initialize ImGui's GLFW backend
-        _ <- managed_ $ bracket_ (glfwInitForOpenGL win True) glfwShutdown
+        _ <- managed_ $ ImplGlfw.withInitForOpenGL win True
 
         -- Initialize ImGui's OpenGL backend
-        _ <- managed_ $ bracket_ openGL2Init openGL2Shutdown
+        _ <- managed_ ImplGL2.withInit
 
         tableRef <- liftIO $ newIORef
           [ (1,  "foo")
@@ -70,8 +70,8 @@ mainLoop win tableRef = do
   unless close do
 
     -- Tell ImGui we're starting a new frame
-    openGL2NewFrame
-    glfwNewFrame
+    ImplGL2.newFrame
+    ImplGlfw.newFrame
     newFrame
 
     -- Build the GUI
@@ -97,7 +97,7 @@ mainLoop win tableRef = do
     glClear GL_COLOR_BUFFER_BIT
 
     render
-    openGL2RenderDrawData =<< getDrawData
+    ImplGL2.renderDrawData =<< getDrawData
 
     GLFW.swapBuffers win
 
@@ -136,6 +136,6 @@ mkTable tableRef =
 
     sortable = defTableOptions
       { tableFlags =
-          ImGuiTableFlags_Sortable .|.
-          ImGuiTableFlags_SortMulti
+          ImGuiTableFlags.Sortable .|.
+          ImGuiTableFlags.SortMulti
       }

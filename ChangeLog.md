@@ -1,5 +1,69 @@
 # Changelog for dear-imgui
 
+## [3.0.0] -- WIP
+
+The FFI layer is now provided by the generated [dear-imgui-raw] packages instead of hand-written inline-c wrappers.
+`dear-imgui` keeps the high-level `DearImGui` and `DearImGui.FontAtlas` modules on top of them.
+
+### Build and packaging
+
+- Requires GHC 9.2+.
+- `imgui` updated to [1.92.9b] (docking branch; docking and viewports are runtime opt-in).
+- The `imgui` git submodule is gone. Sources are bundled with `dear-imgui-raw`, so `--recurse-submodules` is no longer needed.
+  `dear-imgui-raw` and the backend packages are fetched from [dear-imgui-raw]; see `cabal.project` for the `source-repository-package` stanza.
+- Breaking: cabal flags `opengl2`, `opengl3`, `vulkan`, `sdl`, `sdl-renderer` and `glfw` are gone.
+  Platform and renderer backends are separate `dear-imgui-impl-<backend>` packages
+  (`opengl2`, `opengl3`, `sdl2`, `sdlrenderer2`, `glfw`, `vulkan`); depend on the ones you use directly.
+  They link the native SDL2/GLFW/Vulkan libraries; `dear-imgui` itself no longer depends on
+  `sdl2`, `GLFW-b`, `bindings-GLFW` or `vulkan` and has no `pkgconfig-depends` or `extra-libraries`.
+- `glew` is no longer required; OpenGL3 uses the imgui built-in loader. `ImGui_ImplOpenGL3_Init` no longer calls `glewInit()`,
+  so if your code relied on that, initialize your GL loader yourself.
+- Breaking: cabal flags `use-wchar32`, `use-ImDrawIdx32` and `disable-obsolete` are gone; all three are always on.
+
+### Raw access
+
+- Breaking: `DearImGui.Raw*` modules are gone. For raw access depend on `dear-imgui-raw` and use its per-struct modules
+  (`DearImGui.Raw.ImGui`, `DearImGui.Raw.ImDrawList`, `DearImGui.Raw.ImGuiIO` field accessors like `poke io.iniFilename`, ...).
+  Raw functions take the full imgui argument list and pass small structs by value, so `Foreign.with` wrapping is not needed.
+- Breaking: prefixed enum patterns (`ImGuiWindowFlags_NoTitleBar`) are gone. Import the raw enum module qualified:
+  `import qualified DearImGui.Raw.Enums.ImGuiWindowFlags as ImGuiWindowFlags` and write `ImGuiWindowFlags.NoTitleBar`
+  (`ImGuiWindowFlags.None` or plain `0` for no flags).
+  Enum types are plain integer aliases now (`CInt`; `ImU8` for `ImGuiSortDirection`), `FiniteEnum` is gone.
+  `DearImGui.Enums` still re-exports the type names used in signatures.
+
+### Types
+
+- Breaking: `ImVec2`/`ImVec4`/`ImTextureRef`/`ImGuiTableSortSpecs`/`ImGuiTableColumnSortSpecs` are the raw records.
+  Field selector functions (`x`, `y`, `z`, `w`, ...) are gone; use pattern matching or `OverloadedRecordDot`.
+  `ImVec3` stays in `DearImGui.Structs`.
+- Breaking: `ImTextureRef` fields are `_TexData :: Ptr ImTextureData` and `_TexID` (were `texData`/`texID`).
+  `textureRefFromID` is still the recommended constructor.
+- Breaking: handle newtypes became pointer synonyms: `Context = Ptr ImGuiContext`, `DrawData = Ptr ImDrawData`,
+  `Font = Ptr ImFont`, `DrawList = Ptr ImDrawList`, `FontConfig = Ptr ImFontConfig`, `GlyphRanges = Ptr ImWchar`.
+- Breaking: `ImGuiKeyChord` is `CInt` (was `Int`).
+
+### High-level API
+
+- Added `imageButton` and `beginItemTooltip`.
+- Breaking: `image`/`imageWithBg` take `ImTextureRef`/`ImVec2`/`ImVec4` values instead of pointers.
+- Breaking: `withTooltip` now wraps `beginTooltip` (was mistakenly using `beginItemTooltip`).
+- Breaking: removed `logText`, `getWindowContentRegionMin`, `getWindowContentRegionMax`, `setColorEditOptions`,
+  `FontAtlas.build` (obsolete in imgui 1.92 or not expressible without varargs). `FontAtlas.rebuild` no longer needs an explicit build step.
+- `colorButton` no longer requires `HasSetter` on its colour reference.
+- Breaking: `showStyleSelector`, `showFontSelector` and `tableHeader` take `Text` (were `CString`);
+  `popStyleColor` and `setKeyboardFocusHere` take `Int` (were `CInt`);
+  `plotLines`/`plotHistogram` take `[Float]`; font sizes in `withFontWithSize`/`withFontSize`/`pushFontWithSize`/`pushFontSize`
+  and the drag threshold in `isMouseDragging`/`getMouseDragDelta` are `Float` (were `CFloat`).
+
+### Backends
+
+- Breaking: `DearImGui.OpenGL2`, `DearImGui.OpenGL3`, `DearImGui.SDL`, `DearImGui.SDL.*`, `DearImGui.GLFW`,
+  `DearImGui.GLFW.*` and `DearImGui.Vulkan` are removed. Use the `DearImGui.Impl.*` bridge modules of the
+  `dear-imgui-impl-<backend>` packages (or the `DearImGui.Raw.Impl.*` modules underneath them for raw pointers)
+  and see their documentation for the new APIs.
+
+[dear-imgui-raw]: https://gitlab.com/dpwiz/hsimgui
+
 ## [2.5.0]
 
 - `imgui` updated to [1.92.8].
@@ -172,7 +236,9 @@ Initial Hackage release based on [1.83].
 [2.4.0]: https://github.com/haskell-game/dear-imgui.hs/tree/v2.4.0
 [2.4.1]: https://github.com/haskell-game/dear-imgui.hs/tree/v2.4.1
 [2.5.0]: https://github.com/haskell-game/dear-imgui.hs/tree/v2.5.0
+[3.0.0]: https://github.com/haskell-game/dear-imgui.hs/tree/v3.0.0
 
+[1.92.9b]: https://github.com/ocornut/imgui/releases/tag/v1.92.9b
 [1.92.8]: https://github.com/ocornut/imgui/releases/tag/v1.92.8
 [1.91.9b]: https://github.com/ocornut/imgui/releases/tag/v1.91.9b
 [1.90.9]: https://github.com/ocornut/imgui/releases/tag/v1.90.9
